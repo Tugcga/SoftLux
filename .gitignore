@@ -1,0 +1,5 @@
+bin
+GNUmakefile
+SoftLuxPlugin.vcxproj.user
+SoftLuxPlugin.vcxproj.filters
+.vs

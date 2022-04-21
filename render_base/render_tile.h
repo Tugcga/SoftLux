@@ -55,7 +55,7 @@ public:
 		RGBA* pScanline = (RGBA*)out_pScanline;
 		for (unsigned int i = 0; i < width; i++)
 		{
-			unsigned int indexShift = in_uiRow * width;
+			size_t indexShift = static_cast<size_t>(in_uiRow) * width;
 			pScanline[i].a = components == 4 ? static_cast<unsigned char>(fPixels[4 * (indexShift + i) + 3] * 255.0) : static_cast<unsigned char>(255.0);
 			if (isSRGB)
 			{

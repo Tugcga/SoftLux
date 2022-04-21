@@ -50,9 +50,6 @@ private:
 	//scene for rendering
 	luxcore::Scene* scene;
 	bool is_scene_create;
-	//render config
-	luxcore::RenderConfig* render_config;
-	bool is_render_config;
 	//render session
 	luxcore::RenderSession* session;
 	bool is_session;

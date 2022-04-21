@@ -13,10 +13,8 @@ RenderEngineLux::RenderEngineLux()
 {
 	is_init = false;
 	scene = NULL;
-	render_config = NULL;
 	session = NULL;
 	is_scene_create = false;
-	is_render_config = false;
 	is_session = false;
 }
 
@@ -55,13 +53,6 @@ void RenderEngineLux::clear_scene()
 //here we clear session and render config
 void RenderEngineLux::clear_session()
 {
-	if (is_render_config)
-	{
-		delete render_config;
-		render_config = NULL;
-		is_render_config = false;
-	}
-
 	if (is_session)
 	{
 		delete session;
@@ -98,11 +89,11 @@ XSI::CStatus RenderEngineLux::create_scene()
 		luxrays::Property("scene.lights.skyl.type")("sky2") <<
 		luxrays::Property("scene.lights.skyl.dir")(0.166974f, 0.59908f, 0.783085f) <<
 		luxrays::Property("scene.lights.skyl.turbidity")(2.2f) <<
-		luxrays::Property("scene.lights.skyl.gain")(0.8f, 0.8f, 0.8f) <<
-		luxrays::Property("scene.lights.sunl.type")("sun") <<
-		luxrays::Property("scene.lights.sunl.dir")(0.166974f, 0.59908f, 0.783085f) <<
-		luxrays::Property("scene.lights.sunl.turbidity")(2.2f) <<
-		luxrays::Property("scene.lights.sunl.gain")(0.8f, 0.8f, 0.8f)
+		luxrays::Property("scene.lights.skyl.gain")(0.8f, 0.8f, 0.8f)
+		//luxrays::Property("scene.lights.sunl.type")("sun") <<
+		//luxrays::Property("scene.lights.sunl.dir")(0.166974f, 0.59908f, 0.783085f) <<
+		//luxrays::Property("scene.lights.sunl.turbidity")(2.2f) <<
+		//luxrays::Property("scene.lights.sunl.gain")(0.8f, 0.8f, 0.8f)
 	);
 
 	return XSI::CStatus::OK;
@@ -114,20 +105,9 @@ XSI::CStatus RenderEngineLux::post_scene()
 	//here we should create the session and render parameters
 	if (!is_session)
 	{
-		render_config = luxcore::RenderConfig::Create(
-			luxrays::Property("renderengine.type")("PATHCPU") <<
-			luxrays::Property("sampler.type")("SOBOL"), scene);
-		is_render_config = true;
-
-		//update render parameters
-		//we should set it before connect it to the session
-		//may be it will be better to create parameters each render call
-		//or may be delete session when we should change render parameters and recreate it
-		sync_render_config(render_config, m_render_property, eval_time,
+		session = sync_render_config(scene, m_render_property, eval_time,
 			image_corner_x, image_corner_x + image_size_width, image_corner_y, image_corner_y + image_size_height,
 			image_full_size_width, image_full_size_height);
-
-		session = luxcore::RenderSession::Create(render_config);
 		is_session = true;
 	}
 
@@ -140,20 +120,28 @@ void RenderEngineLux::render()
 
 	session->Start();
 	const luxrays::Properties& stats = session->GetStats();
+	luxcore::Film& film = session->GetFilm();
 	while (!session->HasDone())
 	{
 		session->UpdateStats();
 		const double elapsedTime = stats.Get("stats.renderengine.time").Get<double>();
-		const unsigned int pass = stats.Get("stats.renderengine.pass").Get<unsigned int>();
 		const float convergence = stats.Get("stats.renderengine.convergence").Get<unsigned int>();
 
-		//we should read pixels from the film of the session to the visual buffer
-		//and create render tile from this buffer
+		read_visual_buffer(film, visual_buffer);
+		m_render_context.NewFragment(RenderTile(visual_buffer.corner_x, visual_buffer.corner_y, visual_buffer.width, visual_buffer.height, visual_buffer.pixels, true, 4));
+
+		//calculate percentage of the render samples, pass is done samples
+		const unsigned int pass = stats.Get("stats.renderengine.pass").Get<unsigned int>();
+		m_render_context.ProgressUpdate("Rendering...", "Rendering...", int((float)pass * 100.0f / (float)40));
 
 		std::this_thread::sleep_for(100ms);
 	}
 
 	session->Stop();
+
+	//after render fill the buffer at last time
+	read_visual_buffer(film, visual_buffer);
+	m_render_context.NewFragment(RenderTile(visual_buffer.corner_x, visual_buffer.corner_y, visual_buffer.width, visual_buffer.height, visual_buffer.pixels, true, 4));
 }
 
 XSI::CStatus RenderEngineLux::post_render_engine()

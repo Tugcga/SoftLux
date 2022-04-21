@@ -68,6 +68,7 @@
     <ClCompile Include=".\SoftLuxPlugin.cpp" />
     <ClCompile Include="render_base\render_engine_base.cpp" />
     <ClCompile Include="render_lux\lux_scene\lux_camera.cpp" />
+    <ClCompile Include="render_lux\lux_session\lux_film.cpp" />
     <ClCompile Include="render_lux\lux_session\lux_render_config.cpp" />
     <ClCompile Include="render_lux\lux_ui.cpp" />
     <ClCompile Include="render_lux\render_engine_lux.cpp" />
@@ -75,6 +76,7 @@
     <ClCompile Include="utilities\arrays.cpp" />
     <ClCompile Include="utilities\export_common.cpp" />
     <ClCompile Include="utilities\logs.cpp" />
+    <ClCompile Include="utilities\math.cpp" />
     <ClCompile Include="utilities\miniz.c" />
     <ClCompile Include="utilities\write_image.cpp" />
     <ClCompile Include="version.cpp" />
@@ -91,6 +93,7 @@
     <ClInclude Include="utilities\arrays.h" />
     <ClInclude Include="utilities\export_common.h" />
     <ClInclude Include="utilities\logs.h" />
+    <ClInclude Include="utilities\math.h" />
     <ClInclude Include="utilities\miniz.h" />
     <ClInclude Include="utilities\stb_image_write.h" />
     <ClInclude Include="utilities\tinyexr.h" />

@@ -32,6 +32,9 @@ public:
 	void abort();
 	void clear_engine();
 
+	inline static bool is_log;
+	static void lux_log_handler(const char* msg);
+
 private:
 	//-----------------------------------------------
 	//internal methods

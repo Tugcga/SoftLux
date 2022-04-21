@@ -4,6 +4,7 @@
 #include "lux_session/lux_session.h"
 
 #include "xsi_primitive.h"
+#include "xsi_application.h"
 
 #include <chrono>
 #include <thread>
@@ -16,12 +17,22 @@ RenderEngineLux::RenderEngineLux()
 	session = NULL;
 	is_scene_create = false;
 	is_session = false;
+
+	RenderEngineLux::is_log = false;
 }
 
 //when we delete the engine, then at first this method is called, and then the method from base class
 RenderEngineLux::~RenderEngineLux()
 {
 
+}
+
+void RenderEngineLux::lux_log_handler(const char* msg)
+{
+	if (RenderEngineLux::is_log)
+	{
+		XSI::Application().LogMessage(XSI::CString(msg));
+	}
 }
 
 //nothing to do here
@@ -35,7 +46,7 @@ void RenderEngineLux::try_to_init()
 {
 	if (!is_init)
 	{
-		luxcore::Init(lux_log_handler);
+		luxcore::Init(RenderEngineLux::lux_log_handler);
 		is_init = true;
 	}
 }
@@ -67,6 +78,16 @@ XSI::CStatus RenderEngineLux::pre_scene_process()
 {
 	try_to_init();
 
+	//activate the log
+	if (render_type == RenderType_Shaderball)
+	{
+		RenderEngineLux::is_log = false;
+	}
+	else
+	{
+		RenderEngineLux::is_log = true;
+	}
+	
 	//return abort, this means that we should create the scene from scratch
 	return XSI::CStatus::Abort;
 }
@@ -78,11 +99,21 @@ XSI::CStatus RenderEngineLux::create_scene()
 	clear_session();
 	scene = luxcore::Scene::Create();
 
+	//sync scene objects
+
 	//setup camera
-	XSI::Primitive camera_prim(m_render_context.GetAttribute("Camera"));
-	XSI::X3DObject camera_obj = camera_prim.GetOwners()[0];
-	XSI::Camera	xsi_camera(camera_obj);
-	sync_camera(scene, xsi_camera, eval_time);
+	if (render_type == RenderType_Shaderball)
+	{
+		//for shaderball render use other sync method
+		sync_camera_shaderball(scene);
+	}
+	else
+	{
+		XSI::Primitive camera_prim(m_render_context.GetAttribute("Camera"));
+		XSI::X3DObject camera_obj = camera_prim.GetOwners()[0];
+		XSI::Camera	xsi_camera(camera_obj);
+		sync_camera_scene(scene, xsi_camera, eval_time);
+	}
 
 	//add sky and sun for test
 	scene->Parse(

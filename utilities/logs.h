@@ -7,8 +7,6 @@
 
 #include <vector>
 
-void lux_log_handler(const char* msg);
-
 //output the message to the console
 void log_message(const XSI::CString &message, XSI::siSeverityType level = XSI::siSeverityType::siInfoMsg);
 

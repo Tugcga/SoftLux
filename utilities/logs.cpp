@@ -11,11 +11,6 @@ void log_message(const XSI::CString &message, XSI::siSeverityType level)
 	XSI::Application().LogMessage("[LuxCore Renderer] " + message, level);
 }
 
-void lux_log_handler(const char* msg)
-{
-	XSI::Application().LogMessage(msg);
-}
-
 XSI::CString to_string(const std::vector<ULONG> &array)
 {
 	if (array.size() == 0)

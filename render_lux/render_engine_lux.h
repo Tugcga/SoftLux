@@ -24,10 +24,10 @@ public:
 	XSI::CStatus post_render_engine();
 
 	//update scene events
-	//XSI::CStatus update_scene(XSI::X3DObject& xsi_object, const UpdateType update_type);
-	//XSI::CStatus update_scene(const XSI::SIObject& si_object, const UpdateType update_type);
-	//XSI::CStatus update_scene(const XSI::Material& xsi_material);
-	//XSI::CStatus update_scene_render();
+	XSI::CStatus update_scene(XSI::X3DObject& xsi_object, const UpdateType update_type);
+	XSI::CStatus update_scene(const XSI::SIObject& si_object, const UpdateType update_type);
+	XSI::CStatus update_scene(const XSI::Material& xsi_material);
+	XSI::CStatus update_scene_render();
 	
 	void abort();
 	void clear_engine();
@@ -56,4 +56,16 @@ private:
 	//render session
 	luxcore::RenderSession* session;
 	bool is_session;
+
+	//render region from the previous render session
+	unsigned int prev_full_width, prev_full_height;
+	unsigned int prev_corner_x, prev_corner_y;
+	unsigned int prev_width, prev_height;
+
+	//store here ids of xsi_object which we already update
+	//to prevent update twise
+	std::vector<ULONG> updated_xsi_ids;
+	//store here xsi object, which added to the lux scene
+	//and use this array when try update some object
+	std::vector<ULONG> xsi_objects_in_lux;
 };

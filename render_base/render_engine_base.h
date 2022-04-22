@@ -89,9 +89,9 @@ public:
 	//step 3: call this method on the engine when we need to create the scene from scratch
 	virtual XSI::CStatus create_scene();
 
-	//setp 3: or, if the scene shold be updated, then the following method calls for different changed aspects of the scene
+	//setp 3: or, if the scene should be updated, then the following method calls for different changed aspects of the scene
 	//here we update 3d-object
-	//update methods return OK, if update seccess and Abort if update fails, in the last case we will start rectreate the scene
+	//update methods return OK, if update success and Abort if update fails, in the last case we will start rectreate the scene
 	virtual XSI::CStatus update_scene(XSI::X3DObject &xsi_object, const UpdateType update_type); 
 	//here we update material (change any shader parameter)
 	virtual XSI::CStatus update_scene(const XSI::Material &xsi_material);

@@ -6,7 +6,6 @@
 
 void sync_material(luxcore::Scene* scene, const XSI::Material &xsi_material, const XSI::CTime& eval_time)
 {
-	log_message("export material " + xsi_material.GetName());
 	//we should set the name of material equal to UniqueID of the object
 	//next we should export some basic material
 	//and assign it to the polygon meshes

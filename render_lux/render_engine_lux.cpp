@@ -1,5 +1,7 @@
 #include "render_engine_lux.h"
 #include "../utilities/logs.h"
+#include "../utilities/export_common.h"
+#include "../utilities/arrays.h"
 #include "lux_scene/lux_scene.h"
 #include "lux_session/lux_session.h"
 
@@ -18,6 +20,14 @@ RenderEngineLux::RenderEngineLux()
 	session = NULL;
 	is_scene_create = false;
 	is_session = false;
+	prev_full_width = 0;
+	prev_full_height = 0;
+	prev_corner_x = 0;
+	prev_corner_y = 0;
+	prev_width = 0;
+	prev_height = 0;
+	updated_xsi_ids.clear();
+	xsi_objects_in_lux.clear();
 
 	RenderEngineLux::is_log = false;
 }
@@ -60,6 +70,7 @@ void RenderEngineLux::clear_scene()
 		scene = NULL;
 		is_scene_create = false;
 	}
+	xsi_objects_in_lux.clear();
 }
 
 //here we clear session and render config
@@ -74,7 +85,7 @@ void RenderEngineLux::clear_session()
 }
 
 //called every time before scene update
-//here we should setup paramters, which should be done for both situations: screate scene from scratch or update the scene
+//here we should setup parameters, which should be done for both situations: screate scene from scratch or update the scene
 XSI::CStatus RenderEngineLux::pre_scene_process()
 {
 	try_to_init();
@@ -88,9 +99,116 @@ XSI::CStatus RenderEngineLux::pre_scene_process()
 	{
 		RenderEngineLux::is_log = false;
 	}
+
+	//if we change region limits (corners or render size), then we should recreate the session, so, delete it
+	if (prev_corner_x != visual_buffer.corner_x || prev_corner_y != visual_buffer.corner_y ||
+		prev_width != visual_buffer.width || prev_height != visual_buffer.height ||
+		prev_full_width != visual_buffer.full_width || prev_full_height != visual_buffer.full_height)
+	{
+		clear_session();
+		prev_corner_x = visual_buffer.corner_x;
+		prev_corner_y = visual_buffer.corner_y;
+		prev_width = visual_buffer.width;
+		prev_height = visual_buffer.height;
+		prev_full_width = visual_buffer.full_width;
+		prev_full_height = visual_buffer.full_height;
+	}
+
+	updated_xsi_ids.clear();
 	
-	//return abort, this means that we should create the scene from scratch
-	return XSI::CStatus::Abort;
+	return XSI::CStatus::OK;
+}
+
+//return OK, if object successfully updates, Abort in other case
+XSI::CStatus RenderEngineLux::update_scene(XSI::X3DObject& xsi_object, const UpdateType update_type)
+{
+	if (is_scene_create)
+	{
+		if (!is_contains(updated_xsi_ids, xsi_object.GetObjectID()))
+		{
+			if (update_type == UpdateType_Camera)
+			{
+				XSI::Primitive camera_prim(m_render_context.GetAttribute("Camera"));
+				XSI::X3DObject camera_obj = camera_prim.GetOwners()[0];
+				XSI::Camera	xsi_camera(camera_obj);
+				sync_camera_scene(scene, xsi_camera, eval_time);
+
+				return XSI::CStatus::OK;
+			}
+			else if (update_type == UpdateType_Visibility)
+			{
+				//change object visibility
+				//delete the object
+				std::string object_name = XSI::CString(xsi_object.GetObjectID()).GetAsciiString();
+				scene->DeleteObject(object_name);
+				if (is_xsi_object_visible(eval_time, xsi_object))
+				{
+					//add it, if it come visible
+					bool is_sync = sync_object(scene, xsi_object, eval_time);
+					if (is_sync)
+					{
+						updated_xsi_ids.push_back(xsi_object.GetObjectID());
+					}
+				}
+				return XSI::CStatus::OK;
+			}
+			else if(update_type == UpdateType_Transform)
+			{
+				//does not remember the object, because we can update mesh of the object later
+				//here we only change it transform
+				ULONG xsi_id = xsi_object.GetObjectID();
+				//TODO: this is too long in the big scene
+				//may be optimize this method (use tree, or check by object type)
+				if (is_contains(xsi_objects_in_lux, xsi_id))
+				{
+					sync_transform(scene, xsi_id, xsi_object.GetKinematics().GetGlobal().GetTransform(), eval_time);
+				}
+				
+				return XSI::CStatus::OK;
+			}
+			else if (update_type == UpdateType_XsiLight)
+			{
+
+			}
+			else if (update_type == UpdateType_Mesh)
+			{
+
+			}
+			else
+			{
+				
+			}
+		}
+		//else, we already update this object
+		
+		return XSI::CStatus::OK;
+	}
+	else
+	{
+		return XSI::CStatus::Abort;
+	}
+}
+
+XSI::CStatus RenderEngineLux::update_scene(const XSI::SIObject& si_object, const UpdateType update_type)
+{
+	//nothing to do here
+	return XSI::CStatus::OK;
+}
+
+XSI::CStatus RenderEngineLux::update_scene(const XSI::Material& xsi_material)
+{
+	//here we update only materials
+
+	return XSI::CStatus::OK;
+}
+
+XSI::CStatus RenderEngineLux::update_scene_render()
+{
+	//if we change render parameters, then we should recreate the session
+	//we clear it, and in post_scene() call we recreate it 
+	clear_session();
+
+	return XSI::CStatus::OK;
 }
 
 //here we create the scene for rendering from scratch
@@ -99,11 +217,12 @@ XSI::CStatus RenderEngineLux::create_scene()
 	clear_scene();
 	clear_session();
 	scene = luxcore::Scene::Create();
+	is_scene_create = true;
 
 	//sync materials
 	sync_materials(scene, XSI::Application().GetActiveProject().GetActiveScene(), eval_time);
 	//sync scene objects
-	sync_scene_objects(scene, m_render_context, render_type, eval_time);
+	sync_scene_objects(scene, m_render_context, render_type, xsi_objects_in_lux, eval_time);
 
 	//setup camera
 	if (render_type == RenderType_Shaderball)
@@ -125,10 +244,6 @@ XSI::CStatus RenderEngineLux::create_scene()
 		luxrays::Property("scene.lights.skyl.dir")(0.166974f, 0.59908f, 0.783085f) <<
 		luxrays::Property("scene.lights.skyl.turbidity")(2.2f) <<
 		luxrays::Property("scene.lights.skyl.gain")(0.8f, 0.8f, 0.8f)
-		//luxrays::Property("scene.lights.sunl.type")("sun") <<
-		//luxrays::Property("scene.lights.sunl.dir")(0.166974f, 0.59908f, 0.783085f) <<
-		//luxrays::Property("scene.lights.sunl.turbidity")(2.2f) <<
-		//luxrays::Property("scene.lights.sunl.gain")(0.8f, 0.8f, 0.8f)
 	);
 
 	return XSI::CStatus::OK;

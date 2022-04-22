@@ -36,6 +36,20 @@ public:
 	unsigned int v[3];
 };
 
+class Normal
+{
+public:
+	Normal(float _x = 0.0f, float _y = 0.0f, float _z = 0.0f)
+		: x(_x), y(_y), z(_z) { }
+
+	XSI::CString to_string()
+	{
+		return "(" + XSI::CString(x) + ", " + XSI::CString(y) + ", " + XSI::CString(z) + ")";
+	}
+
+	float x, y, z;
+};
+
 void sync_polymesh(luxcore::Scene* scene, XSI::X3DObject &xsi_object, const XSI::CTime& eval_time)
 {
 	//get polygonmesh geometry properties
@@ -58,7 +72,7 @@ void sync_polymesh(luxcore::Scene* scene, XSI::X3DObject &xsi_object, const XSI:
 
 	LONG vertices_count = xsi_acc.GetVertexCount();
 	LONG triangles_count = xsi_acc.GetTriangleCount();
-	XSI::CLongArray triangle_vertices;  // i1, i2, i3 for the first triangls, j1, j2, j3 for the second, ...
+	XSI::CLongArray triangle_vertices;  // i1, i2, i3 for the first triangl, j1, j2, j3 for the second, ...
 	xsi_acc.GetTriangleVertexIndices(triangle_vertices);
 	XSI::CDoubleArray vertex_positions;  // x1, y1, z1, x2, y2, z2, ...
 	xsi_acc.GetVertexPositions(vertex_positions);
@@ -67,26 +81,39 @@ void sync_polymesh(luxcore::Scene* scene, XSI::X3DObject &xsi_object, const XSI:
 	XSI::CLongArray triangle_nodes;  // i1, i2, i3, for the first triangle, j1, j2, j3, for the second and so on
 	xsi_acc.GetTriangleNodeIndices(triangle_nodes);
 
-	//export the whole mesh, make split to submaterial clusters later
-	Point* points = (Point*)luxcore::Scene::AllocVerticesBuffer(vertices_count);
-	for (ULONG i = 0; i < vertices_count; i++)
-	{
-		//we sholdn't swap axis in vertex coordinates, all will be done in transform matrix
-		points[i] = Point(vertex_positions[3 * i], vertex_positions[3 * i + 1], vertex_positions[3 * i + 2]);
-	}
-
-	//next triangles
+	//for simplicity we will export each triangle as separate triangle with three vertices and tree normals
+	//yes, the vertex count will be greater than in original mesh, but luxcore store normals, uvs, colors and so on only per-vertex
+	Point* points = (Point*)luxcore::Scene::AllocVerticesBuffer(triangles_count * 3);
 	Triangle* triangles = (Triangle*)luxcore::Scene::AllocTrianglesBuffer(triangles_count);
+	Normal* normals = new Normal[3 * triangles_count];
+	//TODO: export uvs and colors
 	for (ULONG i = 0; i < triangles_count; i++)
 	{
-		triangles[i] = Triangle(triangle_vertices[3 * i], triangle_vertices[3 * i + 1], triangle_vertices[3 * i + 2]);
+		//for each triangle register vertex positions
+		LONG v0 = triangle_vertices[3 * i];
+		LONG v1 = triangle_vertices[3 * i + 1];
+		LONG v2 = triangle_vertices[3 * i + 2];
+		points[3 * i] = Point(vertex_positions[3*v0], vertex_positions[3*v0 + 1], vertex_positions[3*v0 + 2]);
+		points[3 * i + 1] = Point(vertex_positions[3 * v1], vertex_positions[3 * v1 + 1], vertex_positions[3 * v1 + 2]);
+		points[3 * i + 2] = Point(vertex_positions[3 * v2], vertex_positions[3 * v2 + 1], vertex_positions[3 * v2 + 2]);
+
+		//next normals
+		LONG n0 = triangle_nodes[3 * i];
+		LONG n1 = triangle_nodes[3 * i + 1];
+		LONG n2 = triangle_nodes[3 * i + 2];
+		normals[3 * i] = Normal(node_normals[3 * n0], node_normals[3 * n0 + 1], node_normals[3 * n0 + 2]);
+		normals[3 * i + 1] = Normal(node_normals[3 * n1], node_normals[3 * n1 + 1], node_normals[3 * n1 + 2]);
+		normals[3 * i + 2] = Normal(node_normals[3 * n2], node_normals[3 * n2 + 1], node_normals[3 * n2 + 2]);
+
+		//finally tringle
+		triangles[i] = Triangle(3*i, 3*i + 1, 3*i + 2);
 	}
 
 	//reserve the mesh in the luxcore
 	//the name of the mesh is it UniqueID
 	std::string mesh_name = XSI::CString(xsi_primitive.GetObjectID()).GetAsciiString();
 	std::string object_name = XSI::CString(xsi_object.GetObjectID()).GetAsciiString();
-	scene->DefineMesh(mesh_name, vertices_count, triangles_count, (float*)points, (unsigned int*)triangles, NULL, NULL, NULL, NULL);
+	scene->DefineMesh(mesh_name, triangles_count * 3, triangles_count, (float*)points, (unsigned int*)triangles, (float*)normals, NULL, NULL, NULL);
 
 	//add mesh to the scene
 	luxrays::Properties polymesh_props;
@@ -102,7 +129,7 @@ void sync_polymesh(luxcore::Scene* scene, XSI::X3DObject &xsi_object, const XSI:
 
 	scene->Parse(polymesh_props);
 
-	//next we should split the mesh into clusters with different materials
+	//TODO: split the mesh into clusters with different materials
 	//export normals and colors
 	//also we can export vertex and triangle aovs (can we use it from shaders?)
 }

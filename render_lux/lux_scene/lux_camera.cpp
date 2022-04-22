@@ -66,6 +66,7 @@ void sync_camera_scene(luxcore::Scene* scene, const XSI::Camera& xsi_camera, con
 	camera_props.Set(luxrays::Property("scene.camera.autofocus.enable")(0));
 
 	//TODO: look at parsecamera.cpp source file to find all camera attributes
+	//TODO: make panoramic camera export (using external propery)
 
 	scene->Parse(camera_props);
 }

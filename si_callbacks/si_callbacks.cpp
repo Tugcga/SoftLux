@@ -82,7 +82,7 @@ SICALLBACK LuxCoreRenderer_Cleanup(XSI::CRef &in_ctxt)
 
 SICALLBACK LuxCoreRenderer_Abort(XSI::CRef &in_ctxt)
 {
-	render->abort();
+	render->abort_render();
 	set_abort(true);
 
 	return(XSI::CStatus::OK);
@@ -222,9 +222,9 @@ SICALLBACK LuxCoreRenderer_Process(XSI::CRef &in_ctxt)
 		return XSI::CStatus::Abort;
 	}
 
-	render->scene_process();
+	status = render->scene_process();
 
-	if (locker.unlock() != XSI::CStatus::OK)
+	if (locker.unlock() != XSI::CStatus::OK || status != XSI::CStatus::OK)
 	{
 		render->interrupt_update_scene();
 		return  XSI::CStatus::Abort;

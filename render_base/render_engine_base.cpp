@@ -16,6 +16,7 @@ RenderEngineBase::RenderEngineBase()
 {
 	ready_to_render = true;
 	force_recreate_scene = true;
+	note_abort = true;
 	prev_isolated_objects.Clear();
 }
 
@@ -276,9 +277,10 @@ bool RenderEngineBase::is_recreate_isolated_view(const XSI::CRefArray &visible_o
 	}
 }
 
-void RenderEngineBase::scene_process()
+XSI::CStatus RenderEngineBase::scene_process()
 {
 	ready_to_render = false;
+	note_abort = false;
 
 	//setup visual buffer
 	visual_buffer = RenderVisualBuffer(
@@ -534,6 +536,8 @@ void RenderEngineBase::scene_process()
 		}
 	}
 
+	XSI::CStatus post_status = post_scene();
+
 	//after scene creation, clear dirty list
 	bool empty_dirty_list = dirty_refs_value.IsEmpty();
 	if (empty_dirty_list)
@@ -549,7 +553,14 @@ void RenderEngineBase::scene_process()
 		}
 	}
 
-	post_scene();
+	//if we obtain abort command during scene process, does not start rendering
+	if (note_abort)
+	{
+
+		return XSI::CStatus::Abort;
+	}
+
+	return post_status;
 }
 
 XSI::CStatus RenderEngineBase::start_render()
@@ -618,6 +629,14 @@ void RenderEngineBase::on_object_add(XSI::CRef& in_ctxt)
 void RenderEngineBase::on_object_remove(XSI::CRef& in_ctxt)
 {
 	force_recreate_scene = true;
+}
+
+void RenderEngineBase::abort_render()
+{
+	note_abort = true;
+
+	//call abort in the engine
+	abort();
 }
 
 void RenderEngineBase::clear()

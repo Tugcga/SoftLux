@@ -135,13 +135,14 @@ public:
 	XSI::CStatus post_render();
 
 	//in this method we should decide update scene or recreate it from scratch and call corresponding virtual methods
-	void scene_process();
+	XSI::CStatus scene_process();
 
 	//call events and start actual render process
 	XSI::CStatus start_render();
 
 	//there are some errors in the scene process, so, does not start the render process
 	XSI::CStatus interrupt_update_scene();
+	void abort_render();
 
 	void clear();
 
@@ -153,6 +154,7 @@ private:
 	XSI::CString render_options_name;  // used for update process, to detect that we change parameters of the quick view render settings
 	bool ready_to_render;
 	bool force_recreate_scene;
+	bool note_abort;  // set true when call aboert_render method, set float at the start of scene_process after we lock the scene
 	XSI::CRefArray prev_isolated_objects;
 	
 	bool RenderEngineBase::is_recreate_isolated_view(const XSI::CRefArray &visible_objects);

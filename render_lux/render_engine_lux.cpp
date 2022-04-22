@@ -5,6 +5,7 @@
 
 #include "xsi_primitive.h"
 #include "xsi_application.h"
+#include "xsi_project.h"
 
 #include <chrono>
 #include <thread>
@@ -85,7 +86,7 @@ XSI::CStatus RenderEngineLux::pre_scene_process()
 	}
 	else
 	{
-		RenderEngineLux::is_log = true;
+		RenderEngineLux::is_log = false;
 	}
 	
 	//return abort, this means that we should create the scene from scratch
@@ -99,7 +100,10 @@ XSI::CStatus RenderEngineLux::create_scene()
 	clear_session();
 	scene = luxcore::Scene::Create();
 
+	//sync materials
+	sync_materials(scene, XSI::Application().GetActiveProject().GetActiveScene(), eval_time);
 	//sync scene objects
+	sync_scene_objects(scene, m_render_context, render_type, eval_time);
 
 	//setup camera
 	if (render_type == RenderType_Shaderball)

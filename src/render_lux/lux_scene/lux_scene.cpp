@@ -9,8 +9,7 @@ bool sync_object(luxcore::Scene* scene, XSI::X3DObject &xsi_object, const XSI::C
 {
 	if (xsi_object.GetType() == "polymsh")
 	{
-		sync_polymesh(scene, xsi_object, eval_time);
-		return true;
+		return sync_polymesh(scene, xsi_object, eval_time);
 	}
 	else if (xsi_object.GetType() == "pointcloud")
 	{

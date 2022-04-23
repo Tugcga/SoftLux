@@ -18,6 +18,7 @@ RenderEngineBase::RenderEngineBase()
 	force_recreate_scene = true;
 	note_abort = true;
 	prev_isolated_objects.Clear();
+	prev_render_type = RenderType_Unknown;
 }
 
 RenderEngineBase::~RenderEngineBase()
@@ -218,7 +219,7 @@ XSI::CStatus RenderEngineBase::pre_render(XSI::RendererContext &render_context)
 	{//this is Pass render, but nothing to render
 		return XSI::CStatus::Abort;
 	}
-	
+
 	return pre_render_engine();
 }
 
@@ -307,6 +308,18 @@ XSI::CStatus RenderEngineBase::scene_process()
 
 	//next all other general staff for the engine
 	XSI::CStatus status = pre_scene_process();
+	if (render_type != prev_render_type)
+	{
+		//WARNING: in this case, when we have active material preview and render view, then it recreate the scene from scratch twise - for material render and scene render
+		//and each update in recreate the scene, because it at first executes scene render, then switch context and update material render (with new geometry)
+		//then again switch context to the scene and so on.
+		//TODO: try to solve it
+		//use different render instances for different subjects
+		//now we have one render singleton and use it for all rendering tasks
+		//it seems that Softimage use one render object (it share userdata) for different tasks
+		status = XSI::CStatus::Abort;
+	}
+	prev_render_type = render_type;
 	//if status is Abort, then drop update and recreate the scene
 
 	//next we start update or rectreate the scene
@@ -429,6 +442,8 @@ XSI::CStatus RenderEngineBase::scene_process()
 					}
 					case XSI::siMaterialID:
 					{
+						//change material
+						//also called when we assign other material to the mesh
 						XSI::Material xsi_material(in_ref);
 						update_status = update_scene(xsi_material);
 						break;

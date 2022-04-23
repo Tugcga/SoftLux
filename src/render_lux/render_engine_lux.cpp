@@ -172,7 +172,15 @@ XSI::CStatus RenderEngineLux::update_scene(XSI::X3DObject& xsi_object, const Upd
 			}
 			else if (update_type == UpdateType_Mesh)
 			{
-
+				log_message("update mesh " + xsi_object.GetName());
+				std::string object_name = XSI::CString(xsi_object.GetObjectID()).GetAsciiString();
+				scene->DeleteObject(object_name);
+				//sync mesh again
+				bool is_sync = sync_polymesh(scene, xsi_object, eval_time);
+				if (is_sync)
+				{
+					updated_xsi_ids.push_back(xsi_object.GetObjectID());
+				}
 			}
 			else
 			{
@@ -198,6 +206,12 @@ XSI::CStatus RenderEngineLux::update_scene(const XSI::SIObject& si_object, const
 XSI::CStatus RenderEngineLux::update_scene(const XSI::Material& xsi_material)
 {
 	//here we update only materials
+	log_message("update material " + XSI::CString(xsi_material.GetName()));
+
+	//if we change any host of the material (reassign material to an object)
+	//then we should reexport object with this new material
+	//current material is new material for the object
+	//this material may be not exported, because in previous render call it contains no hosts
 
 	return XSI::CStatus::OK;
 }
@@ -214,21 +228,28 @@ XSI::CStatus RenderEngineLux::update_scene_render()
 //here we create the scene for rendering from scratch
 XSI::CStatus RenderEngineLux::create_scene()
 {
+	log_message("create scene from scratch mode " + XSI::CString(render_type));
 	clear_scene();
 	clear_session();
 	scene = luxcore::Scene::Create();
 	is_scene_create = true;
-
-	//sync materials
-	sync_materials(scene, XSI::Application().GetActiveProject().GetActiveScene(), eval_time);
-	//sync scene objects
-	sync_scene_objects(scene, m_render_context, render_type, xsi_objects_in_lux, eval_time);
 
 	//setup camera
 	if (render_type == RenderType_Shaderball)
 	{
 		//for shaderball render use other sync method
 		sync_camera_shaderball(scene);
+		XSI::CRef shaderball_item = m_render_context.GetAttribute("Material");
+		XSI::siClassID shaderball_item_class = shaderball_item.GetClassID();
+		if (shaderball_item_class == XSI::siMaterialID)
+		{
+			XSI::Material shaderball_material(shaderball_item);
+			sync_material(scene, shaderball_material, eval_time);
+		}
+		else
+		{
+			//previwe shader node
+		}
 	}
 	else
 	{
@@ -236,7 +257,14 @@ XSI::CStatus RenderEngineLux::create_scene()
 		XSI::X3DObject camera_obj = camera_prim.GetOwners()[0];
 		XSI::Camera	xsi_camera(camera_obj);
 		sync_camera_scene(scene, xsi_camera, eval_time);
+
+		//sync materials
+		sync_materials(scene, XSI::Application().GetActiveProject().GetActiveScene(), eval_time);
+
+		//sync scene objects
+		sync_scene_objects(scene, m_render_context, render_type, xsi_objects_in_lux, eval_time);
 	}
+
 
 	//add sky and sun for test
 	scene->Parse(

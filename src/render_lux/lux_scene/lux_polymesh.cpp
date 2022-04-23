@@ -50,7 +50,7 @@ public:
 	float x, y, z;
 };
 
-void sync_polymesh(luxcore::Scene* scene, XSI::X3DObject &xsi_object, const XSI::CTime& eval_time)
+bool sync_polymesh(luxcore::Scene* scene, XSI::X3DObject &xsi_object, const XSI::CTime& eval_time)
 {
 	//get polygonmesh geometry properties
 	int subdivs = 0;
@@ -132,4 +132,6 @@ void sync_polymesh(luxcore::Scene* scene, XSI::X3DObject &xsi_object, const XSI:
 	//TODO: split the mesh into clusters with different materials
 	//export normals and colors
 	//also we can export vertex and triangle aovs (can we use it from shaders?)
+
+	return true;
 }

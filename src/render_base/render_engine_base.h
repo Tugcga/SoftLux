@@ -15,7 +15,8 @@ enum RenderType
 	RenderType_Pass,
 	RenderType_Shaderball,
 	RenderType_Region,
-	RenderType_Rendermap
+	RenderType_Rendermap,
+	RenderType_Unknown
 };
 
 enum UpdateType
@@ -156,6 +157,7 @@ private:
 	bool force_recreate_scene;
 	bool note_abort;  // set true when call aboert_render method, set float at the start of scene_process after we lock the scene
 	XSI::CRefArray prev_isolated_objects;
+	RenderType prev_render_type;
 	
 	bool RenderEngineBase::is_recreate_isolated_view(const XSI::CRefArray &visible_objects);
 };

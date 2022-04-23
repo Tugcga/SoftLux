@@ -1,4 +1,5 @@
 bin
+dst
 GNUmakefile
 SoftLuxPlugin.vcxproj.user
 SoftLuxPlugin.vcxproj.filters

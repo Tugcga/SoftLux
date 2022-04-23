@@ -68,4 +68,6 @@ private:
 	//store here xsi object, which added to the lux scene
 	//and use this array when try update some object
 	std::vector<ULONG> xsi_objects_in_lux;
+	//the same list for exported materials
+	std::vector<ULONG> xsi_materials_in_lux;
 };

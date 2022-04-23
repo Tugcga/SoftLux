@@ -1,9 +1,11 @@
 #include "../../utilities/export_common.h"
 #include "../../utilities/arrays.h"
+#include "../../utilities/logs.h"
 
 #include "lux_scene.h"
 
 #include "xsi_application.h"
+#include "xsi_model.h"
 
 bool sync_object(luxcore::Scene* scene, XSI::X3DObject &xsi_object, const XSI::CTime& eval_time)
 {
@@ -56,11 +58,65 @@ void sync_scene_objects(luxcore::Scene* scene, const XSI::CRefArray& xsi_list, X
 	}
 }
 
-void sync_scene_objects(luxcore::Scene* scene, const XSI::RendererContext& xsi_render_context, const RenderType render_type, std::vector<ULONG> &xsi_objects_in_lux, const XSI::CTime& eval_time)
+void gather_all_subobjects(const XSI::X3DObject& xsi_object, XSI::CRefArray& output)
 {
+	output.Add(xsi_object.GetRef());
+	XSI::CRefArray children = xsi_object.GetChildren();
+	for (ULONG i = 0; i < children.GetCount(); i++)
+	{
+		gather_all_subobjects(children[i], output);
+	}
+}
+
+XSI::CRefArray gather_all_subobjects(const XSI::Model& root)
+{
+	XSI::CRefArray output;
+	XSI::CRefArray children = root.GetChildren();
+	for (ULONG i = 0; i < children.GetCount(); i++)
+	{
+		gather_all_subobjects(children[i], output);
+	}
+	return output;
+}
+
+void sync_scene_objects(luxcore::Scene* scene, XSI::RendererContext& xsi_render_context, const RenderType render_type, std::vector<ULONG> &xsi_objects_in_lux, const XSI::CTime& eval_time, const ULONG override_material)
+{
+	//if override_material > 0, then we should reassign material for each exported object
+	//in fact we should do this only in shaderball rendering
 	if (render_type == RenderType_Shaderball)
 	{
+		XSI::CRefArray models = xsi_render_context.GetAttribute("Scene");
+		if (models.GetCount() > 0)
+		{
+			//the first model is the hero model
+			XSI::Model hero(models[0]);
+			XSI::CRefArray shaderball_objects = gather_all_subobjects(hero);
+			for (LONG j = 0; j < shaderball_objects.GetCount(); j++)
+			{
+				XSI::X3DObject xsi_object(shaderball_objects[j]);
+				XSI::CString xsi_type = xsi_object.GetType();
+				if (xsi_type == "polymsh")
+				{
+					//here we should override material of the object
+					//because in the model it contains local model material instead of editor one
+					bool is_sync = sync_object(scene, xsi_object, eval_time);
+					if (is_sync)
+					{
+						xsi_objects_in_lux.push_back(xsi_object.GetObjectID());
+						if (override_material > 0)
+						{
+							scene->UpdateObjectMaterial(XSI::CString(xsi_object.GetObjectID()).GetAsciiString(), XSI::CString(override_material).GetAsciiString());
+						}
+					}
+				}
+				else if (xsi_type == "light")
+				{
 
+				}
+			}
+		}
+		//all other models are background
+		//ignore it, because it overlaps the camera view and lights
 	}
 	else
 	{

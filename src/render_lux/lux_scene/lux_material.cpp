@@ -4,15 +4,36 @@
 
 #include "xsi_materiallibrary.h"
 
-void sync_material(luxcore::Scene* scene, const XSI::Material &xsi_material, const XSI::CTime& eval_time)
+void sync_material(luxcore::Scene* scene, const XSI::Material &xsi_material, std::vector<ULONG>& xsi_materials_in_lux, const XSI::CTime& eval_time)
 {
 	//we should set the name of material equal to UniqueID of the object
 	//next we should export some basic material
 	//and assign it to the polygon meshes
-	log_message("export material " + xsi_material.GetName());
+
+	std::string material_name = XSI::CString(xsi_material.GetObjectID()).GetAsciiString();
+	scene->Parse(
+		luxrays::Property("scene.materials." + material_name + ".type")("matte") <<
+		luxrays::Property("scene.materials." + material_name + ".kd")(0.8, 0.4, 0.6)
+	);
+
+	//export default material
+	scene->Parse(
+		luxrays::Property("scene.materials.default_material.type")("matte") <<
+		luxrays::Property("scene.materials.default_material.kd")(0.8, 0.8, 0.8)
+	);
+
+	xsi_materials_in_lux.push_back(xsi_material.GetObjectID());
 }
 
-void sync_materials(luxcore::Scene *scene, const XSI::Scene &xsi_scene, const XSI::CTime &eval_time)
+void sync_shaderball_back_material(luxcore::Scene* scene)
+{
+	scene->Parse(
+		luxrays::Property("scene.materials.background_material.type")("matte") <<
+		luxrays::Property("scene.materials.background_material.kd")(0.8, 0.3, 0.3)
+	);
+}
+
+void sync_materials(luxcore::Scene *scene, const XSI::Scene &xsi_scene, std::vector<ULONG>& xsi_materials_in_lux, const XSI::CTime &eval_time)
 {
 	//export default material
 	scene->Parse(
@@ -31,7 +52,7 @@ void sync_materials(luxcore::Scene *scene, const XSI::Scene &xsi_scene, const XS
 			XSI::CRefArray used_objects = xsi_material.GetUsedBy();
 			if (used_objects.GetCount() > 0)
 			{
-				sync_material(scene, xsi_material, eval_time);
+				sync_material(scene, xsi_material, xsi_materials_in_lux, eval_time);
 			}
 		}
 	}

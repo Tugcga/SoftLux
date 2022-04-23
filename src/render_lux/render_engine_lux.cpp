@@ -28,6 +28,7 @@ RenderEngineLux::RenderEngineLux()
 	prev_height = 0;
 	updated_xsi_ids.clear();
 	xsi_objects_in_lux.clear();
+	xsi_materials_in_lux.clear();
 
 	RenderEngineLux::is_log = false;
 }
@@ -71,6 +72,7 @@ void RenderEngineLux::clear_scene()
 		is_scene_create = false;
 	}
 	xsi_objects_in_lux.clear();
+	xsi_materials_in_lux.clear();
 }
 
 //here we clear session and render config
@@ -172,7 +174,6 @@ XSI::CStatus RenderEngineLux::update_scene(XSI::X3DObject& xsi_object, const Upd
 			}
 			else if (update_type == UpdateType_Mesh)
 			{
-				log_message("update mesh " + xsi_object.GetName());
 				std::string object_name = XSI::CString(xsi_object.GetObjectID()).GetAsciiString();
 				scene->DeleteObject(object_name);
 				//sync mesh again
@@ -206,7 +207,7 @@ XSI::CStatus RenderEngineLux::update_scene(const XSI::SIObject& si_object, const
 XSI::CStatus RenderEngineLux::update_scene(const XSI::Material& xsi_material)
 {
 	//here we update only materials
-	log_message("update material " + XSI::CString(xsi_material.GetName()));
+	sync_material(scene, xsi_material, xsi_materials_in_lux, eval_time);
 
 	//if we change any host of the material (reassign material to an object)
 	//then we should reexport object with this new material
@@ -228,7 +229,6 @@ XSI::CStatus RenderEngineLux::update_scene_render()
 //here we create the scene for rendering from scratch
 XSI::CStatus RenderEngineLux::create_scene()
 {
-	log_message("create scene from scratch mode " + XSI::CString(render_type));
 	clear_scene();
 	clear_session();
 	scene = luxcore::Scene::Create();
@@ -244,11 +244,15 @@ XSI::CStatus RenderEngineLux::create_scene()
 		if (shaderball_item_class == XSI::siMaterialID)
 		{
 			XSI::Material shaderball_material(shaderball_item);
-			sync_material(scene, shaderball_material, eval_time);
+			sync_material(scene, shaderball_material, xsi_materials_in_lux, eval_time);
+			//does not neew background material, because we skip backround objects in the shaderball
+			//sync_shaderball_back_material(scene);
+			//sync material scene
+			sync_scene_objects(scene, m_render_context, render_type, xsi_objects_in_lux, eval_time, shaderball_material.GetObjectID());
 		}
 		else
 		{
-			//previwe shader node
+			//preview shader node
 		}
 	}
 	else
@@ -259,7 +263,7 @@ XSI::CStatus RenderEngineLux::create_scene()
 		sync_camera_scene(scene, xsi_camera, eval_time);
 
 		//sync materials
-		sync_materials(scene, XSI::Application().GetActiveProject().GetActiveScene(), eval_time);
+		sync_materials(scene, XSI::Application().GetActiveProject().GetActiveScene(), xsi_materials_in_lux, eval_time);
 
 		//sync scene objects
 		sync_scene_objects(scene, m_render_context, render_type, xsi_objects_in_lux, eval_time);

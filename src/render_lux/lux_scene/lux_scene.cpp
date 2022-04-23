@@ -9,15 +9,16 @@
 
 bool sync_object(luxcore::Scene* scene, XSI::X3DObject &xsi_object, const XSI::CTime& eval_time)
 {
-	if (xsi_object.GetType() == "polymsh")
+	XSI::CString xsi_type = xsi_object.GetType();
+	if (xsi_type == "polymsh")
 	{
 		return sync_polymesh(scene, xsi_object, eval_time);
 	}
-	else if (xsi_object.GetType() == "pointcloud")
+	else if (xsi_type == "pointcloud")
 	{
 
 	}
-	else if (xsi_object.GetType() == "hair")
+	else if (xsi_type == "hair")
 	{
 
 	}
@@ -130,6 +131,14 @@ void sync_scene_objects(luxcore::Scene* scene, XSI::RendererContext& xsi_render_
 		 //for simplicity get all X3Dobjects and then filter by their types
 			const XSI::CRefArray& xsi_objects_list = XSI::Application().FindObjects(XSI::siGeometryID);
 			sync_scene_objects(scene, xsi_objects_list, XSI::siGeometryID, xsi_objects_in_lux, eval_time);
+		}
+
+		//next lights
+		const XSI::CRefArray& xsi_scene_lights = xsi_render_context.GetArrayAttribute("Lights");
+		for (ULONG i = 0; i < xsi_scene_lights.GetCount(); i++)
+		{
+			XSI::Light xsi_light(xsi_scene_lights.GetItem(i));
+			sync_light(scene, xsi_light, eval_time);
 		}
 	}
 }

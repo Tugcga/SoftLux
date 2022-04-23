@@ -142,14 +142,26 @@ XSI::CStatus RenderEngineLux::update_scene(XSI::X3DObject& xsi_object, const Upd
 				//change object visibility
 				//delete the object
 				std::string object_name = XSI::CString(xsi_object.GetObjectID()).GetAsciiString();
-				scene->DeleteObject(object_name);
-				if (is_xsi_object_visible(eval_time, xsi_object))
+				XSI::CString xsi_type = xsi_object.GetType();
+				if (xsi_type == "light")
 				{
-					//add it, if it come visible
-					bool is_sync = sync_object(scene, xsi_object, eval_time);
+					bool is_sync = update_light_object(scene, xsi_object, eval_time);
 					if (is_sync)
 					{
 						updated_xsi_ids.push_back(xsi_object.GetObjectID());
+					}
+				}
+				else
+				{
+					scene->DeleteObject(object_name);
+					if (is_xsi_object_visible(eval_time, xsi_object))
+					{
+						//add it, if it come visible
+						bool is_sync = sync_object(scene, xsi_object, eval_time);
+						if (is_sync)
+						{
+							updated_xsi_ids.push_back(xsi_object.GetObjectID());
+						}
 					}
 				}
 				return XSI::CStatus::OK;
@@ -159,17 +171,34 @@ XSI::CStatus RenderEngineLux::update_scene(XSI::X3DObject& xsi_object, const Upd
 				//does not remember the object, because we can update mesh of the object later
 				//here we only change it transform
 				ULONG xsi_id = xsi_object.GetObjectID();
-				//TODO: this is too long in the big scene
-				//may be optimize this method (use tree, or check by object type)
-				if (is_contains(xsi_objects_in_lux, xsi_id))
+				XSI::CString xsi_type = xsi_object.GetType();
+				if (xsi_type == "light")
 				{
-					sync_transform(scene, xsi_id, xsi_object.GetKinematics().GetGlobal().GetTransform(), eval_time);
+					bool is_sync = update_light_object(scene, xsi_object, eval_time);
+					if (is_sync)
+					{
+						updated_xsi_ids.push_back(xsi_object.GetObjectID());
+					}
+				}
+				else
+				{
+					//TODO: this is too long in the big scene
+					//may be optimize this method (use tree, or check by object type)
+					if (is_contains(xsi_objects_in_lux, xsi_id))
+					{
+						sync_transform(scene, xsi_id, xsi_object.GetKinematics().GetGlobal().GetTransform(), eval_time);
+					}
 				}
 				
 				return XSI::CStatus::OK;
 			}
 			else if (update_type == UpdateType_XsiLight)
 			{
+				bool is_sync = update_light_object(scene, xsi_object, eval_time);
+				if (is_sync)
+				{
+					updated_xsi_ids.push_back(xsi_object.GetObjectID());
+				}
 
 			}
 			else if (update_type == UpdateType_Mesh)

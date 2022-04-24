@@ -1,4 +1,5 @@
 #include "../../utilities/logs.h"
+#include "../../utilities/export_common.h"
 
 #include "lux_scene.h"
 
@@ -50,7 +51,26 @@ public:
 	float x, y, z;
 };
 
-bool sync_polymesh(luxcore::Scene* scene, XSI::X3DObject &xsi_object, const XSI::CTime& eval_time)
+void define_area_light_mesh(luxcore::Scene* scene, const std::string &shape_name)
+{
+	Point* points = (Point*)luxcore::Scene::AllocVerticesBuffer(4);
+	Triangle* triangles = (Triangle*)luxcore::Scene::AllocTrianglesBuffer(2);
+	UV* uvs = new UV[4];
+	points[0] = Point(-1.0, -1.0, 0.0);
+	points[1] = Point(1.0, -1.0, 0.0);
+	points[2] = Point(1.0, 1.0, 0.0);
+	points[3] = Point(-1.0, 1.0, 0.0);
+	triangles[0] = Triangle(2, 1, 0);
+	triangles[1] = Triangle(2, 0, 3);
+	uvs[0] = UV(0.0, 0.0);
+	uvs[1] = UV(1.0, 0.0);
+	uvs[2] = UV(1.0, 1.0);
+	uvs[3] = UV(0.0, 1.0);
+
+	scene->DefineMesh(shape_name, 4, 2, (float*)points, (unsigned int*)triangles, NULL, (float*)uvs, NULL, NULL);
+}
+
+bool sync_polymesh(luxcore::Scene* scene, XSI::X3DObject &xsi_object, const XSI::CTime& eval_time, const ULONG override_material, const bool use_default_material)
 {
 	//get polygonmesh geometry properties
 	int subdivs = 0;
@@ -111,14 +131,14 @@ bool sync_polymesh(luxcore::Scene* scene, XSI::X3DObject &xsi_object, const XSI:
 
 	//reserve the mesh in the luxcore
 	//the name of the mesh is it UniqueID
-	std::string mesh_name = XSI::CString(xsi_primitive.GetObjectID()).GetAsciiString();
-	std::string object_name = XSI::CString(xsi_object.GetObjectID()).GetAsciiString();
+	std::string mesh_name = xsi_object_id_string(xsi_primitive);
+	std::string object_name = xsi_object_id_string(xsi_object);
 	scene->DefineMesh(mesh_name, triangles_count * 3, triangles_count, (float*)points, (unsigned int*)triangles, (float*)normals, NULL, NULL, NULL);
 
 	//add mesh to the scene
 	luxrays::Properties polymesh_props;
 	polymesh_props.Set(luxrays::Property("scene.objects." + object_name + ".shape")(mesh_name));
-	polymesh_props.Set(luxrays::Property("scene.objects." + object_name + ".material")("default_material"));
+	polymesh_props.Set(luxrays::Property("scene.objects." + object_name + ".material")(use_default_material ? "default_material" : (override_material == 0 ? /*here we should set proper material name*/"default_material" : std::string(XSI::CString(override_material).GetAsciiString()))));
 	polymesh_props.Set(luxrays::Property("scene.objects." + object_name + ".id")(static_cast<unsigned int>(xsi_object.GetObjectID())));
 	polymesh_props.Set(luxrays::Property("scene.objects." + object_name + ".camerainvisible")(false));
 

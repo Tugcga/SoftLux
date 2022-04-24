@@ -130,10 +130,12 @@ XSI::CStatus RenderEngineLux::update_scene(XSI::X3DObject& xsi_object, const Upd
 		{
 			if (update_type == UpdateType_Camera)
 			{
-				XSI::Primitive camera_prim(m_render_context.GetAttribute("Camera"));
-				XSI::X3DObject camera_obj = camera_prim.GetOwners()[0];
-				XSI::Camera	xsi_camera(camera_obj);
-				sync_camera_scene(scene, xsi_camera, eval_time);
+				//we always update the camera
+				//so, does not need it here
+				//XSI::Primitive camera_prim(m_render_context.GetAttribute("Camera"));
+				//XSI::X3DObject camera_obj = camera_prim.GetOwners()[0];
+				//XSI::Camera	xsi_camera(camera_obj);
+				//sync_camera_scene(scene, xsi_camera, eval_time);
 
 				return XSI::CStatus::OK;
 			}
@@ -141,7 +143,7 @@ XSI::CStatus RenderEngineLux::update_scene(XSI::X3DObject& xsi_object, const Upd
 			{
 				//change object visibility
 				//delete the object
-				std::string object_name = XSI::CString(xsi_object.GetObjectID()).GetAsciiString();
+				std::string object_name = xsi_object_id_string(xsi_object);
 				XSI::CString xsi_type = xsi_object.GetType();
 				if (xsi_type == "light")
 				{
@@ -154,6 +156,7 @@ XSI::CStatus RenderEngineLux::update_scene(XSI::X3DObject& xsi_object, const Upd
 				else
 				{
 					scene->DeleteObject(object_name);
+					xsi_objects_in_lux.erase(xsi_object.GetObjectID());
 					if (is_xsi_object_visible(eval_time, xsi_object))
 					{
 						//add it, if it come visible
@@ -186,7 +189,7 @@ XSI::CStatus RenderEngineLux::update_scene(XSI::X3DObject& xsi_object, const Upd
 					//for other objects in the scene, update only transform
 					if (xsi_objects_in_lux.contains(xsi_id))
 					{
-						sync_transform(scene, xsi_id, xsi_object.GetKinematics().GetGlobal().GetTransform(), eval_time);
+						sync_transform(scene, xsi_object_id_string(xsi_object), xsi_object.GetKinematics().GetGlobal().GetTransform(), eval_time);
 					}
 				}
 				
@@ -202,8 +205,9 @@ XSI::CStatus RenderEngineLux::update_scene(XSI::X3DObject& xsi_object, const Upd
 			}
 			else if (update_type == UpdateType_Mesh)
 			{
-				std::string object_name = XSI::CString(xsi_object.GetObjectID()).GetAsciiString();
+				std::string object_name = xsi_object_id_string(xsi_object);
 				scene->DeleteObject(object_name);
+				xsi_objects_in_lux.erase(xsi_object.GetObjectID());
 				//sync mesh again
 				bool is_sync = sync_polymesh(scene, xsi_object, eval_time);
 				if (is_sync)
@@ -276,7 +280,8 @@ XSI::CStatus RenderEngineLux::create_scene()
 			//does not neew background material, because we skip backround objects in the shaderball
 			//sync_shaderball_back_material(scene);
 			//sync material scene
-			sync_scene_objects(scene, m_render_context, render_type, xsi_objects_in_lux, eval_time, shaderball_material.GetObjectID());
+			//sync_scene_objects(scene, m_render_context, render_type, xsi_objects_in_lux, eval_time, shaderball_material.GetObjectID());
+			sync_shaderball(scene, m_render_context, xsi_objects_in_lux, eval_time, shaderball_material.GetObjectID());
 		}
 		else
 		{
@@ -294,17 +299,8 @@ XSI::CStatus RenderEngineLux::create_scene()
 		sync_materials(scene, XSI::Application().GetActiveProject().GetActiveScene(), xsi_materials_in_lux, eval_time);
 
 		//sync scene objects
-		sync_scene_objects(scene, m_render_context, render_type, xsi_objects_in_lux, eval_time);
+		sync_scene_objects(scene, m_render_context, xsi_objects_in_lux, eval_time);
 	}
-
-
-	//add sky and sun for test
-	scene->Parse(
-		luxrays::Property("scene.lights.skyl.type")("sky2") <<
-		luxrays::Property("scene.lights.skyl.dir")(0.166974f, 0.59908f, 0.783085f) <<
-		luxrays::Property("scene.lights.skyl.turbidity")(2.2f) <<
-		luxrays::Property("scene.lights.skyl.gain")(0.8f, 0.8f, 0.8f)
-	);
 
 	return XSI::CStatus::OK;
 }
@@ -312,6 +308,19 @@ XSI::CStatus RenderEngineLux::create_scene()
 //call this method after scene created or updated but before unlock
 XSI::CStatus RenderEngineLux::post_scene()
 {
+	//always update the camera
+	if (render_type == RenderType_Shaderball)
+	{
+		sync_camera_shaderball(scene);
+	}
+	else
+	{
+		XSI::Primitive camera_prim(m_render_context.GetAttribute("Camera"));
+		XSI::X3DObject camera_obj = camera_prim.GetOwners()[0];
+		XSI::Camera	xsi_camera(camera_obj);
+		sync_camera_scene(scene, xsi_camera, eval_time);
+	}
+
 	//here we should create the session and render parameters
 	if (!is_session)
 	{
@@ -328,7 +337,13 @@ void RenderEngineLux::render()
 {
 	m_render_context.ProgressUpdate("Rendering...", "Rendering...", 0);
 
+	//session->GetRenderConfig().Export("D:\\Graphic\\For Softimage\\_addons\\AddonDevelopWorkgroup\\Addons\\SoftLux\\Application\\Plugins\\bin\\nt-x86-64\\");
 	session->Start();
+
+	//session->Pause();
+	//session->SaveResumeFile("D:\\Graphic\\For Softimage\\_addons\\AddonDevelopWorkgroup\\Addons\\SoftLux\\Application\\Plugins\\bin\\nt-x86-64\\render_session.rsm");
+	//session->Resume();
+
 	const luxrays::Properties& stats = session->GetStats();
 	luxcore::Film& film = session->GetFilm();
 	while (!session->HasDone())

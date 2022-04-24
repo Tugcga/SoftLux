@@ -1,3 +1,5 @@
+#include "export_common.h"
+
 #include <xsi_x3dobject.h>
 #include <xsi_time.h>
 #include <xsi_property.h>
@@ -11,4 +13,9 @@ bool is_xsi_object_visible(const XSI::CTime &eval_time, XSI::X3DObject &xsi_obje
 		return visibility_prop.GetParameterValue("rendvis", eval_time);
 	}
 	return false;
+}
+
+std::string xsi_object_id_string(const XSI::ProjectItem& xsi_item)
+{
+	return XSI::CString(xsi_item.GetObjectID()).GetAsciiString();
 }

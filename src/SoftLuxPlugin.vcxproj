@@ -73,6 +73,7 @@
     <ClCompile Include="render_lux\lux_scene\lux_material.cpp" />
     <ClCompile Include="render_lux\lux_scene\lux_polymesh.cpp" />
     <ClCompile Include="render_lux\lux_scene\lux_scene.cpp" />
+    <ClCompile Include="render_lux\lux_scene\lux_shaderball.cpp" />
     <ClCompile Include="render_lux\lux_session\lux_film.cpp" />
     <ClCompile Include="render_lux\lux_session\lux_render_config.cpp" />
     <ClCompile Include="render_lux\lux_ui.cpp" />
@@ -84,6 +85,7 @@
     <ClCompile Include="utilities\math.cpp" />
     <ClCompile Include="utilities\miniz.c" />
     <ClCompile Include="utilities\write_image.cpp" />
+    <ClCompile Include="utilities\xsi_shaders.cpp" />
     <ClCompile Include="version.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -103,6 +105,7 @@
     <ClInclude Include="utilities\stb_image_write.h" />
     <ClInclude Include="utilities\tinyexr.h" />
     <ClInclude Include="utilities\write_image.h" />
+    <ClInclude Include="utilities\xsi_shaders.h" />
     <ClInclude Include="version.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

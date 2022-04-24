@@ -14,7 +14,7 @@ luxcore::RenderSession* sync_render_config(luxcore::Scene* scene, const XSI::Pro
 		luxrays::Property("film.subregion")(image_x_start, image_x_end, image_y_start, image_y_end) <<
 		//----------------------------
 		luxrays::Property("film.imagepipeline.0.type")("TONEMAP_LINEAR") <<
-		luxrays::Property("film.imagepipeline.0.scale")(0.0001) <<
+		//luxrays::Property("film.imagepipeline.0.scale")(0.0001) <<
 		luxrays::Property("film.imagepipeline.1.type")("GAMMA_CORRECTION") <<
 		luxrays::Property("film.imagepipeline.1.value")(2.2) <<
 		//----------------------------

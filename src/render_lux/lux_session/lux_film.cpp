@@ -15,8 +15,7 @@ void read_visual_buffer(luxcore::Film &film, RenderVisualBuffer& buffer)
 		{
 			for (int c = 0; c < 3; c++)
 			{
-				//here we manually apply linear scale and then sRGB, but in general it should be done in luxcore side
-				buffer.pixels[(y * buffer.width + x) * 4 + c] = film_pixels[((y + buffer.corner_y) * buffer.full_width + (x + buffer.corner_x)) * 3 + c] * 0.0001;
+				buffer.pixels[(y * buffer.width + x) * 4 + c] = film_pixels[((y + buffer.corner_y) * buffer.full_width + (x + buffer.corner_x)) * 3 + c] * 1.0;
 			}
 			buffer.pixels[(y * buffer.width + x) * 4 + 3] = alpha_pixels[(y + buffer.corner_y) * buffer.full_width + (x + buffer.corner_x)];
 		}

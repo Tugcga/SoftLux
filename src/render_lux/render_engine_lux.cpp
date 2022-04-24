@@ -174,6 +174,7 @@ XSI::CStatus RenderEngineLux::update_scene(XSI::X3DObject& xsi_object, const Upd
 				XSI::CString xsi_type = xsi_object.GetType();
 				if (xsi_type == "light")
 				{
+					//completely update the light
 					bool is_sync = update_light_object(scene, xsi_object, eval_time);
 					if (is_sync)
 					{
@@ -182,9 +183,8 @@ XSI::CStatus RenderEngineLux::update_scene(XSI::X3DObject& xsi_object, const Upd
 				}
 				else
 				{
-					//TODO: this is too long in the big scene
-					//may be optimize this method (use tree, or check by object type)
-					if (is_contains(xsi_objects_in_lux, xsi_id))
+					//for other objects in the scene, update only transform
+					if (xsi_objects_in_lux.contains(xsi_id))
 					{
 						sync_transform(scene, xsi_id, xsi_object.GetKinematics().GetGlobal().GetTransform(), eval_time);
 					}
@@ -199,7 +199,6 @@ XSI::CStatus RenderEngineLux::update_scene(XSI::X3DObject& xsi_object, const Upd
 				{
 					updated_xsi_ids.push_back(xsi_object.GetObjectID());
 				}
-
 			}
 			else if (update_type == UpdateType_Mesh)
 			{

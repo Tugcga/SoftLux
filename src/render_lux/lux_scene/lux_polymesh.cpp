@@ -130,7 +130,7 @@ bool sync_polymesh(luxcore::Scene* scene, XSI::X3DObject &xsi_object, const XSI:
 	scene->Parse(polymesh_props);
 
 	//TODO: split the mesh into clusters with different materials
-	//export normals and colors
+	//export colors
 	//also we can export vertex and triangle aovs (can we use it from shaders?)
 
 	return true;

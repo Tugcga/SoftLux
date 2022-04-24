@@ -30,7 +30,7 @@ bool sync_object(luxcore::Scene* scene, XSI::X3DObject &xsi_object, const XSI::C
 	return false;
 }
 
-void sync_scene_objects(luxcore::Scene* scene, const XSI::CRefArray& xsi_list, XSI::siClassID class_id, std::vector<ULONG> &xsi_objects_in_lux, const XSI::CTime& eval_time)
+void sync_scene_objects(luxcore::Scene* scene, const XSI::CRefArray& xsi_list, XSI::siClassID class_id, std::set<ULONG> &xsi_objects_in_lux, const XSI::CTime& eval_time)
 {
 	for (ULONG i = 0; i < xsi_list.GetCount(); i++)
 	{
@@ -53,7 +53,7 @@ void sync_scene_objects(luxcore::Scene* scene, const XSI::CRefArray& xsi_list, X
 			if (is_sync)
 			{
 				//remember object in the array
-				xsi_objects_in_lux.push_back(xsi_object.GetObjectID());
+				xsi_objects_in_lux.insert(xsi_object.GetObjectID());
 			}
 		}
 	}
@@ -80,12 +80,13 @@ XSI::CRefArray gather_all_subobjects(const XSI::Model& root)
 	return output;
 }
 
-void sync_scene_objects(luxcore::Scene* scene, XSI::RendererContext& xsi_render_context, const RenderType render_type, std::vector<ULONG> &xsi_objects_in_lux, const XSI::CTime& eval_time, const ULONG override_material)
+void sync_scene_objects(luxcore::Scene* scene, XSI::RendererContext& xsi_render_context, const RenderType render_type, std::set<ULONG> &xsi_objects_in_lux, const XSI::CTime& eval_time, const ULONG override_material)
 {
 	//if override_material > 0, then we should reassign material for each exported object
 	//in fact we should do this only in shaderball rendering
 	if (render_type == RenderType_Shaderball)
 	{
+		//shaderball secene export
 		XSI::CRefArray models = xsi_render_context.GetAttribute("Scene");
 		if (models.GetCount() > 0)
 		{
@@ -103,7 +104,7 @@ void sync_scene_objects(luxcore::Scene* scene, XSI::RendererContext& xsi_render_
 					bool is_sync = sync_object(scene, xsi_object, eval_time);
 					if (is_sync)
 					{
-						xsi_objects_in_lux.push_back(xsi_object.GetObjectID());
+						xsi_objects_in_lux.insert(xsi_object.GetObjectID());
 						if (override_material > 0)
 						{
 							scene->UpdateObjectMaterial(XSI::CString(xsi_object.GetObjectID()).GetAsciiString(), XSI::CString(override_material).GetAsciiString());
@@ -121,6 +122,7 @@ void sync_scene_objects(luxcore::Scene* scene, XSI::RendererContext& xsi_render_
 	}
 	else
 	{
+		//actual scene export
 		const XSI::CRefArray& xsi_isolation_list = xsi_render_context.GetArrayAttribute("ObjectList");
 		if (xsi_isolation_list.GetCount() > 0)
 		{//we are in isolation mode
@@ -138,7 +140,7 @@ void sync_scene_objects(luxcore::Scene* scene, XSI::RendererContext& xsi_render_
 		for (ULONG i = 0; i < xsi_scene_lights.GetCount(); i++)
 		{
 			XSI::Light xsi_light(xsi_scene_lights.GetItem(i));
-			sync_light(scene, xsi_light, eval_time);
+			sync_xsi_light(scene, xsi_light, eval_time);
 		}
 	}
 }

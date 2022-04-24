@@ -4,7 +4,7 @@
 
 #include "xsi_materiallibrary.h"
 
-void sync_material(luxcore::Scene* scene, const XSI::Material &xsi_material, std::vector<ULONG>& xsi_materials_in_lux, const XSI::CTime& eval_time)
+void sync_material(luxcore::Scene* scene, const XSI::Material &xsi_material, std::set<ULONG>& xsi_materials_in_lux, const XSI::CTime& eval_time)
 {
 	//we should set the name of material equal to UniqueID of the object
 	//next we should export some basic material
@@ -22,7 +22,7 @@ void sync_material(luxcore::Scene* scene, const XSI::Material &xsi_material, std
 		luxrays::Property("scene.materials.default_material.kd")(0.8, 0.8, 0.8)
 	);
 
-	xsi_materials_in_lux.push_back(xsi_material.GetObjectID());
+	xsi_materials_in_lux.insert(xsi_material.GetObjectID());
 }
 
 void sync_shaderball_back_material(luxcore::Scene* scene)
@@ -33,7 +33,7 @@ void sync_shaderball_back_material(luxcore::Scene* scene)
 	);
 }
 
-void sync_materials(luxcore::Scene *scene, const XSI::Scene &xsi_scene, std::vector<ULONG>& xsi_materials_in_lux, const XSI::CTime &eval_time)
+void sync_materials(luxcore::Scene *scene, const XSI::Scene &xsi_scene, std::set<ULONG>& xsi_materials_in_lux, const XSI::CTime &eval_time)
 {
 	//export default material
 	scene->Parse(

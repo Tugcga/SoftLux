@@ -159,5 +159,5 @@ private:
 	XSI::CRefArray prev_isolated_objects;
 	RenderType prev_render_type;
 	
-	bool RenderEngineBase::is_recreate_isolated_view(const XSI::CRefArray &visible_objects);
+	bool is_recreate_isolated_view(const XSI::CRefArray &visible_objects);
 };

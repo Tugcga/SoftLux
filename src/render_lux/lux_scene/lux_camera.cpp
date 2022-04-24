@@ -31,14 +31,25 @@ void sync_camera_scene(luxcore::Scene* scene, const XSI::Camera& xsi_camera, con
 		xsi_target_position.Set(xsi_target_position.GetX(), xsi_target_position.GetY() - 0.1, xsi_target_position.GetZ());
 	}
 
+	float aspect = xsi_camera.GetParameterValue("aspect", eval_time);
 	float fov = xsi_camera.GetParameterValue("fov", eval_time);
 	int fov_type = xsi_camera.GetParameterValue("fovtype", eval_time);
-	if (fov_type == 0)
+	if (aspect >= 1.0)
 	{
-		//recalculate fov from horizontal to vertical
-		float aspect = xsi_camera.GetParameterValue("aspect", eval_time);
-		fov = RAD2DEGF(2 * atan(tan(DEG2RADF(fov) / 2.0) * aspect));
+		if (fov_type == 0)
+		{
+			//recalculate fov from horizontal to vertical
+			fov = RAD2DEGF(2 * atan(tan(DEG2RADF(fov) / 2.0) * aspect));
+		}
 	}
+	else
+	{
+		if (fov_type == 1)
+		{
+			fov = RAD2DEGF(2 * atan(tan(DEG2RADF(fov) / 2.0) / aspect));
+		}
+	}
+	
 	int xsi_ortho_mode = xsi_camera.GetParameterValue("proj", eval_time);  // 0 - orthographic, 1 - perspective
 
 	luxrays::Properties camera_props;

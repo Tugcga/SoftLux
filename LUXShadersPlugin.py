@@ -13,7 +13,10 @@ def XSILoadPlugin(in_reg):
     in_reg.Minor = 0
 
     #RegistrationInsertionPoint - do not remove this line
+    # rendertree shader nodes
     in_reg.RegisterShader("Matte", 1, 0)
+    # camera lense shader nodes
+    in_reg.RegisterShader("LensePanorama", 1, 0)
 
     return true
 
@@ -64,9 +67,50 @@ def standart_pram_options():
     param_options.SetInspectable(True)
     return param_options
 
+def nonport_pram_options():
+    param_options = XSIFactory.CreateShaderParamDefOptions()
+    param_options.SetAnimatable(True)
+    param_options.SetTexturable(False)
+    param_options.SetReadOnly(False)
+    param_options.SetInspectable(True)
+    return param_options
 
 #------------------------------------------------------------
-#--------------------Shader nodes----------------------------
+#--------------------Lense Shader nodes----------------------
+
+def LUXShadersPlugin_LensePanorama_1_0_DefineInfo(in_ctxt):
+    in_ctxt.SetAttribute("Category", "LuxCore/Lense")
+    in_ctxt.SetAttribute("DisplayName", "luxPanorama")
+    return True
+
+
+def LUXShadersPlugin_LensePanorama_1_0_Define(in_ctxt):
+    shaderDef = in_ctxt.GetAttribute("Definition")
+    shaderDef.AddShaderFamily(c.siShaderFamilyLens)
+
+    # Input Parameter: input
+    params = shaderDef.InputParamDefs
+
+    # parameters
+    add_input_float(nonport_pram_options(), params, 360.0, "degrees", 0.0, 360.0)
+
+    # Output Parameter: out
+    add_output_closure(shaderDef, "out")
+
+    # next init ppg
+    ppgLayout = shaderDef.PPGLayout
+    ppgLayout.AddGroup("Parameters")
+    ppgLayout.AddItem("degrees", "Degrees")
+    ppgLayout.EndGroup()
+
+    # Renderer definition
+    rendererDef = shaderDef.AddRendererDef("LuxCore")
+    rendererDef.SymbolName = "LensePanorama"
+
+    return True
+
+#------------------------------------------------------------
+#--------------------RT Shader nodes-------------------------
 
 #---------------------matte----------------------------------
 def LUXShadersPlugin_Matte_1_0_DefineInfo(in_ctxt):

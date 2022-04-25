@@ -1,6 +1,7 @@
 #include "lux_scene.h"
 #include "../../utilities/math.h"
 #include "../../utilities/logs.h"
+#include "../../utilities/xsi_shaders.h"
 
 #include "xsi_kinematics.h"
 
@@ -27,35 +28,66 @@ void sync_camera_scene(luxcore::Scene* scene, const XSI::Camera& xsi_camera, con
 		xsi_target_position.Set(xsi_target_position.GetX(), xsi_target_position.GetY() - 0.1, xsi_target_position.GetZ());
 	}
 
-	float aspect = xsi_camera.GetParameterValue("aspect", eval_time);
-	float fov = xsi_camera.GetParameterValue("fov", eval_time);
-	int fov_type = xsi_camera.GetParameterValue("fovtype", eval_time);
-	if (aspect >= 1.0)
-	{
-		if (fov_type == 0)
-		{
-			//recalculate fov from horizontal to vertical
-			fov = RAD2DEGF(2 * atan(tan(DEG2RADF(fov) / 2.0) * aspect));
-		}
+	int xsi_ortho_mode = xsi_camera.GetParameterValue("proj", eval_time);  // 0 - orthographic, 1 - perspective
+	//try to find LensePanorama shader
+	//then this camera will be environment type
+	XSI::CRefArray camera_shaders = xsi_camera.GetShaders();
+	std::vector<XSI::ShaderParameter> panorama_root_parameter = get_root_shader_parameter(camera_shaders, GRSPM_NodeName, "", false, "LensePanorama");
+	luxrays::Properties camera_props;
+	if (panorama_root_parameter.size() > 0)
+	{//find panorama node
+		XSI::Shader panorama_shader = get_input_node(panorama_root_parameter[0]);
+		//parametrs for environment camera
+		//environment.degrees(360.0f)
+		camera_props.Set(luxrays::Property("scene.camera.type")("environment"));
+		XSI::CParameterRefArray all_params = panorama_shader.GetParameters();
+		XSI::Parameter degrees_param = all_params.GetItem("degrees");
+		XSI::Parameter degrees_param_final = get_source_parameter(degrees_param);
+		float degrees = degrees_param_final.GetValue(eval_time);
+		camera_props.Set(luxrays::Property("scene.camera.environment.degrees")(degrees));
 	}
 	else
-	{
-		if (fov_type == 1)
+	{//camera is perspective or orthographic
+		float aspect = xsi_camera.GetParameterValue("aspect", eval_time);
+		float fov = xsi_camera.GetParameterValue("fov", eval_time);
+		int fov_type = xsi_camera.GetParameterValue("fovtype", eval_time);
+		if (aspect >= 1.0)
 		{
-			fov = RAD2DEGF(2 * atan(tan(DEG2RADF(fov) / 2.0) / aspect));
+			if (fov_type == 0)
+			{
+				//recalculate fov from horizontal to vertical
+				fov = RAD2DEGF(2 * atan(tan(DEG2RADF(fov) / 2.0) * aspect));
+			}
 		}
+		else
+		{
+			if (fov_type == 1)
+			{
+				fov = RAD2DEGF(2 * atan(tan(DEG2RADF(fov) / 2.0) / aspect));
+			}
+		}
+
+		camera_props.Set(luxrays::Property("scene.camera.type")(xsi_ortho_mode == 1 ? "perspective" : "orthographic"));
+		//TODO: orthographic mode works incorrectly
+		camera_props.Set(luxrays::Property("scene.camera.fieldofview")(fov));
+
+		//try focus blur
+		camera_props.Set(luxrays::Property("scene.camera.lensradius")(0.0f));
+		camera_props.Set(luxrays::Property("scene.camera.focaldistance")(get_distance(xsi_position, xsi_target_position)));
+
+		//additional parameters of perspective camera
+		//bokeh.blades(0u)
+		//bokeh.power(3u)
+		//bokeh.distribution.type("NONE"), variants are: NONE, UNIFORM, EXPONENTIAL, INVERSEEXPONENTIAL, GAUSSIAN, INVERSEGAUSSIAN, TRIANGULAR, CUSTOM
+		//bokeh.distribution.image("image.png") if type is DIST_CUSTOM
+		//bokeh.scale.x(1.0f)
+		//bokeh.scale.y(1.0f)
+
+		//for all cameras except environment
+		//autofocus.enable(false)
 	}
-	
-	int xsi_ortho_mode = xsi_camera.GetParameterValue("proj", eval_time);  // 0 - orthographic, 1 - perspective
 
-	luxrays::Properties camera_props;
-	camera_props.Set(luxrays::Property("scene.camera.type")(xsi_ortho_mode == 1 ? "perspective" : "orthographic"));
-	//TODO: orthographic mode works incorrectly
 	set_lux_camera_positions(camera_props, xsi_position, xsi_target_position);
-	camera_props.Set(luxrays::Property("scene.camera.fieldofview")(fov));
-
-	//up vector
-	//TODO: can not understand, how to properly setup up vector
 
 	//clipping planes
 	float near_clip = xsi_camera.GetParameterValue("near", eval_time);
@@ -63,15 +95,8 @@ void sync_camera_scene(luxcore::Scene* scene, const XSI::Camera& xsi_camera, con
 	camera_props.Set(luxrays::Property("scene.camera.cliphither")(near_clip));
 	camera_props.Set(luxrays::Property("scene.camera.clipyon")(far_clip));
 
-	//set default for motion blur
-	camera_props.Set(luxrays::Property("scene.camera.shutteropen")(0));
-	camera_props.Set(luxrays::Property("scene.camera.shutterclose")(0));
-	camera_props.Set(luxrays::Property("scene.camera.lensradius")(0));
-	camera_props.Set(luxrays::Property("scene.camera.focaldistance")(get_distance(xsi_position, xsi_target_position)));
-	camera_props.Set(luxrays::Property("scene.camera.autofocus.enable")(0));
-
-	//TODO: look at parsecamera.cpp source file to find all camera attributes
-	//TODO: make panoramic camera export (using external property or camera shader)
+	camera_props.Set(luxrays::Property("scene.camera.shutteropen")(0.0f));
+	camera_props.Set(luxrays::Property("scene.camera.shutterclose")(1.0f));
 
 	scene->Parse(camera_props);
 }

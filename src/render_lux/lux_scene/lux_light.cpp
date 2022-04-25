@@ -17,7 +17,7 @@ bool sync_xsi_light(luxcore::Scene* scene, XSI::Light &xsi_light, const XSI::CTi
 
 		//try to get soft light shader
 		XSI::CRefArray light_shaders = xsi_light.GetShaders();
-		std::vector<XSI::ShaderParameter> root_parameter_array = get_root_shader_parameter(light_shaders, "LightShader");
+		std::vector<XSI::ShaderParameter> root_parameter_array = get_root_shader_parameter(light_shaders, GRSPM_ParameterName, "LightShader", false, "");
 		if (root_parameter_array.size() > 0)
 		{//there is a node, connected to the LightShader port of the root node
 			XSI::Shader light_node = get_input_node(root_parameter_array[0]);

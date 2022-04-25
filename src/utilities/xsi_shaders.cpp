@@ -1,7 +1,7 @@
 #include "xsi_shaders.h"
 #include "logs.h"
 
-std::vector<XSI::ShaderParameter> get_root_shader_parameter(const XSI::CRefArray& first_level_shaders, const XSI::CString& root_parameter_name, bool check_substring)
+std::vector<XSI::ShaderParameter> get_root_shader_parameter(const XSI::CRefArray& first_level_shaders, GetRootShaderParameterMode mode, const XSI::CString& root_parameter_name, bool check_substring, const XSI::CString& node_name)
 {
 	std::vector<XSI::ShaderParameter> to_return;
 	for (ULONG i = 0; i < first_level_shaders.GetCount(); i++)
@@ -22,9 +22,26 @@ std::vector<XSI::ShaderParameter> get_root_shader_parameter(const XSI::CRefArray
 				for (LONG k = 0; k < targets.GetCount(); k++)
 				{
 					XSI::ShaderParameter p = targets.GetItem(k);
-					if ((!check_substring && p.GetName() == root_parameter_name) || (check_substring && p.GetName().FindString(root_parameter_name) != UINT_MAX))
+					if (mode == GRSPM_ParameterName)
 					{
-						to_return.push_back(p);
+						if ((!check_substring && p.GetName() == root_parameter_name) || (check_substring && p.GetName().FindString(root_parameter_name) != UINT_MAX))
+						{
+							to_return.push_back(p);
+						}
+					}
+					else if (mode == GRSPM_NodeName)
+					{
+						//get the node
+						XSI::Shader connected_node = get_input_node(p);
+						XSI::CStringArray name_parts = connected_node.GetProgID().Split(".");
+						if (name_parts.GetCount() >= 2)
+						{
+							if (name_parts[0] == "LUXShadersPlugin" && name_parts[1] == node_name)
+							{
+								to_return.push_back(p);
+								return to_return;
+							}
+						}
 					}
 				}
 			}

@@ -4,9 +4,15 @@
 
 #include <vector>
 
+enum GetRootShaderParameterMode
+{
+	GRSPM_ParameterName,  // find by the name of the root parameter
+	GRSPM_NodeName  // find by the name of the shader node, connected to the returned parameter
+};
+
 //return shader parameter of the material root node, which has root_parameter_name name and connected to first-level node in the tree
 //if there is no port with the name, return empty array
-std::vector<XSI::ShaderParameter> get_root_shader_parameter(const XSI::CRefArray& first_level_shaders, const XSI::CString& root_parameter_name, bool check_substring = false);
+std::vector<XSI::ShaderParameter> get_root_shader_parameter(const XSI::CRefArray& first_level_shaders, GetRootShaderParameterMode mode, const XSI::CString& root_parameter_name = "", bool check_substring = false, const XSI::CString &node_name = "");
 
 //return true if input shader node is compound
 bool is_shader_compound(const XSI::Shader& shader);

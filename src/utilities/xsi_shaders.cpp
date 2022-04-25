@@ -1,4 +1,5 @@
 #include "xsi_shaders.h"
+#include "logs.h"
 
 std::vector<XSI::ShaderParameter> get_root_shader_parameter(const XSI::CRefArray& first_level_shaders, const XSI::CString& root_parameter_name, bool check_substring)
 {
@@ -57,5 +58,61 @@ XSI::Shader get_input_node(const XSI::ShaderParameter& parameter)
 	else
 	{
 		return XSI::Shader();
+	}
+}
+
+XSI::Parameter get_source_parameter(XSI::Parameter &parameter)
+{
+	XSI::CRef source = parameter.GetSource();
+	if (source.IsValid())
+	{
+		//source is valid
+		//this means that parameter is connected to something
+		if (source.GetClassID() == XSI::siShaderParameterID)
+		{
+			//get the parent node of the shader parameter
+			XSI::ShaderParameter source_param(source);
+			XSI::Shader source_node = source_param.GetParent();
+			XSI::CString source_prog_id = source_node.GetProgID();
+			if (source_prog_id == "XSIRTCOMPOUND")
+			{
+				//parameter connected to the compound port, try to find next connection
+				return get_source_parameter(source_param);
+			}
+			else
+			{
+				//may be the source node is passthrough node, then go deeper
+				XSI::CStringArray name_parts = source_prog_id.Split(".");
+				if (name_parts[0] == "SIUtilityShaders")
+				{
+					if (name_parts[1].ReverseFindString("Passthrough") < UINT_MAX)
+					{
+						//find substring, this is passtrouhg node
+						//get input parameter of the node
+						XSI::Parameter p = source_node.GetParameter("input");
+						return get_source_parameter(p);
+					}
+					else
+					{
+						return parameter;
+					}
+				}
+				else
+				{
+					//this is any shader node, so, our parameter connected to something, return itself
+					return parameter;
+				}
+			}
+		}
+		else
+		{
+			//parameter connect not to the shader parameter, this is wron, so, return the input parameter
+			return parameter;
+		}
+	}
+	else
+	{
+		//if source of the parameter is not valid, then this parameter does not connect to anything, so, this is the final parameter
+		return parameter;
 	}
 }

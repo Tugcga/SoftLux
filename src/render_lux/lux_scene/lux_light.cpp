@@ -27,15 +27,24 @@ bool sync_xsi_light(luxcore::Scene* scene, XSI::Light &xsi_light, const XSI::CTi
 				//so, we can use it to define light parameters
 				//get the color
 				XSI::CParameterRefArray all_params = light_node.GetParameters();
-				XSI::MATH::CColor4f color = ((XSI::Parameter)all_params.GetItem("color")).GetValue(eval_time);
+				XSI::Parameter color_param = all_params.GetItem("color");
+				XSI::Parameter color_param_final = get_source_parameter(color_param);
+				XSI::MATH::CColor4f color = color_param_final.GetValue(eval_time);
 				float color_r = color.GetR();
 				float color_g = color.GetG();
 				float color_b = color.GetB();
 				//get spread
-				float spread = ((XSI::Parameter)all_params.GetItem("spread")).GetValue(eval_time);
+				XSI::Parameter spread_param = all_params.GetItem("spread");
+				XSI::Parameter spread_param_final = get_source_parameter(spread_param);
+				float spread = spread_param_final.GetValue(eval_time);
 				//get intensity
-				float exponent = (float)xsi_light.GetParameterValue("LightExponent", eval_time);
-				float intensity = ((XSI::Parameter)all_params.GetItem("intensity")).GetValue(eval_time);
+				XSI::Parameter intensity_param = all_params.GetItem("intensity");
+				XSI::Parameter intensity_param_final = get_source_parameter(intensity_param);
+				float intensity = intensity_param_final.GetValue(eval_time);
+				//and umbra
+				XSI::Parameter umbra_param = all_params.GetItem("factor");
+				XSI::Parameter umbra_param_final = get_source_parameter(umbra_param);
+				float umbra = umbra_param_final.GetValue(eval_time);
 
 				//we does not need shader parameters, because we already memorize it
 				root_parameter_array.clear();
@@ -131,8 +140,6 @@ bool sync_xsi_light(luxcore::Scene* scene, XSI::Light &xsi_light, const XSI::CTi
 					{//this is spot light
 						//get cone parameter
 						float cone = (float)xsi_light.GetParameterValue("LightCone", eval_time);
-						//and umbra
-						float umbra = ((XSI::Parameter)all_params.GetItem("factor")).GetValue(eval_time);
 
 						luxrays::Properties light_props;
 						light_props.Set(luxrays::Property("scene.lights." + light_name + ".type")("spot"));

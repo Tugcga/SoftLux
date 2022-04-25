@@ -138,7 +138,10 @@ bool sync_polymesh(luxcore::Scene* scene, XSI::X3DObject &xsi_object, const XSI:
 	//add mesh to the scene
 	luxrays::Properties polymesh_props;
 	polymesh_props.Set(luxrays::Property("scene.objects." + object_name + ".shape")(mesh_name));
-	polymesh_props.Set(luxrays::Property("scene.objects." + object_name + ".material")(use_default_material ? "default_material" : (override_material == 0 ? /*here we should set proper material name*/"default_material" : std::string(XSI::CString(override_material).GetAsciiString()))));
+	//get mesh material
+	XSI::Material main_material = xsi_object.GetMaterial();
+	std::string main_material_name = xsi_object_id_string(main_material);
+	polymesh_props.Set(luxrays::Property("scene.objects." + object_name + ".material")(use_default_material ? "default_material" : (override_material == 0 ? main_material_name : std::string(XSI::CString(override_material).GetAsciiString()))));
 	polymesh_props.Set(luxrays::Property("scene.objects." + object_name + ".id")(static_cast<unsigned int>(xsi_object.GetObjectID())));
 	polymesh_props.Set(luxrays::Property("scene.objects." + object_name + ".camerainvisible")(false));
 

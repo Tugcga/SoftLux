@@ -2,6 +2,10 @@
 #include "../../utilities/logs.h"
 #include "../../utilities/export_common.h"
 
+#include "xsi_project.h"
+#include "xsi_scene.h"
+#include "xsi_model.h"
+
 //here we convert built-in XSI lights
 bool sync_xsi_light(luxcore::Scene* scene, XSI::Light &xsi_light, const XSI::CTime &eval_time)
 {
@@ -32,7 +36,6 @@ bool sync_xsi_light(luxcore::Scene* scene, XSI::Light &xsi_light, const XSI::CTi
 				//get intensity
 				float exponent = (float)xsi_light.GetParameterValue("LightExponent", eval_time);
 				float intensity = ((XSI::Parameter)all_params.GetItem("intensity")).GetValue(eval_time);
-				intensity *= pow(2, exponent);
 
 				//we does not need shader parameters, because we already memorize it
 				root_parameter_array.clear();
@@ -61,6 +64,9 @@ bool sync_xsi_light(luxcore::Scene* scene, XSI::Light &xsi_light, const XSI::CTi
 					material_props.Set(luxrays::Property("scene.materials." + mat_name + ".type")("matte"));
 					material_props.Set(luxrays::Property("scene.materials." + mat_name + ".kd")(0.0, 0.0, 0.0));
 					material_props.Set(luxrays::Property("scene.materials." + mat_name + ".emission")(color_r, color_g, color_b));
+					//apply scale along x and y axis
+					float size_x = xsi_light.GetParameterValue("LightAreaXformSX", eval_time);
+					float size_y = xsi_light.GetParameterValue("LightAreaXformSY", eval_time);
 					material_props.Set(luxrays::Property("scene.materials." + mat_name + ".emission.gain")(intensity, intensity, intensity));
 					//set spread = 90.0
 					material_props.Set(luxrays::Property("scene.materials." + mat_name + ".emission.theta")(90.0));
@@ -70,9 +76,6 @@ bool sync_xsi_light(luxcore::Scene* scene, XSI::Light &xsi_light, const XSI::CTi
 					//set transform
 					XSI::MATH::CTransformation xsi_transform = xsi_light.GetKinematics().GetGlobal().GetTransform();
 					XSI::MATH::CMatrix4 xsi_matrix = xsi_transform.GetMatrix4();
-					//apply scale along x and y axis
-					float size_x = xsi_light.GetParameterValue("LightAreaXformSX", eval_time);
-					float size_y = xsi_light.GetParameterValue("LightAreaXformSY", eval_time);
 					XSI::MATH::CMatrix4 scale_matrix;
 					scale_matrix.SetIdentity();
 					scale_matrix.SetValue(0, 0, size_x * 0.5 / xsi_transform.GetSclX());
@@ -103,14 +106,23 @@ bool sync_xsi_light(luxcore::Scene* scene, XSI::Light &xsi_light, const XSI::CTi
 					{//this is infinite light
 						//export infinite light as lux distant
 						luxrays::Properties light_props;
-						light_props.Set(luxrays::Property("scene.lights." + light_name + ".type")("distant"));
+						if (spread < 0.1f)
+						{
+							light_props.Set(luxrays::Property("scene.lights." + light_name + ".type")("sharpdistant"));
+						}
+						else
+						{
+							light_props.Set(luxrays::Property("scene.lights." + light_name + ".type")("distant"));
+							light_props.Set(luxrays::Property("scene.lights." + light_name + ".theta")(spread));
+							intensity *= get_distant_light_normalization_factor(spread);
+						}
+						
 						//direction is local z-direction
 						XSI::MATH::CMatrix4 tfm_matrix = xsi_light.GetKinematics().GetGlobal().GetTransform().GetMatrix4();
 						//set direction z-row of the matrix, but swap values (x, y, z) -> (z, x, y)
 						light_props.Set(luxrays::Property("scene.lights." + light_name + ".direction")(-tfm_matrix.GetValue(2, 2), -tfm_matrix.GetValue(2, 0), -tfm_matrix.GetValue(2, 1)));
 						light_props.Set(luxrays::Property("scene.lights." + light_name + ".gain")(intensity, intensity, intensity));
 						light_props.Set(luxrays::Property("scene.lights." + light_name + ".color")(color_r, color_g, color_b));
-						light_props.Set(luxrays::Property("scene.lights." + light_name + ".theta")(spread));
 						scene->Parse(light_props);
 
 						return true;
@@ -175,21 +187,40 @@ bool update_light_object(luxcore::Scene* scene, XSI::X3DObject& xsi_object, cons
 		//delete the light
 		std::string object_name = xsi_object_id_string(xsi_object);
 		XSI::Light xsi_light(xsi_object);
-		bool is_area = xsi_light.GetParameterValue("LightArea", eval_time);
-		if (is_area)
-		{//are lights store in objects, so, delete from objects
-			scene->DeleteObject(object_name);
-		}
-		else
-		{
-			//all other lights store in lights section, so, delete from lights
-			scene->DeleteLight(object_name);
-		}
+		//delete both from objects and lights, because we can switch light type from are to point, and in this case we should delete from object, but now this light is not are
+		scene->DeleteObject(object_name);
+		scene->DeleteLight(object_name);
 		
 		return sync_xsi_light(scene, xsi_light, eval_time);
 	}
 	else
 	{
 		return false;
+	}
+}
+
+void sync_ambient(luxcore::Scene* scene, const XSI::CTime &eval_time)
+{
+	std::string ambient_name = "ambient_light";  // hardcoded name
+	scene->DeleteLight(ambient_name);
+	XSI::Project xsi_project = XSI::Application().GetActiveProject();
+	XSI::Scene xsi_scene = xsi_project.GetActiveScene();
+	XSI::Model xsi_root = xsi_scene.GetRoot();
+	XSI::Property xsi_prop;
+	xsi_root.GetPropertyFromName("AmbientLighting", xsi_prop);
+	if (xsi_prop.IsValid())
+	{
+		XSI::Parameter xsi_param = xsi_prop.GetParameter("ambience");
+		XSI::CParameterRefArray color_params = xsi_param.GetParameters();
+		float r = color_params.GetValue("red", eval_time);
+		float g = color_params.GetValue("green", eval_time);
+		float b = color_params.GetValue("blue", eval_time);
+
+		//add ambient light
+		luxrays::Properties ambient_props;
+		ambient_props.Set(luxrays::Property("scene.lights." + ambient_name + ".type")("constantinfinite"));
+		ambient_props.Set(luxrays::Property("scene.lights." + ambient_name + ".color")(r, g, b));
+
+		scene->Parse(ambient_props);
 	}
 }

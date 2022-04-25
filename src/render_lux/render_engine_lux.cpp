@@ -168,6 +168,10 @@ XSI::CStatus RenderEngineLux::update_scene(XSI::X3DObject& xsi_object, const Upd
 				}
 				return XSI::CStatus::OK;
 			}
+			else if (update_type == UpdateType_GlobalAmbient)
+			{
+				sync_ambient(scene, eval_time);
+			}
 			else if(update_type == UpdateType_Transform)
 			{
 				//does not remember the object, because we can update mesh of the object later
@@ -292,6 +296,9 @@ XSI::CStatus RenderEngineLux::create_scene()
 	{
 		//sync materials
 		sync_materials(scene, XSI::Application().GetActiveProject().GetActiveScene(), xsi_materials_in_lux, eval_time);
+
+		//ambient light
+		sync_ambient(scene, eval_time);
 
 		//sync scene objects
 		sync_scene_objects(scene, m_render_context, xsi_objects_in_lux, eval_time);

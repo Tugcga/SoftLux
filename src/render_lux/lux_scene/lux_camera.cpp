@@ -4,10 +4,6 @@
 
 #include "xsi_kinematics.h"
 
-#define M_PI 3.14159265358979323846
-#define DEG2RADF(_deg) ((_deg) * (float)(M_PI / 180.0))
-#define RAD2DEGF(_rad) ((_rad) * (float)(180.0 / M_PI))
-
 void set_lux_camera_positions(luxrays::Properties &camera_props, const XSI::MATH::CVector3& xsi_position, const XSI::MATH::CVector3& xsi_target_position)
 {
 	std::array<float, 3> lux_position = xsi_to_lux_vector(xsi_position);
@@ -59,9 +55,7 @@ void sync_camera_scene(luxcore::Scene* scene, const XSI::Camera& xsi_camera, con
 	camera_props.Set(luxrays::Property("scene.camera.fieldofview")(fov));
 
 	//up vector
-	//TODO: can not understand, how to properly setup it
-	//XSI::MATH::CMatrix4 xsi_tfm_matrix = xsi_tfm.GetMatrix4();
-	//camera_props.Set(luxrays::Property("scene.camera.up")(xsi_tfm_matrix.GetValue(0, 1), xsi_tfm_matrix.GetValue(1, 1), xsi_tfm_matrix.GetValue(2, 1)));
+	//TODO: can not understand, how to properly setup up vector
 
 	//clipping planes
 	float near_clip = xsi_camera.GetParameterValue("near", eval_time);
@@ -77,7 +71,7 @@ void sync_camera_scene(luxcore::Scene* scene, const XSI::Camera& xsi_camera, con
 	camera_props.Set(luxrays::Property("scene.camera.autofocus.enable")(0));
 
 	//TODO: look at parsecamera.cpp source file to find all camera attributes
-	//TODO: make panoramic camera export (using external propery)
+	//TODO: make panoramic camera export (using external property or camera shader)
 
 	scene->Parse(camera_props);
 }

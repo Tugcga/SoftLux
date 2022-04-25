@@ -16,6 +16,8 @@
 
 #include <set>
 
+void set_lux_camera_positions(luxrays::Properties& camera_props, const XSI::MATH::CVector3& xsi_position, const XSI::MATH::CVector3& xsi_target_position);
+
 //return true if we add the object to the scene, and false in other case (unsupported object, for example)
 bool sync_object(luxcore::Scene* scene, XSI::X3DObject& xsi_object, const XSI::CTime& eval_time);
 void sync_shaderball(luxcore::Scene* scene, XSI::RendererContext& xsi_render_context, std::set<ULONG>& xsi_objects_in_lux, const XSI::CTime& eval_time, const ULONG override_material);
@@ -32,4 +34,5 @@ bool sync_xsi_light(luxcore::Scene* scene, XSI::Light& xsi_light, const XSI::CTi
 bool update_light_object(luxcore::Scene* scene, XSI::X3DObject& xsi_object, const XSI::CTime& eval_time);
 void sync_camera_scene(luxcore::Scene* scene, const XSI::Camera& xsi_camera, const XSI::CTime& eval_time);
 void sync_camera_shaderball(luxcore::Scene* scene);
+void sync_camera(luxcore::Scene* scene, const RenderType render_type, XSI::RendererContext& xsi_render_context, const XSI::CTime& eval_time);
 void sync_transform(luxcore::Scene* scene, const std::string& object_name, const XSI::MATH::CTransformation& xsi_tfm, const XSI::CTime& eval_time);

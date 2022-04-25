@@ -20,6 +20,7 @@ RenderEngineLux::RenderEngineLux()
 	session = NULL;
 	is_scene_create = false;
 	is_session = false;
+	is_update_camera = false;
 	prev_full_width = 0;
 	prev_full_height = 0;
 	prev_corner_x = 0;
@@ -87,7 +88,7 @@ void RenderEngineLux::clear_session()
 }
 
 //called every time before scene update
-//here we should setup parameters, which should be done for both situations: screate scene from scratch or update the scene
+//here we should setup parameters, which should be done for both situations: create scene from scratch or update the scene
 XSI::CStatus RenderEngineLux::pre_scene_process()
 {
 	try_to_init();
@@ -116,8 +117,10 @@ XSI::CStatus RenderEngineLux::pre_scene_process()
 		prev_full_height = visual_buffer.full_height;
 	}
 
+	is_update_camera = false;
+
 	updated_xsi_ids.clear();
-	
+		
 	return XSI::CStatus::OK;
 }
 
@@ -130,12 +133,8 @@ XSI::CStatus RenderEngineLux::update_scene(XSI::X3DObject& xsi_object, const Upd
 		{
 			if (update_type == UpdateType_Camera)
 			{
-				//we always update the camera
-				//so, does not need it here
-				//XSI::Primitive camera_prim(m_render_context.GetAttribute("Camera"));
-				//XSI::X3DObject camera_obj = camera_prim.GetOwners()[0];
-				//XSI::Camera	xsi_camera(camera_obj);
-				//sync_camera_scene(scene, xsi_camera, eval_time);
+				sync_camera(scene, render_type, m_render_context, eval_time);
+				is_update_camera = true;
 
 				return XSI::CStatus::OK;
 			}
@@ -261,40 +260,36 @@ XSI::CStatus RenderEngineLux::update_scene_render()
 //here we create the scene for rendering from scratch
 XSI::CStatus RenderEngineLux::create_scene()
 {
+	log_message("create scene, mode " + XSI::CString(render_type));
 	clear_scene();
 	clear_session();
 	scene = luxcore::Scene::Create();
 	is_scene_create = true;
 
-	//setup camera
+	//always update the camera
+	sync_camera(scene, render_type, m_render_context, eval_time);
+	is_update_camera = true;
+
 	if (render_type == RenderType_Shaderball)
 	{
 		//for shaderball render use other sync method
-		sync_camera_shaderball(scene);
 		XSI::CRef shaderball_item = m_render_context.GetAttribute("Material");
 		XSI::siClassID shaderball_item_class = shaderball_item.GetClassID();
 		if (shaderball_item_class == XSI::siMaterialID)
 		{
 			XSI::Material shaderball_material(shaderball_item);
 			sync_material(scene, shaderball_material, xsi_materials_in_lux, eval_time);
-			//does not neew background material, because we skip backround objects in the shaderball
-			//sync_shaderball_back_material(scene);
-			//sync material scene
-			//sync_scene_objects(scene, m_render_context, render_type, xsi_objects_in_lux, eval_time, shaderball_material.GetObjectID());
 			sync_shaderball(scene, m_render_context, xsi_objects_in_lux, eval_time, shaderball_material.GetObjectID());
 		}
 		else
 		{
 			//preview shader node
+			render_type == RenderType_Unknown;
+			//at the next render session we will recreate the scene
 		}
 	}
 	else
 	{
-		XSI::Primitive camera_prim(m_render_context.GetAttribute("Camera"));
-		XSI::X3DObject camera_obj = camera_prim.GetOwners()[0];
-		XSI::Camera	xsi_camera(camera_obj);
-		sync_camera_scene(scene, xsi_camera, eval_time);
-
 		//sync materials
 		sync_materials(scene, XSI::Application().GetActiveProject().GetActiveScene(), xsi_materials_in_lux, eval_time);
 
@@ -308,17 +303,11 @@ XSI::CStatus RenderEngineLux::create_scene()
 //call this method after scene created or updated but before unlock
 XSI::CStatus RenderEngineLux::post_scene()
 {
-	//always update the camera
-	if (render_type == RenderType_Shaderball)
+	//update camera, if we did not do it earlier
+	if (!is_update_camera)
 	{
-		sync_camera_shaderball(scene);
-	}
-	else
-	{
-		XSI::Primitive camera_prim(m_render_context.GetAttribute("Camera"));
-		XSI::X3DObject camera_obj = camera_prim.GetOwners()[0];
-		XSI::Camera	xsi_camera(camera_obj);
-		sync_camera_scene(scene, xsi_camera, eval_time);
+		sync_camera(scene, render_type, m_render_context, eval_time);
+		is_update_camera = true;
 	}
 
 	//here we should create the session and render parameters

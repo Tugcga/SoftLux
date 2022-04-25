@@ -58,6 +58,7 @@ private:
 	//render session
 	luxcore::RenderSession* session;
 	bool is_session;
+	bool is_update_camera;
 
 	//render region from the previous render session
 	unsigned int prev_full_width, prev_full_height;

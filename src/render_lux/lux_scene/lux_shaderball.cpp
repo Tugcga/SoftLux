@@ -172,3 +172,16 @@ void sync_shaderball(luxcore::Scene* scene, XSI::RendererContext& xsi_render_con
 		}
 	}
 }
+
+void sync_camera_shaderball(luxcore::Scene* scene)
+{
+	XSI::MATH::CVector3 xsi_position = XSI::MATH::CVector3(5.5618, 5.7636, 5.8259);
+	XSI::MATH::CVector3 xsi_target_position = XSI::MATH::CVector3(0.0, 0.535, 0.0);
+	luxrays::Properties camera_props;
+	camera_props.Set(luxrays::Property("scene.camera.type")("perspective"));
+	set_lux_camera_positions(camera_props, xsi_position, xsi_target_position);
+	camera_props.Set(luxrays::Property("scene.camera.fieldofview")(48.0f));
+	camera_props.Set(luxrays::Property("scene.camera.up")(0.0, 0.0, 1.0));
+
+	scene->Parse(camera_props);
+}

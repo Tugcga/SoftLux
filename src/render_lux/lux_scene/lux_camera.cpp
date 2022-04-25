@@ -82,15 +82,17 @@ void sync_camera_scene(luxcore::Scene* scene, const XSI::Camera& xsi_camera, con
 	scene->Parse(camera_props);
 }
 
-void sync_camera_shaderball(luxcore::Scene * scene)
+void sync_camera(luxcore::Scene* scene, const RenderType render_type, XSI::RendererContext& xsi_render_context, const XSI::CTime &eval_time)
 {
-	XSI::MATH::CVector3 xsi_position = XSI::MATH::CVector3(5.5618, 5.7636, 5.8259);
-	XSI::MATH::CVector3 xsi_target_position = XSI::MATH::CVector3(0.0, 0.535, 0.0);
-	luxrays::Properties camera_props;
-	camera_props.Set(luxrays::Property("scene.camera.type")("perspective"));
-	set_lux_camera_positions(camera_props, xsi_position, xsi_target_position);
-	camera_props.Set(luxrays::Property("scene.camera.fieldofview")(48.0f));
-	camera_props.Set(luxrays::Property("scene.camera.up")(0.0, 0.0, 1.0));
-
-	scene->Parse(camera_props);
+	if (render_type == RenderType_Shaderball)
+	{
+		sync_camera_shaderball(scene);
+	}
+	else
+	{
+		XSI::Primitive camera_prim(xsi_render_context.GetAttribute("Camera"));
+		XSI::X3DObject camera_obj = camera_prim.GetOwners()[0];
+		XSI::Camera	xsi_camera(camera_obj);
+		sync_camera_scene(scene, xsi_camera, eval_time);
+	}
 }

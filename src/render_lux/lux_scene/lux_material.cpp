@@ -14,7 +14,7 @@ void sync_material(luxcore::Scene* scene, const XSI::Material &xsi_material, std
 	std::string material_name = xsi_object_id_string(xsi_material);
 	scene->Parse(
 		luxrays::Property("scene.materials." + material_name + ".type")("matte") <<
-		luxrays::Property("scene.materials." + material_name + ".kd")(0.8, 0.4, 0.6)
+		luxrays::Property("scene.materials." + material_name + ".kd")(int(material_name[0] - '0') / (float)10, int(material_name[1] - '0') / (float)10, int(material_name[2] - '0') / (float)10)
 	);
 
 	xsi_materials_in_lux.insert(xsi_material.GetObjectID());

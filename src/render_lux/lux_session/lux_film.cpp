@@ -6,7 +6,7 @@ void read_visual_buffer(luxcore::Film &film, RenderVisualBuffer& buffer)
 	//these two aov should be selected in the render config
 	std::vector<float> film_pixels(film.GetOutputSize(luxcore::Film::OUTPUT_RGB));
 	std::vector<float> alpha_pixels(film.GetOutputSize(luxcore::Film::OUTPUT_ALPHA));
-	film.GetOutput<float>(luxcore::Film::OUTPUT_RGB, film_pixels.data(), 0, true);
+	film.GetOutput<float>(luxcore::Film::OUTPUT_RGB_IMAGEPIPELINE, film_pixels.data(), 0, true);
 	film.GetOutput<float>(luxcore::Film::OUTPUT_ALPHA, alpha_pixels.data(), 0, true);
 	//next we should copy pixels for selected rectangle
 	for (size_t y = 0; y < buffer.height; y++)

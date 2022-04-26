@@ -40,12 +40,8 @@ void sync_camera_scene(luxcore::Scene* scene, const XSI::Camera& xsi_camera, con
 	{//find panorama node
 		XSI::Shader panorama_shader = get_input_node(panorama_root_parameter[0]);
 		XSI::CParameterRefArray all_params = panorama_shader.GetParameters();
-		XSI::Parameter enable_param = all_params.GetItem("enable");
-		XSI::Parameter enable_param_final = get_source_parameter(enable_param);
-		XSI::Parameter degrees_param = all_params.GetItem("degrees");
-		XSI::Parameter degrees_param_final = get_source_parameter(degrees_param);
-		panorama_degrees = degrees_param_final.GetValue(eval_time);
-		panorama_enable = enable_param_final.GetValue(eval_time);
+		panorama_degrees = get_float_parameter_value(all_params, "degrees", eval_time);
+		panorama_enable = get_bool_parameter_value(all_params, "enable", eval_time);
 
 		panorama_root_parameter.clear();
 	}
@@ -57,9 +53,7 @@ void sync_camera_scene(luxcore::Scene* scene, const XSI::Camera& xsi_camera, con
 		{
 			XSI::Shader panorama_shader = get_input_node(panorama_root_parameter[0]);
 			XSI::CParameterRefArray all_params = panorama_shader.GetParameters();
-			XSI::Parameter horizonttal_fov_param = all_params.GetItem("HORIZONTAL_FOV");
-			XSI::Parameter horizonttal_fov_param_final = get_source_parameter(horizonttal_fov_param);
-			panorama_degrees = horizonttal_fov_param_final.GetValue(eval_time);
+			panorama_degrees = get_float_parameter_value(all_params, "HORIZONTAL_FOV", eval_time);
 			panorama_enable = true;
 
 			panorama_root_parameter.clear();

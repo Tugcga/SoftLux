@@ -235,7 +235,13 @@ XSI::CStatus RenderEngineLux::update_scene(XSI::X3DObject& xsi_object, const Upd
 
 XSI::CStatus RenderEngineLux::update_scene(const XSI::SIObject& si_object, const UpdateType update_type)
 {
-	//nothing to do here
+	if (update_type == UpdateType_Pass)
+	{
+		//update pass, may be change output nodes for image pipline
+		//so, we should recreate settings and session from scratch
+		clear_session();
+	}
+
 	return XSI::CStatus::OK;
 }
 

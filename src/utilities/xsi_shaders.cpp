@@ -33,6 +33,14 @@ XSI::CString get_string_parameter_value(const XSI::CParameterRefArray& all_param
 	return (XSI::CString)param_final.GetValue(eval_time);
 }
 
+XSI::MATH::CColor4f get_color_parameter_value(const XSI::CParameterRefArray& all_parameters, const XSI::CString& parameter_name, const XSI::CTime& eval_time)
+{
+	XSI::Parameter param = all_parameters.GetItem(parameter_name);
+	XSI::Parameter param_final = get_source_parameter(param);
+
+	return (XSI::MATH::CColor4f)param_final.GetValue(eval_time);
+}
+
 std::vector<XSI::ShaderParameter> get_root_shader_parameter(const XSI::CRefArray& first_level_shaders, 
 															GetRootShaderParameterMode mode, 
 															const XSI::CString& root_parameter_name, 

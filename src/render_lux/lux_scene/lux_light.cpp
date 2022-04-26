@@ -27,24 +27,16 @@ bool sync_xsi_light(luxcore::Scene* scene, XSI::Light &xsi_light, const XSI::CTi
 				//so, we can use it to define light parameters
 				//get the color
 				XSI::CParameterRefArray all_params = light_node.GetParameters();
-				XSI::Parameter color_param = all_params.GetItem("color");
-				XSI::Parameter color_param_final = get_source_parameter(color_param);
-				XSI::MATH::CColor4f color = color_param_final.GetValue(eval_time);
+				XSI::MATH::CColor4f color = get_color_parameter_value(all_params, "color", eval_time);
 				float color_r = color.GetR();
 				float color_g = color.GetG();
 				float color_b = color.GetB();
 				//get spread
-				XSI::Parameter spread_param = all_params.GetItem("spread");
-				XSI::Parameter spread_param_final = get_source_parameter(spread_param);
-				float spread = spread_param_final.GetValue(eval_time);
+				float spread = get_float_parameter_value(all_params, "spread", eval_time);
 				//get intensity
-				XSI::Parameter intensity_param = all_params.GetItem("intensity");
-				XSI::Parameter intensity_param_final = get_source_parameter(intensity_param);
-				float intensity = intensity_param_final.GetValue(eval_time);
+				float intensity = get_float_parameter_value(all_params, "intensity", eval_time);
 				//and umbra
-				XSI::Parameter umbra_param = all_params.GetItem("factor");
-				XSI::Parameter umbra_param_final = get_source_parameter(umbra_param);
-				float umbra = umbra_param_final.GetValue(eval_time);
+				float umbra = get_float_parameter_value(all_params, "factor", eval_time);
 
 				//we does not need shader parameters, because we already memorize it
 				root_parameter_array.clear();

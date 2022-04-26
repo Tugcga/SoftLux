@@ -46,6 +46,8 @@ void sync_camera_scene(luxcore::Scene* scene, const XSI::Camera& xsi_camera, con
 		XSI::Parameter degrees_param_final = get_source_parameter(degrees_param);
 		panorama_degrees = degrees_param_final.GetValue(eval_time);
 		panorama_enable = enable_param_final.GetValue(eval_time);
+
+		panorama_root_parameter.clear();
 	}
 	else
 	{
@@ -59,6 +61,8 @@ void sync_camera_scene(luxcore::Scene* scene, const XSI::Camera& xsi_camera, con
 			XSI::Parameter horizonttal_fov_param_final = get_source_parameter(horizonttal_fov_param);
 			panorama_degrees = horizonttal_fov_param_final.GetValue(eval_time);
 			panorama_enable = true;
+
+			panorama_root_parameter.clear();
 		}
 	}
 
@@ -130,6 +134,7 @@ void sync_camera_scene(luxcore::Scene* scene, const XSI::Camera& xsi_camera, con
 				bokeh_scale_y = get_float_parameter_value(bokeh_params, "scale_y", eval_time);
 				bokeh_type = get_string_parameter_value(bokeh_params, "distribution_type", eval_time).GetAsciiString();
 			}
+			bokeh_root_parameter.clear();
 
 			if (use_bokeh)
 			{

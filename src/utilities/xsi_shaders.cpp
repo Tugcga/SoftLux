@@ -1,7 +1,44 @@
 #include "xsi_shaders.h"
 #include "logs.h"
 
-std::vector<XSI::ShaderParameter> get_root_shader_parameter(const XSI::CRefArray& first_level_shaders, GetRootShaderParameterMode mode, const XSI::CString& root_parameter_name, bool check_substring, const XSI::CString& node_name)
+float get_float_parameter_value(const XSI::CParameterRefArray &all_parameters, const XSI::CString &parameter_name, const XSI::CTime &eval_time)
+{
+	XSI::Parameter param = all_parameters.GetItem(parameter_name);
+	XSI::Parameter param_final = get_source_parameter(param);
+
+	return (float)param_final.GetValue(eval_time);
+}
+
+int get_int_parameter_value(const XSI::CParameterRefArray& all_parameters, const XSI::CString& parameter_name, const XSI::CTime& eval_time)
+{
+	XSI::Parameter param = all_parameters.GetItem(parameter_name);
+	XSI::Parameter param_final = get_source_parameter(param);
+
+	return (int)param_final.GetValue(eval_time);
+}
+
+bool get_bool_parameter_value(const XSI::CParameterRefArray& all_parameters, const XSI::CString& parameter_name, const XSI::CTime& eval_time)
+{
+	XSI::Parameter param = all_parameters.GetItem(parameter_name);
+	XSI::Parameter param_final = get_source_parameter(param);
+
+	return (bool)param_final.GetValue(eval_time);
+}
+
+XSI::CString get_string_parameter_value(const XSI::CParameterRefArray& all_parameters, const XSI::CString& parameter_name, const XSI::CTime& eval_time)
+{
+	XSI::Parameter param = all_parameters.GetItem(parameter_name);
+	XSI::Parameter param_final = get_source_parameter(param);
+
+	return (XSI::CString)param_final.GetValue(eval_time);
+}
+
+std::vector<XSI::ShaderParameter> get_root_shader_parameter(const XSI::CRefArray& first_level_shaders, 
+															GetRootShaderParameterMode mode, 
+															const XSI::CString& root_parameter_name, 
+															bool check_substring, 
+															const XSI::CString& plugin_name,
+															const XSI::CString& node_name)
 {
 	std::vector<XSI::ShaderParameter> to_return;
 	for (ULONG i = 0; i < first_level_shaders.GetCount(); i++)
@@ -36,7 +73,7 @@ std::vector<XSI::ShaderParameter> get_root_shader_parameter(const XSI::CRefArray
 						XSI::CStringArray name_parts = connected_node.GetProgID().Split(".");
 						if (name_parts.GetCount() >= 2)
 						{
-							if (name_parts[0] == "LUXShadersPlugin" && name_parts[1] == node_name)
+							if (name_parts[0] == plugin_name && name_parts[1] == node_name)
 							{
 								to_return.push_back(p);
 								return to_return;

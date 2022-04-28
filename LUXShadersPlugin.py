@@ -151,7 +151,11 @@ def XSILoadPlugin(in_reg):
     in_reg.RegisterShader("PassBakeMapMargin", 1, 0)
     in_reg.RegisterShader("PassColorLUT", 1, 0)
     in_reg.RegisterShader("PassOptixDenoiser", 1, 0)
-    in_reg.RegisterShader("PassTonemapOpenColorIO", 1, 0)
+
+    # TODO: implement ColorIO parameters
+    # we should recognize available parameters for selected *.lut file
+    # and output it to PPG
+    # in_reg.RegisterShader("PassTonemapOpenColorIO", 1, 0)
 
     return true
 
@@ -201,11 +205,14 @@ def add_input_vector(param_options, params, default_value=0, name="vector", min_
     params.AddParamDef(name, c.siShaderDataTypeVector3, param_options)
 
 
-def add_input_string(param_options, params, default_value=0, name="string", vis_min=None, vis_max=None):
+def add_input_string(param_options, params, default_value=0, name="string"):
     param_options.SetDefaultValue(default_value)
-    if vis_min is not None and vis_max is not None:
-        param_options.SetSoftLimit(vis_min, vis_max)
     params.AddParamDef(name, c.siShaderDataTypeString, param_options)
+
+
+def add_input_image(param_options, params, default_value="", name="image"):
+    param_options.SetDefaultValue(default_value)
+    params.AddParamDef(name, c.siShaderDataTypeImage, param_options)
 
 
 def standart_pram_options():
@@ -336,7 +343,7 @@ def enable_OnChanged():
 #--------------------PassTonemapLinear-----------------------
 
 def LUXShadersPlugin_PassTonemapLinear_1_0_DefineInfo(in_ctxt):
-    in_ctxt.SetAttribute("Category", "LuxCore/Pass")
+    in_ctxt.SetAttribute("Category", "LuxCore/Pass/Tonemap")
     in_ctxt.SetAttribute("DisplayName", "luxTonemapLinear")
     return True
 
@@ -379,7 +386,7 @@ def enable_OnChanged():
 #--------------------PassTonemapReinhard-----------------------
 
 def LUXShadersPlugin_PassTonemapReinhard_1_0_DefineInfo(in_ctxt):
-    in_ctxt.SetAttribute("Category", "LuxCore/Pass")
+    in_ctxt.SetAttribute("Category", "LuxCore/Pass/Tonemap")
     in_ctxt.SetAttribute("DisplayName", "luxTonemapReinhard")
     return True
 
@@ -428,7 +435,7 @@ def enable_OnChanged():
 #--------------------PassTonemapAutoLinear-----------------------
 
 def LUXShadersPlugin_PassTonemapAutoLinear_1_0_DefineInfo(in_ctxt):
-    in_ctxt.SetAttribute("Category", "LuxCore/Pass")
+    in_ctxt.SetAttribute("Category", "LuxCore/Pass/Tonemap")
     in_ctxt.SetAttribute("DisplayName", "luxTonemapAutoLinear")
     return True
 
@@ -461,7 +468,7 @@ def LUXShadersPlugin_PassTonemapAutoLinear_1_0_Define(in_ctxt):
 #--------------------PassTonemapLuxLinear-----------------------
 
 def LUXShadersPlugin_PassTonemapLuxLinear_1_0_DefineInfo(in_ctxt):
-    in_ctxt.SetAttribute("Category", "LuxCore/Pass")
+    in_ctxt.SetAttribute("Category", "LuxCore/Pass/Tonemap")
     in_ctxt.SetAttribute("DisplayName", "luxTonemapLuxLinear")
     return True
 
@@ -510,7 +517,7 @@ def enable_OnChanged():
 #--------------------PassGammaCorrection-----------------------
 
 def LUXShadersPlugin_PassGammaCorrection_1_0_DefineInfo(in_ctxt):
-    in_ctxt.SetAttribute("Category", "LuxCore/Pass")
+    in_ctxt.SetAttribute("Category", "LuxCore/Pass/Tonemap")
     in_ctxt.SetAttribute("DisplayName", "luxGammaCorrection")
     return True
 
@@ -547,7 +554,7 @@ def LUXShadersPlugin_PassGammaCorrection_1_0_Define(in_ctxt):
 #--------------------PassNOP-----------------------
 
 def LUXShadersPlugin_PassNOP_1_0_DefineInfo(in_ctxt):
-    in_ctxt.SetAttribute("Category", "LuxCore/Pass")
+    in_ctxt.SetAttribute("Category", "LuxCore/Pass/Tonemap")
     in_ctxt.SetAttribute("DisplayName", "luxNOP")
     return True
 
@@ -580,7 +587,7 @@ def LUXShadersPlugin_PassNOP_1_0_Define(in_ctxt):
 #--------------------PassOutputSwitcher-----------------------
 
 def LUXShadersPlugin_PassOutputSwitcher_1_0_DefineInfo(in_ctxt):
-    in_ctxt.SetAttribute("Category", "LuxCore/Pass")
+    in_ctxt.SetAttribute("Category", "LuxCore/Pass/Data")
     in_ctxt.SetAttribute("DisplayName", "luxOutputSwitcher")
     return True
 
@@ -626,7 +633,7 @@ def enable_OnChanged():
 #--------------------PassGaussianFilter-----------------------
 
 def LUXShadersPlugin_PassGaussianFilter_1_0_DefineInfo(in_ctxt):
-    in_ctxt.SetAttribute("Category", "LuxCore/Pass")
+    in_ctxt.SetAttribute("Category", "LuxCore/Pass/Post-process")
     in_ctxt.SetAttribute("DisplayName", "luxGaussianFilter")
     return True
 
@@ -669,7 +676,7 @@ def enable_OnChanged():
 #--------------------PassCameraResponse-----------------------
 
 def LUXShadersPlugin_PassCameraResponse_1_0_DefineInfo(in_ctxt):
-    in_ctxt.SetAttribute("Category", "LuxCore/Pass")
+    in_ctxt.SetAttribute("Category", "LuxCore/Pass/Post-process")
     in_ctxt.SetAttribute("DisplayName", "luxCameraResponse")
     return True
 
@@ -713,7 +720,7 @@ def enable_OnChanged():
 #--------------------PassContourLines-----------------------
 
 def LUXShadersPlugin_PassContourLines_1_0_DefineInfo(in_ctxt):
-    in_ctxt.SetAttribute("Category", "LuxCore/Pass")
+    in_ctxt.SetAttribute("Category", "LuxCore/Pass/Generate")
     in_ctxt.SetAttribute("DisplayName", "luxContourLines")
     return True
 
@@ -765,7 +772,7 @@ def enable_OnChanged():
 #--------------------PassBackgroundImage-----------------------
 
 def LUXShadersPlugin_PassBackgroundImage_1_0_DefineInfo(in_ctxt):
-    in_ctxt.SetAttribute("Category", "LuxCore/Pass")
+    in_ctxt.SetAttribute("Category", "LuxCore/Pass/Post-process")
     in_ctxt.SetAttribute("DisplayName", "luxBackgroundImage")
     return True
 
@@ -779,6 +786,8 @@ def LUXShadersPlugin_PassBackgroundImage_1_0_Define(in_ctxt):
     
     # parameters
     add_input_boolean(nonport_pram_options(), params, True, "enable")
+    add_input_image(standart_pram_options(), params, "", "file")
+    add_input_float(nonport_pram_options(), params, 2.2, "gamma", 1.0, 4.0)
     
     # Output Parameter: out
     add_output_closure(shaderDef, "out")
@@ -787,6 +796,9 @@ def LUXShadersPlugin_PassBackgroundImage_1_0_Define(in_ctxt):
     ppg_layout = shaderDef.PPGLayout
     ppg_layout.AddGroup("Parameters")
     ppg_layout.AddItem("enable", "Enable")
+    ppg_layout.AddItem("gamma", "Gamma")
+    ppg_layout.AddItem("file", "File")
+    # file_item.SetAttribute(c.siUIShowClip, True)
     ppg_layout.EndGroup()
 
     ppg_layout.Language = "Python"
@@ -794,7 +806,8 @@ def LUXShadersPlugin_PassBackgroundImage_1_0_Define(in_ctxt):
 def enable_OnChanged():
     prop = PPG.Inspected(0)
     enable = prop.Parameters("enable").Value
-    #prop.Parameters("scale").ReadOnly = not enable
+    prop.Parameters("gamma").ReadOnly = not enable
+    prop.Parameters("file").ReadOnly = not enable
 '''
 
     # Renderer definition
@@ -806,7 +819,7 @@ def enable_OnChanged():
 #--------------------PassBloom-----------------------
 
 def LUXShadersPlugin_PassBloom_1_0_DefineInfo(in_ctxt):
-    in_ctxt.SetAttribute("Category", "LuxCore/Pass")
+    in_ctxt.SetAttribute("Category", "LuxCore/Pass/Post-process")
     in_ctxt.SetAttribute("DisplayName", "luxBloom")
     return True
 
@@ -852,7 +865,7 @@ def enable_OnChanged():
 #--------------------PassObjectIDMask-----------------------
 
 def LUXShadersPlugin_PassObjectIDMask_1_0_DefineInfo(in_ctxt):
-    in_ctxt.SetAttribute("Category", "LuxCore/Pass")
+    in_ctxt.SetAttribute("Category", "LuxCore/Pass/Data")
     in_ctxt.SetAttribute("DisplayName", "luxObjectIDMask")
     return True
 
@@ -895,7 +908,7 @@ def enable_OnChanged():
 #--------------------PassVignetting-----------------------
 
 def LUXShadersPlugin_PassVignetting_1_0_DefineInfo(in_ctxt):
-    in_ctxt.SetAttribute("Category", "LuxCore/Pass")
+    in_ctxt.SetAttribute("Category", "LuxCore/Pass/Post-process")
     in_ctxt.SetAttribute("DisplayName", "luxVignetting")
     return True
 
@@ -938,7 +951,7 @@ def enable_OnChanged():
 #--------------------PassColorAberration-----------------------
 
 def LUXShadersPlugin_PassColorAberration_1_0_DefineInfo(in_ctxt):
-    in_ctxt.SetAttribute("Category", "LuxCore/Pass")
+    in_ctxt.SetAttribute("Category", "LuxCore/Pass/Post-process")
     in_ctxt.SetAttribute("DisplayName", "luxColorAberration")
     return True
 
@@ -981,7 +994,7 @@ def enable_OnChanged():
 #--------------------PassPremultiplyAlpha-----------------------
 
 def LUXShadersPlugin_PassPremultiplyAlpha_1_0_DefineInfo(in_ctxt):
-    in_ctxt.SetAttribute("Category", "LuxCore/Pass")
+    in_ctxt.SetAttribute("Category", "LuxCore/Pass/Post-process")
     in_ctxt.SetAttribute("DisplayName", "luxPremultiplyAlpha")
     return True
 
@@ -1014,7 +1027,7 @@ def LUXShadersPlugin_PassPremultiplyAlpha_1_0_Define(in_ctxt):
 #--------------------PassMist-----------------------
 
 def LUXShadersPlugin_PassMist_1_0_DefineInfo(in_ctxt):
-    in_ctxt.SetAttribute("Category", "LuxCore/Pass")
+    in_ctxt.SetAttribute("Category", "LuxCore/Pass/Post-process")
     in_ctxt.SetAttribute("DisplayName", "luxMist")
     return True
 
@@ -1069,7 +1082,7 @@ def enable_OnChanged():
 #--------------------PassBCDDenoiser-----------------------
 
 def LUXShadersPlugin_PassBCDDenoiser_1_0_DefineInfo(in_ctxt):
-    in_ctxt.SetAttribute("Category", "LuxCore/Pass")
+    in_ctxt.SetAttribute("Category", "LuxCore/Pass/Denoise")
     in_ctxt.SetAttribute("DisplayName", "luxBCDDenoiser")
     return True
 
@@ -1145,7 +1158,7 @@ def enable_OnChanged():
 #--------------------PassPatterns-----------------------
 
 def LUXShadersPlugin_PassPatterns_1_0_DefineInfo(in_ctxt):
-    in_ctxt.SetAttribute("Category", "LuxCore/Pass")
+    in_ctxt.SetAttribute("Category", "LuxCore/Pass/Generate")
     in_ctxt.SetAttribute("DisplayName", "luxPatterns")
     return True
 
@@ -1159,6 +1172,7 @@ def LUXShadersPlugin_PassPatterns_1_0_Define(in_ctxt):
     
     # parameters
     add_input_boolean(nonport_pram_options(), params, True, "enable")
+    add_input_integer(nonport_pram_options(), params, 0, "index")
     
     # Output Parameter: out
     add_output_closure(shaderDef, "out")
@@ -1167,7 +1181,20 @@ def LUXShadersPlugin_PassPatterns_1_0_Define(in_ctxt):
     ppg_layout = shaderDef.PPGLayout
     ppg_layout.AddGroup("Parameters")
     ppg_layout.AddItem("enable", "Enable")
+    ppg_layout.AddItem("index", "Index")
     ppg_layout.EndGroup()
+
+    ppg_layout.Language = "Python"
+    ppg_layout.Logic = '''
+def OnInit():
+    prop = PPG.Inspected(0)
+    prop.Parameters("index").ReadOnly = True
+
+def enable_OnChanged():
+    prop = PPG.Inspected(0)
+    enable = prop.Parameters("enable").Value
+    prop.Parameters("index").ReadOnly = not enable
+'''
 
     # Renderer definition
     rendererDef = shaderDef.AddRendererDef("LuxCore")
@@ -1178,7 +1205,7 @@ def LUXShadersPlugin_PassPatterns_1_0_Define(in_ctxt):
 #--------------------PassIntelOIDN-----------------------
 
 def LUXShadersPlugin_PassIntelOIDN_1_0_DefineInfo(in_ctxt):
-    in_ctxt.SetAttribute("Category", "LuxCore/Pass")
+    in_ctxt.SetAttribute("Category", "LuxCore/Pass/Denoise")
     in_ctxt.SetAttribute("DisplayName", "luxIntelOIDN")
     return True
 
@@ -1192,6 +1219,9 @@ def LUXShadersPlugin_PassIntelOIDN_1_0_Define(in_ctxt):
     
     # parameters
     add_input_boolean(nonport_pram_options(), params, True, "enable")
+    add_input_string(nonport_pram_options(), params, "RT", "filter_type")
+    add_input_integer(nonport_pram_options(), params, 6000, "oidnmemory", 512, 8192)
+    add_input_float(nonport_pram_options(), params, 1.0, "sharpness", 0.0, 1.0)
     
     # Output Parameter: out
     add_output_closure(shaderDef, "out")
@@ -1200,7 +1230,23 @@ def LUXShadersPlugin_PassIntelOIDN_1_0_Define(in_ctxt):
     ppg_layout = shaderDef.PPGLayout
     ppg_layout.AddGroup("Parameters")
     ppg_layout.AddItem("enable", "Enable")
+    ppg_layout.AddItem("filter_type", "Filter Type")
+    ppg_layout.AddItem("oidnmemory", "OIDN Memory")
+    ppg_layout.AddItem("sharpness", "Sharpness")
     ppg_layout.EndGroup()
+
+    ppg_layout.Language = "Python"
+    ppg_layout.Logic = '''
+def OnInit():
+    prop = PPG.Inspected(0)
+    prop.Parameters("filter_type").ReadOnly = True
+
+def enable_OnChanged():
+    prop = PPG.Inspected(0)
+    enable = prop.Parameters("enable").Value
+    prop.Parameters("oidnmemory").ReadOnly = not enable
+    prop.Parameters("sharpness").ReadOnly = not enable
+'''
 
     # Renderer definition
     rendererDef = shaderDef.AddRendererDef("LuxCore")
@@ -1211,7 +1257,7 @@ def LUXShadersPlugin_PassIntelOIDN_1_0_Define(in_ctxt):
 #--------------------PassWhiteBalance-----------------------
 
 def LUXShadersPlugin_PassWhiteBalance_1_0_DefineInfo(in_ctxt):
-    in_ctxt.SetAttribute("Category", "LuxCore/Pass")
+    in_ctxt.SetAttribute("Category", "LuxCore/Pass/Tonemap")
     in_ctxt.SetAttribute("DisplayName", "luxWhiteBalance")
     return True
 
@@ -1225,6 +1271,9 @@ def LUXShadersPlugin_PassWhiteBalance_1_0_Define(in_ctxt):
     
     # parameters
     add_input_boolean(nonport_pram_options(), params, True, "enable")
+    add_input_float(nonport_pram_options(), params, 6500.0, "temperature", 1000.0, 40000.0)
+    add_input_boolean(nonport_pram_options(), params, True, "reverse")
+    add_input_boolean(nonport_pram_options(), params, False, "normalize")
     
     # Output Parameter: out
     add_output_closure(shaderDef, "out")
@@ -1233,7 +1282,20 @@ def LUXShadersPlugin_PassWhiteBalance_1_0_Define(in_ctxt):
     ppg_layout = shaderDef.PPGLayout
     ppg_layout.AddGroup("Parameters")
     ppg_layout.AddItem("enable", "Enable")
+    ppg_layout.AddItem("temperature", "Temperature")
+    ppg_layout.AddItem("reverse", "Reverse")
+    ppg_layout.AddItem("normalize", "Normalize")
     ppg_layout.EndGroup()
+
+    ppg_layout.Language = "Python"
+    ppg_layout.Logic = '''
+def enable_OnChanged():
+    prop = PPG.Inspected(0)
+    enable = prop.Parameters("enable").Value
+    prop.Parameters("temperature").ReadOnly = not enable
+    prop.Parameters("reverse").ReadOnly = not enable
+    prop.Parameters("normalize").ReadOnly = not enable
+'''
 
     # Renderer definition
     rendererDef = shaderDef.AddRendererDef("LuxCore")
@@ -1244,7 +1306,7 @@ def LUXShadersPlugin_PassWhiteBalance_1_0_Define(in_ctxt):
 #--------------------PassBakeMapMargin-----------------------
 
 def LUXShadersPlugin_PassBakeMapMargin_1_0_DefineInfo(in_ctxt):
-    in_ctxt.SetAttribute("Category", "LuxCore/Pass")
+    in_ctxt.SetAttribute("Category", "LuxCore/Pass/Bake")
     in_ctxt.SetAttribute("DisplayName", "luxBakeMapMargin")
     return True
 
@@ -1258,6 +1320,8 @@ def LUXShadersPlugin_PassBakeMapMargin_1_0_Define(in_ctxt):
     
     # parameters
     add_input_boolean(nonport_pram_options(), params, True, "enable")
+    add_input_integer(nonport_pram_options(), params, 2, "margin", 1, 8)
+    add_input_float(nonport_pram_options(), params, 0.0, "samplesthreshold", 0.0, 1.0)
     
     # Output Parameter: out
     add_output_closure(shaderDef, "out")
@@ -1266,7 +1330,18 @@ def LUXShadersPlugin_PassBakeMapMargin_1_0_Define(in_ctxt):
     ppg_layout = shaderDef.PPGLayout
     ppg_layout.AddGroup("Parameters")
     ppg_layout.AddItem("enable", "Enable")
+    ppg_layout.AddItem("margin", "Margin")
+    ppg_layout.AddItem("samplesthreshold", "Samples Threshold")
     ppg_layout.EndGroup()
+
+    ppg_layout.Language = "Python"
+    ppg_layout.Logic = '''
+def enable_OnChanged():
+    prop = PPG.Inspected(0)
+    enable = prop.Parameters("enable").Value
+    prop.Parameters("margin").ReadOnly = not enable
+    prop.Parameters("samplesthreshold").ReadOnly = not enable
+'''
 
     # Renderer definition
     rendererDef = shaderDef.AddRendererDef("LuxCore")
@@ -1277,7 +1352,7 @@ def LUXShadersPlugin_PassBakeMapMargin_1_0_Define(in_ctxt):
 #--------------------PassColorLUT-----------------------
 
 def LUXShadersPlugin_PassColorLUT_1_0_DefineInfo(in_ctxt):
-    in_ctxt.SetAttribute("Category", "LuxCore/Pass")
+    in_ctxt.SetAttribute("Category", "LuxCore/Pass/Tonemap")
     in_ctxt.SetAttribute("DisplayName", "luxColorLUT")
     return True
 
@@ -1291,6 +1366,8 @@ def LUXShadersPlugin_PassColorLUT_1_0_Define(in_ctxt):
     
     # parameters
     add_input_boolean(nonport_pram_options(), params, True, "enable")
+    add_input_string(nonport_pram_options(),params, "", "file")
+    add_input_float(nonport_pram_options(), params, 1.0, "strength", 0.0, 1.0)
     
     # Output Parameter: out
     add_output_closure(shaderDef, "out")
@@ -1299,7 +1376,21 @@ def LUXShadersPlugin_PassColorLUT_1_0_Define(in_ctxt):
     ppg_layout = shaderDef.PPGLayout
     ppg_layout.AddGroup("Parameters")
     ppg_layout.AddItem("enable", "Enable")
+    file_item = ppg_layout.AddItem("file", "File", c.siControlFilePath)
+    file_item.SetAttribute(c.siUIOpenFile, True)
+    file_item.SetAttribute(c.siUIFileFilter, "LUT file (*.cube)|*.cube|")
+    file_item.SetAttribute(c.siUIFileMustExist, True)
+    ppg_layout.AddItem("strength", "Strength")
     ppg_layout.EndGroup()
+
+    ppg_layout.Language = "Python"
+    ppg_layout.Logic = '''
+def enable_OnChanged():
+    prop = PPG.Inspected(0)
+    enable = prop.Parameters("enable").Value
+    prop.Parameters("file").ReadOnly = not enable
+    prop.Parameters("strength").ReadOnly = not enable
+'''
 
     # Renderer definition
     rendererDef = shaderDef.AddRendererDef("LuxCore")
@@ -1310,7 +1401,7 @@ def LUXShadersPlugin_PassColorLUT_1_0_Define(in_ctxt):
 #--------------------PassOptixDenoiser-----------------------
 
 def LUXShadersPlugin_PassOptixDenoiser_1_0_DefineInfo(in_ctxt):
-    in_ctxt.SetAttribute("Category", "LuxCore/Pass")
+    in_ctxt.SetAttribute("Category", "LuxCore/Pass/Denoise")
     in_ctxt.SetAttribute("DisplayName", "luxOptixDenoiser")
     return True
 
@@ -1324,6 +1415,8 @@ def LUXShadersPlugin_PassOptixDenoiser_1_0_Define(in_ctxt):
     
     # parameters
     add_input_boolean(nonport_pram_options(), params, True, "enable")
+    add_input_float(nonport_pram_options(), params, 0.1, "sharpness", 0.0, 1.0)
+    add_input_integer(nonport_pram_options(), params, 0, "minspp", 0, 12)
     
     # Output Parameter: out
     add_output_closure(shaderDef, "out")
@@ -1332,7 +1425,18 @@ def LUXShadersPlugin_PassOptixDenoiser_1_0_Define(in_ctxt):
     ppg_layout = shaderDef.PPGLayout
     ppg_layout.AddGroup("Parameters")
     ppg_layout.AddItem("enable", "Enable")
+    ppg_layout.AddItem("sharpness", "Sharpness")
+    ppg_layout.AddItem("minspp", "Min SPP")
     ppg_layout.EndGroup()
+
+    ppg_layout.Language = "Python"
+    ppg_layout.Logic = '''
+def enable_OnChanged():
+    prop = PPG.Inspected(0)
+    enable = prop.Parameters("enable").Value
+    prop.Parameters("sharpness").ReadOnly = not enable
+    prop.Parameters("minspp").ReadOnly = not enable
+'''
 
     # Renderer definition
     rendererDef = shaderDef.AddRendererDef("LuxCore")
@@ -1343,7 +1447,7 @@ def LUXShadersPlugin_PassOptixDenoiser_1_0_Define(in_ctxt):
 #--------------------PassTonemapOpenColorIO-----------------------
 
 def LUXShadersPlugin_PassTonemapOpenColorIO_1_0_DefineInfo(in_ctxt):
-    in_ctxt.SetAttribute("Category", "LuxCore/Pass")
+    in_ctxt.SetAttribute("Category", "LuxCore/Pass/Tonemap")
     in_ctxt.SetAttribute("DisplayName", "luxTonemapOpenColorIO")
     return True
 
@@ -1378,7 +1482,7 @@ def LUXShadersPlugin_PassTonemapOpenColorIO_1_0_Define(in_ctxt):
 
 #---------------------matte----------------------------------
 def LUXShadersPlugin_ShaderMatte_1_0_DefineInfo(in_ctxt):
-    in_ctxt.SetAttribute("Category", "LuxCore")
+    in_ctxt.SetAttribute("Category", "LuxCore/Shader/Material")
     in_ctxt.SetAttribute("DisplayName", "luxMatte")
     return True
 

@@ -90,7 +90,7 @@ void sync_shaderball_back_material(luxcore::Scene* scene)
 {
 	scene->Parse(
 		luxrays::Property("scene.materials.background_material.type")("matte") <<
-		luxrays::Property("scene.materials.background_material.kd")(0.8, 0.3, 0.3)
+		luxrays::Property("scene.materials.background_material.kd")(0.8, 0.8, 0.8)
 	);
 }
 

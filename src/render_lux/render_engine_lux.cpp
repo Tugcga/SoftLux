@@ -32,6 +32,8 @@ RenderEngineLux::RenderEngineLux()
 	xsi_objects_in_lux.clear();
 	xsi_materials_in_lux.clear();
 	reassign_materials = false;
+	xsi_environment_in_lux.clear();
+	reinit_environments = false;
 
 	RenderEngineLux::is_log = false;
 }
@@ -76,6 +78,7 @@ void RenderEngineLux::clear_scene()
 	}
 	xsi_objects_in_lux.clear();
 	xsi_materials_in_lux.clear();
+	xsi_environment_in_lux.clear();
 }
 
 //here we clear session and render config
@@ -239,14 +242,33 @@ XSI::CStatus RenderEngineLux::update_scene(XSI::X3DObject& xsi_object, const Upd
 
 XSI::CStatus RenderEngineLux::update_scene(const XSI::SIObject& si_object, const UpdateType update_type)
 {
-	if (update_type == UpdateType_Pass)
+	if (is_scene_create)
 	{
-		//update pass, may be change output nodes for image pipline
-		//so, we should recreate settings and session from scratch
-		clear_session();
-	}
+		if (update_type == UpdateType_Pass)
+		{
+			//update pass, may be change output nodes for image pipline
+			//so, we should recreate settings and session from scratch
+			clear_session();
 
-	return XSI::CStatus::OK;
+			//also we can change environment light
+			//we delete each light and then recreate all of them
+			for (ULONG i = 0; i < xsi_environment_in_lux.size(); i++)
+			{
+				ULONG id = xsi_environment_in_lux[i];
+				std::string id_name = std::to_string(id);
+
+				scene->DeleteLight(id_name);
+			}
+
+			reinit_environments = true;
+		}
+
+		return XSI::CStatus::OK;
+	}
+	else
+	{
+		return XSI::CStatus::Abort;
+	}
 }
 
 XSI::CStatus RenderEngineLux::update_scene(const XSI::Material& xsi_material, bool material_assigning)
@@ -287,6 +309,7 @@ XSI::CStatus RenderEngineLux::create_scene()
 	scene = luxcore::Scene::Create();
 	is_scene_create = true;
 	reassign_materials = false;
+	reinit_environments = false;
 
 	//always update the camera
 	sync_camera(scene, render_type, m_render_context, eval_time);
@@ -320,6 +343,9 @@ XSI::CStatus RenderEngineLux::create_scene()
 
 		//sync scene objects
 		sync_scene_objects(scene, m_render_context, xsi_objects_in_lux, eval_time);
+
+		//environment light (hdri, sky, sun)
+		xsi_environment_in_lux = sync_environment(scene, eval_time);
 	}
 
 	return XSI::CStatus::OK;
@@ -342,10 +368,17 @@ XSI::CStatus RenderEngineLux::post_scene()
 	}
 	reassign_materials = false;
 
+	if (reinit_environments)
+	{
+		xsi_environment_in_lux.clear();
+		xsi_environment_in_lux = sync_environment(scene, eval_time);
+	}
+	reinit_environments = false;
+
 	//here we should create the session and render parameters
 	if (!is_session)
 	{
-		session = sync_render_config(scene, m_render_property, eval_time,
+		session = sync_render_config(scene, render_type, m_render_property, eval_time,
 			image_corner_x, image_corner_x + image_size_width, image_corner_y, image_corner_y + image_size_height,
 			image_full_size_width, image_full_size_height);
 		is_session = true;

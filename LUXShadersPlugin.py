@@ -114,6 +114,7 @@ camera_function_name_enum = [
     "Portra 800CD", "Portra_800CD"
 ]
 
+
 def XSILoadPlugin(in_reg):
     in_reg.Author = "Shekn Itrch"
     in_reg.Name = "LUXShadersPlugin"
@@ -151,11 +152,15 @@ def XSILoadPlugin(in_reg):
     in_reg.RegisterShader("PassBakeMapMargin", 1, 0)
     in_reg.RegisterShader("PassColorLUT", 1, 0)
     in_reg.RegisterShader("PassOptixDenoiser", 1, 0)
-
     # TODO: implement ColorIO parameters
     # we should recognize available parameters for selected *.lut file
     # and output it to PPG
     # in_reg.RegisterShader("PassTonemapOpenColorIO", 1, 0)
+
+    # pass environment shaders
+    in_reg.RegisterShader("PassInfinite", 1, 0)
+    in_reg.RegisterShader("PassSky", 1, 0)
+    in_reg.RegisterShader("PassSun", 1, 0)
 
     return true
 
@@ -343,7 +348,7 @@ def enable_OnChanged():
 #--------------------PassTonemapLinear-----------------------
 
 def LUXShadersPlugin_PassTonemapLinear_1_0_DefineInfo(in_ctxt):
-    in_ctxt.SetAttribute("Category", "LuxCore/Pass/Tonemap")
+    in_ctxt.SetAttribute("Category", "LuxCore/Pass/Output/Tonemap")
     in_ctxt.SetAttribute("DisplayName", "luxTonemapLinear")
     return True
 
@@ -386,7 +391,7 @@ def enable_OnChanged():
 #--------------------PassTonemapReinhard-----------------------
 
 def LUXShadersPlugin_PassTonemapReinhard_1_0_DefineInfo(in_ctxt):
-    in_ctxt.SetAttribute("Category", "LuxCore/Pass/Tonemap")
+    in_ctxt.SetAttribute("Category", "LuxCore/Pass/Output/Tonemap")
     in_ctxt.SetAttribute("DisplayName", "luxTonemapReinhard")
     return True
 
@@ -435,7 +440,7 @@ def enable_OnChanged():
 #--------------------PassTonemapAutoLinear-----------------------
 
 def LUXShadersPlugin_PassTonemapAutoLinear_1_0_DefineInfo(in_ctxt):
-    in_ctxt.SetAttribute("Category", "LuxCore/Pass/Tonemap")
+    in_ctxt.SetAttribute("Category", "LuxCore/Pass/Output/Tonemap")
     in_ctxt.SetAttribute("DisplayName", "luxTonemapAutoLinear")
     return True
 
@@ -468,7 +473,7 @@ def LUXShadersPlugin_PassTonemapAutoLinear_1_0_Define(in_ctxt):
 #--------------------PassTonemapLuxLinear-----------------------
 
 def LUXShadersPlugin_PassTonemapLuxLinear_1_0_DefineInfo(in_ctxt):
-    in_ctxt.SetAttribute("Category", "LuxCore/Pass/Tonemap")
+    in_ctxt.SetAttribute("Category", "LuxCore/Pass/Output/Tonemap")
     in_ctxt.SetAttribute("DisplayName", "luxTonemapLuxLinear")
     return True
 
@@ -517,7 +522,7 @@ def enable_OnChanged():
 #--------------------PassGammaCorrection-----------------------
 
 def LUXShadersPlugin_PassGammaCorrection_1_0_DefineInfo(in_ctxt):
-    in_ctxt.SetAttribute("Category", "LuxCore/Pass/Tonemap")
+    in_ctxt.SetAttribute("Category", "LuxCore/Pass/Output/Tonemap")
     in_ctxt.SetAttribute("DisplayName", "luxGammaCorrection")
     return True
 
@@ -554,7 +559,7 @@ def LUXShadersPlugin_PassGammaCorrection_1_0_Define(in_ctxt):
 #--------------------PassNOP-----------------------
 
 def LUXShadersPlugin_PassNOP_1_0_DefineInfo(in_ctxt):
-    in_ctxt.SetAttribute("Category", "LuxCore/Pass/Tonemap")
+    in_ctxt.SetAttribute("Category", "LuxCore/Pass/Output/Tonemap")
     in_ctxt.SetAttribute("DisplayName", "luxNOP")
     return True
 
@@ -587,7 +592,7 @@ def LUXShadersPlugin_PassNOP_1_0_Define(in_ctxt):
 #--------------------PassOutputSwitcher-----------------------
 
 def LUXShadersPlugin_PassOutputSwitcher_1_0_DefineInfo(in_ctxt):
-    in_ctxt.SetAttribute("Category", "LuxCore/Pass/Data")
+    in_ctxt.SetAttribute("Category", "LuxCore/Pass/Output/Data")
     in_ctxt.SetAttribute("DisplayName", "luxOutputSwitcher")
     return True
 
@@ -633,7 +638,7 @@ def enable_OnChanged():
 #--------------------PassGaussianFilter-----------------------
 
 def LUXShadersPlugin_PassGaussianFilter_1_0_DefineInfo(in_ctxt):
-    in_ctxt.SetAttribute("Category", "LuxCore/Pass/Post-process")
+    in_ctxt.SetAttribute("Category", "LuxCore/Pass/Output/Post-process")
     in_ctxt.SetAttribute("DisplayName", "luxGaussianFilter")
     return True
 
@@ -676,7 +681,7 @@ def enable_OnChanged():
 #--------------------PassCameraResponse-----------------------
 
 def LUXShadersPlugin_PassCameraResponse_1_0_DefineInfo(in_ctxt):
-    in_ctxt.SetAttribute("Category", "LuxCore/Pass/Post-process")
+    in_ctxt.SetAttribute("Category", "LuxCore/Pass/Output/Post-process")
     in_ctxt.SetAttribute("DisplayName", "luxCameraResponse")
     return True
 
@@ -720,7 +725,7 @@ def enable_OnChanged():
 #--------------------PassContourLines-----------------------
 
 def LUXShadersPlugin_PassContourLines_1_0_DefineInfo(in_ctxt):
-    in_ctxt.SetAttribute("Category", "LuxCore/Pass/Generate")
+    in_ctxt.SetAttribute("Category", "LuxCore/Pass/Output/Generate")
     in_ctxt.SetAttribute("DisplayName", "luxContourLines")
     return True
 
@@ -772,7 +777,7 @@ def enable_OnChanged():
 #--------------------PassBackgroundImage-----------------------
 
 def LUXShadersPlugin_PassBackgroundImage_1_0_DefineInfo(in_ctxt):
-    in_ctxt.SetAttribute("Category", "LuxCore/Pass/Post-process")
+    in_ctxt.SetAttribute("Category", "LuxCore/Pass/Output/Post-process")
     in_ctxt.SetAttribute("DisplayName", "luxBackgroundImage")
     return True
 
@@ -798,7 +803,6 @@ def LUXShadersPlugin_PassBackgroundImage_1_0_Define(in_ctxt):
     ppg_layout.AddItem("enable", "Enable")
     ppg_layout.AddItem("gamma", "Gamma")
     ppg_layout.AddItem("file", "File")
-    # file_item.SetAttribute(c.siUIShowClip, True)
     ppg_layout.EndGroup()
 
     ppg_layout.Language = "Python"
@@ -819,7 +823,7 @@ def enable_OnChanged():
 #--------------------PassBloom-----------------------
 
 def LUXShadersPlugin_PassBloom_1_0_DefineInfo(in_ctxt):
-    in_ctxt.SetAttribute("Category", "LuxCore/Pass/Post-process")
+    in_ctxt.SetAttribute("Category", "LuxCore/Pass/Output/Post-process")
     in_ctxt.SetAttribute("DisplayName", "luxBloom")
     return True
 
@@ -865,7 +869,7 @@ def enable_OnChanged():
 #--------------------PassObjectIDMask-----------------------
 
 def LUXShadersPlugin_PassObjectIDMask_1_0_DefineInfo(in_ctxt):
-    in_ctxt.SetAttribute("Category", "LuxCore/Pass/Data")
+    in_ctxt.SetAttribute("Category", "LuxCore/Pass/Output/Data")
     in_ctxt.SetAttribute("DisplayName", "luxObjectIDMask")
     return True
 
@@ -908,7 +912,7 @@ def enable_OnChanged():
 #--------------------PassVignetting-----------------------
 
 def LUXShadersPlugin_PassVignetting_1_0_DefineInfo(in_ctxt):
-    in_ctxt.SetAttribute("Category", "LuxCore/Pass/Post-process")
+    in_ctxt.SetAttribute("Category", "LuxCore/Pass/Output/Post-process")
     in_ctxt.SetAttribute("DisplayName", "luxVignetting")
     return True
 
@@ -951,7 +955,7 @@ def enable_OnChanged():
 #--------------------PassColorAberration-----------------------
 
 def LUXShadersPlugin_PassColorAberration_1_0_DefineInfo(in_ctxt):
-    in_ctxt.SetAttribute("Category", "LuxCore/Pass/Post-process")
+    in_ctxt.SetAttribute("Category", "LuxCore/Pass/Output/Post-process")
     in_ctxt.SetAttribute("DisplayName", "luxColorAberration")
     return True
 
@@ -994,7 +998,7 @@ def enable_OnChanged():
 #--------------------PassPremultiplyAlpha-----------------------
 
 def LUXShadersPlugin_PassPremultiplyAlpha_1_0_DefineInfo(in_ctxt):
-    in_ctxt.SetAttribute("Category", "LuxCore/Pass/Post-process")
+    in_ctxt.SetAttribute("Category", "LuxCore/Pass/Output/Post-process")
     in_ctxt.SetAttribute("DisplayName", "luxPremultiplyAlpha")
     return True
 
@@ -1027,7 +1031,7 @@ def LUXShadersPlugin_PassPremultiplyAlpha_1_0_Define(in_ctxt):
 #--------------------PassMist-----------------------
 
 def LUXShadersPlugin_PassMist_1_0_DefineInfo(in_ctxt):
-    in_ctxt.SetAttribute("Category", "LuxCore/Pass/Post-process")
+    in_ctxt.SetAttribute("Category", "LuxCore/Pass/Output/Post-process")
     in_ctxt.SetAttribute("DisplayName", "luxMist")
     return True
 
@@ -1082,7 +1086,7 @@ def enable_OnChanged():
 #--------------------PassBCDDenoiser-----------------------
 
 def LUXShadersPlugin_PassBCDDenoiser_1_0_DefineInfo(in_ctxt):
-    in_ctxt.SetAttribute("Category", "LuxCore/Pass/Denoise")
+    in_ctxt.SetAttribute("Category", "LuxCore/Pass/Output/Denoise")
     in_ctxt.SetAttribute("DisplayName", "luxBCDDenoiser")
     return True
 
@@ -1158,7 +1162,7 @@ def enable_OnChanged():
 #--------------------PassPatterns-----------------------
 
 def LUXShadersPlugin_PassPatterns_1_0_DefineInfo(in_ctxt):
-    in_ctxt.SetAttribute("Category", "LuxCore/Pass/Generate")
+    in_ctxt.SetAttribute("Category", "LuxCore/Pass/Output/Generate")
     in_ctxt.SetAttribute("DisplayName", "luxPatterns")
     return True
 
@@ -1205,7 +1209,7 @@ def enable_OnChanged():
 #--------------------PassIntelOIDN-----------------------
 
 def LUXShadersPlugin_PassIntelOIDN_1_0_DefineInfo(in_ctxt):
-    in_ctxt.SetAttribute("Category", "LuxCore/Pass/Denoise")
+    in_ctxt.SetAttribute("Category", "LuxCore/Pass/Output/Denoise")
     in_ctxt.SetAttribute("DisplayName", "luxIntelOIDN")
     return True
 
@@ -1257,7 +1261,7 @@ def enable_OnChanged():
 #--------------------PassWhiteBalance-----------------------
 
 def LUXShadersPlugin_PassWhiteBalance_1_0_DefineInfo(in_ctxt):
-    in_ctxt.SetAttribute("Category", "LuxCore/Pass/Tonemap")
+    in_ctxt.SetAttribute("Category", "LuxCore/Pass/Output/Tonemap")
     in_ctxt.SetAttribute("DisplayName", "luxWhiteBalance")
     return True
 
@@ -1306,7 +1310,7 @@ def enable_OnChanged():
 #--------------------PassBakeMapMargin-----------------------
 
 def LUXShadersPlugin_PassBakeMapMargin_1_0_DefineInfo(in_ctxt):
-    in_ctxt.SetAttribute("Category", "LuxCore/Pass/Bake")
+    in_ctxt.SetAttribute("Category", "LuxCore/Pass/Output/Bake")
     in_ctxt.SetAttribute("DisplayName", "luxBakeMapMargin")
     return True
 
@@ -1352,7 +1356,7 @@ def enable_OnChanged():
 #--------------------PassColorLUT-----------------------
 
 def LUXShadersPlugin_PassColorLUT_1_0_DefineInfo(in_ctxt):
-    in_ctxt.SetAttribute("Category", "LuxCore/Pass/Tonemap")
+    in_ctxt.SetAttribute("Category", "LuxCore/Pass/Output/Tonemap")
     in_ctxt.SetAttribute("DisplayName", "luxColorLUT")
     return True
 
@@ -1401,7 +1405,7 @@ def enable_OnChanged():
 #--------------------PassOptixDenoiser-----------------------
 
 def LUXShadersPlugin_PassOptixDenoiser_1_0_DefineInfo(in_ctxt):
-    in_ctxt.SetAttribute("Category", "LuxCore/Pass/Denoise")
+    in_ctxt.SetAttribute("Category", "LuxCore/Pass/Output/Denoise")
     in_ctxt.SetAttribute("DisplayName", "luxOptixDenoiser")
     return True
 
@@ -1447,7 +1451,7 @@ def enable_OnChanged():
 #--------------------PassTonemapOpenColorIO-----------------------
 
 def LUXShadersPlugin_PassTonemapOpenColorIO_1_0_DefineInfo(in_ctxt):
-    in_ctxt.SetAttribute("Category", "LuxCore/Pass/Tonemap")
+    in_ctxt.SetAttribute("Category", "LuxCore/Pass/Output/Tonemap")
     in_ctxt.SetAttribute("DisplayName", "luxTonemapOpenColorIO")
     return True
 
@@ -1474,6 +1478,281 @@ def LUXShadersPlugin_PassTonemapOpenColorIO_1_0_Define(in_ctxt):
     # Renderer definition
     rendererDef = shaderDef.AddRendererDef("LuxCore")
     rendererDef.SymbolName = "PassTonemapOpenColorIO"
+
+    return True
+
+#------------------------------------------------------------
+#--------------------Pass Environment nodes------------------
+
+#--------------------PassInfinite-----------------------
+
+def LUXShadersPlugin_PassInfinite_1_0_DefineInfo(in_ctxt):
+    in_ctxt.SetAttribute("Category", "LuxCore/Pass/Environment")
+    in_ctxt.SetAttribute("DisplayName", "luxInfinite")
+    return True
+
+
+def LUXShadersPlugin_PassInfinite_1_0_Define(in_ctxt):
+    shaderDef = in_ctxt.GetAttribute("Definition")
+    shaderDef.AddShaderFamily(c.siShaderFamilyEnvironment)
+
+    # Input Parameter: input
+    params = shaderDef.InputParamDefs
+    
+    # parameters
+    add_input_boolean(nonport_pram_options(), params, True, "enable")
+    add_input_color(nonport_pram_options(), params, [1.0, 1.0, 1.0], "gain")
+    add_input_image(standart_pram_options(), params, "", "file")
+    add_input_float(nonport_pram_options(), params, 2.2, "gamma", 1.0, 3.0)
+    add_input_float(nonport_pram_options(), params, 0.0, "rotation_x", 0.0, 360.0)
+    add_input_float(nonport_pram_options(), params, 0.0, "rotation_y", 0.0, 360.0)
+    add_input_float(nonport_pram_options(), params, 0.0, "rotation_z", 0.0, 360.0)
+    add_input_boolean(nonport_pram_options(), params, True, "visibility_indirect_diffuse_enable")
+    add_input_boolean(nonport_pram_options(), params, True, "visibility_indirect_glossy_enable")
+    add_input_boolean(nonport_pram_options(), params, True, "visibility_indirect_specular_enable")
+    add_input_boolean(nonport_pram_options(), params, False, "sampleupperhemisphereonly")
+    
+    # Output Parameter: out
+    add_output_closure(shaderDef, "out")
+
+    # next init ppg
+    ppg_layout = shaderDef.PPGLayout
+    ppg_layout.AddGroup("Parameters")
+    ppg_layout.AddItem("enable", "Enable")
+    ppg_layout.AddItem("gain", "Gain")
+    ppg_layout.AddItem("file", "File")
+    ppg_layout.AddItem("gamma", "Gamma")
+    ppg_layout.AddGroup("Rotation")
+    ppg_layout.AddRow()
+    ppg_layout.AddItem("rotation_x", "X")
+    ppg_layout.AddItem("rotation_y", "Y")
+    ppg_layout.AddItem("rotation_z", "Z")
+    ppg_layout.EndRow()
+    ppg_layout.EndGroup()
+    ppg_layout.AddItem("sampleupperhemisphereonly", "Clip Ground")
+    ppg_layout.EndGroup()
+    ppg_layout.AddGroup("Indirect Visibility")
+    ppg_layout.AddItem("visibility_indirect_diffuse_enable", "Diffuse")
+    ppg_layout.AddItem("visibility_indirect_glossy_enable", "Glossy")
+    ppg_layout.AddItem("visibility_indirect_specular_enable", "Specular")
+    ppg_layout.EndGroup()
+
+    ppg_layout.Language = "Python"
+    ppg_layout.Logic = '''
+def enable_OnChanged():
+    prop = PPG.Inspected(0)
+    enable = prop.Parameters("enable").Value
+    prop.Parameters("gain").ReadOnly = not enable
+    prop.Parameters("file").ReadOnly = not enable
+    prop.Parameters("gamma").ReadOnly = not enable
+    prop.Parameters("rotation_x").ReadOnly = not enable
+    prop.Parameters("rotation_y").ReadOnly = not enable
+    prop.Parameters("rotation_z").ReadOnly = not enable
+    prop.Parameters("sampleupperhemisphereonly").ReadOnly = not enable
+    prop.Parameters("visibility_indirect_diffuse_enable").ReadOnly = not enable
+    prop.Parameters("visibility_indirect_glossy_enable").ReadOnly = not enable
+    prop.Parameters("visibility_indirect_specular_enable").ReadOnly = not enable
+'''
+
+    # Renderer definition
+    rendererDef = shaderDef.AddRendererDef("LuxCore")
+    rendererDef.SymbolName = "PassInfinite"
+
+    return True
+
+#--------------------PassSky-----------------------
+
+def LUXShadersPlugin_PassSky_1_0_DefineInfo(in_ctxt):
+    in_ctxt.SetAttribute("Category", "LuxCore/Pass/Environment")
+    in_ctxt.SetAttribute("DisplayName", "luxSky")
+    return True
+
+
+def LUXShadersPlugin_PassSky_1_0_Define(in_ctxt):
+    shaderDef = in_ctxt.GetAttribute("Definition")
+    shaderDef.AddShaderFamily(c.siShaderFamilyEnvironment)
+
+    # Input Parameter: input
+    params = shaderDef.InputParamDefs
+    
+    # parameters
+    add_input_boolean(nonport_pram_options(), params, True, "enable")
+    add_input_color(nonport_pram_options(), params, [0.5, 0.5, 0.5], "gain")
+    add_input_float(nonport_pram_options(), params, 2.2, "turbidity", 1.0, 12.0)
+    add_input_color(nonport_pram_options(), params, [0.5, 0.5, 0.5], "groundalbedo")
+    add_input_boolean(nonport_pram_options(), params, False, "ground_enable")
+    add_input_boolean(nonport_pram_options(), params, True, "ground_autoscale")
+    add_input_color(nonport_pram_options(), params, [0.75, 0.75, 0.75], "ground_color")
+    add_input_float(nonport_pram_options(), params, 0.0, "dir_x", -1.0, 1.0)
+    add_input_float(nonport_pram_options(), params, 1.0, "dir_y", -1.0, 1.0)
+    add_input_float(nonport_pram_options(), params, 0.0, "dir_z", -1.0, 1.0)
+    add_input_boolean(nonport_pram_options(), params, True, "visibility_indirect_diffuse_enable")
+    add_input_boolean(nonport_pram_options(), params, True, "visibility_indirect_glossy_enable")
+    add_input_boolean(nonport_pram_options(), params, True, "visibility_indirect_specular_enable")
+    add_input_integer(nonport_pram_options(), params, 512, "distribution_width", 256, 1024)
+    add_input_integer(nonport_pram_options(), params, 256, "distribution_height", 128, 512)
+    add_input_float(nonport_pram_options(), params, 0.0, "rotation_x", 0.0, 360.0)
+    add_input_float(nonport_pram_options(), params, 0.0, "rotation_y", 0.0, 360.0)
+    add_input_float(nonport_pram_options(), params, 0.0, "rotation_z", 0.0, 360.0)
+    
+    # Output Parameter: out
+    add_output_closure(shaderDef, "out")
+
+    # next init ppg
+    ppg_layout = shaderDef.PPGLayout
+    ppg_layout.AddGroup("Parameters")
+    ppg_layout.AddItem("enable", "Enable")
+    ppg_layout.AddItem("gain", "Gain")
+    ppg_layout.AddItem("turbidity", "Turbidity")
+    # ignore direction for the sky, but use it for the sun
+    ppg_layout.AddGroup("Direction")
+    ppg_layout.AddRow()
+    ppg_layout.AddItem("dir_x", "X")
+    ppg_layout.AddItem("dir_y", "Y")
+    ppg_layout.AddItem("dir_z", "Z")
+    ppg_layout.EndRow()
+    ppg_layout.EndGroup()
+    ppg_layout.EndGroup()
+    ppg_layout.AddGroup("Ground")
+    ppg_layout.AddItem("groundalbedo", "Ground Albedo")
+    ppg_layout.AddItem("ground_enable", "Ground Enable")
+    ppg_layout.AddItem("ground_autoscale", "Ground Autoscale")
+    ppg_layout.AddItem("ground_color", "Ground Color")
+    ppg_layout.EndGroup()
+    ppg_layout.AddGroup("Map")
+    ppg_layout.AddGroup("Size")
+    ppg_layout.AddRow()
+    ppg_layout.AddItem("distribution_width", "Width")
+    ppg_layout.AddItem("distribution_height", "Height")
+    ppg_layout.EndRow()
+    ppg_layout.EndGroup()
+    ppg_layout.AddGroup("Rotation")
+    ppg_layout.AddRow()
+    ppg_layout.AddItem("rotation_x", "X")
+    ppg_layout.AddItem("rotation_y", "Y")
+    ppg_layout.AddItem("rotation_z", "Z")
+    ppg_layout.EndRow()
+    ppg_layout.EndGroup()
+    ppg_layout.EndGroup()
+    ppg_layout.AddGroup("Indirect Visibility")
+    ppg_layout.AddItem("visibility_indirect_diffuse_enable", "Diffuse")
+    ppg_layout.AddItem("visibility_indirect_glossy_enable", "Glossy")
+    ppg_layout.AddItem("visibility_indirect_specular_enable", "Specular")
+    ppg_layout.EndGroup()
+
+    ppg_layout.Language = "Python"
+    ppg_layout.Logic = '''
+def enable_OnChanged():
+    prop = PPG.Inspected(0)
+    enable = prop.Parameters("enable").Value
+    prop.Parameters("gain").ReadOnly = not enable
+    prop.Parameters("turbidity").ReadOnly = not enable
+    prop.Parameters("groundalbedo").ReadOnly = not enable
+    prop.Parameters("ground_enable").ReadOnly = not enable
+    prop.Parameters("ground_autoscale").ReadOnly = not enable
+    prop.Parameters("ground_color").ReadOnly = not enable
+    prop.Parameters("dir_x").ReadOnly = not enable
+    prop.Parameters("dir_y").ReadOnly = not enable
+    prop.Parameters("dir_z").ReadOnly = not enable
+    prop.Parameters("visibility_indirect_diffuse_enable").ReadOnly = not enable
+    prop.Parameters("visibility_indirect_glossy_enable").ReadOnly = not enable
+    prop.Parameters("visibility_indirect_specular_enable").ReadOnly = not enable
+    prop.Parameters("distribution_width").ReadOnly = not enable
+    prop.Parameters("distribution_height").ReadOnly = not enable
+    prop.Parameters("rotation_x").ReadOnly = not enable
+    prop.Parameters("rotation_y").ReadOnly = not enable
+    prop.Parameters("rotation_z").ReadOnly = not enable
+'''
+
+    # Renderer definition
+    rendererDef = shaderDef.AddRendererDef("LuxCore")
+    rendererDef.SymbolName = "PassSky"
+
+    return True
+
+#--------------------PassSun-----------------------
+
+def LUXShadersPlugin_PassSun_1_0_DefineInfo(in_ctxt):
+    in_ctxt.SetAttribute("Category", "LuxCore/Pass/Environment")
+    in_ctxt.SetAttribute("DisplayName", "luxSun")
+    return True
+
+
+def LUXShadersPlugin_PassSun_1_0_Define(in_ctxt):
+    shaderDef = in_ctxt.GetAttribute("Definition")
+    shaderDef.AddShaderFamily(c.siShaderFamilyEnvironment)
+
+    # Input Parameter: input
+    params = shaderDef.InputParamDefs
+    
+    # parameters
+    add_input_boolean(nonport_pram_options(), params, True, "enable")
+    add_input_color(nonport_pram_options(), params, [0.5, 0.5, 0.5], "gain")
+    add_input_float(nonport_pram_options(), params, 2.2, "turbidity", 1.0, 12.0)
+    add_input_float(nonport_pram_options(), params, 1.0, "relsize", 0.1, 2.0)
+    add_input_float(nonport_pram_options(), params, 0.0, "dir_x", -1.0, 1.0)
+    add_input_float(nonport_pram_options(), params, 1.0, "dir_y", -1.0, 1.0)
+    add_input_float(nonport_pram_options(), params, 0.0, "dir_z", -1.0, 1.0)
+    add_input_boolean(nonport_pram_options(), params, True, "visibility_indirect_diffuse_enable")
+    add_input_boolean(nonport_pram_options(), params, True, "visibility_indirect_glossy_enable")
+    add_input_boolean(nonport_pram_options(), params, True, "visibility_indirect_specular_enable")
+    add_input_float(nonport_pram_options(), params, 0.0, "rotation_x", 0.0, 360.0)
+    add_input_float(nonport_pram_options(), params, 0.0, "rotation_y", 0.0, 360.0)
+    add_input_float(nonport_pram_options(), params, 0.0, "rotation_z", 0.0, 360.0)
+    
+    # Output Parameter: out
+    add_output_closure(shaderDef, "out")
+
+    # next init ppg
+    ppg_layout = shaderDef.PPGLayout
+    ppg_layout.AddGroup("Parameters")
+    ppg_layout.AddItem("enable", "Enable")
+    ppg_layout.AddItem("gain", "Gain")
+    ppg_layout.AddItem("turbidity", "Turbidity")
+    ppg_layout.AddItem("relsize", "Relative Size")
+    ppg_layout.AddGroup("Direction")
+    ppg_layout.AddRow()
+    ppg_layout.AddItem("dir_x", "X")
+    ppg_layout.AddItem("dir_y", "Y")
+    ppg_layout.AddItem("dir_z", "Z")
+    ppg_layout.EndRow()
+    ppg_layout.EndGroup()
+    ppg_layout.AddGroup("Rotation")
+    ppg_layout.AddRow()
+    ppg_layout.AddItem("rotation_x", "X")
+    ppg_layout.AddItem("rotation_y", "Y")
+    ppg_layout.AddItem("rotation_z", "Z")
+    ppg_layout.EndRow()
+    ppg_layout.EndGroup()
+    ppg_layout.EndGroup()
+    ppg_layout.AddGroup("Indirect Visibility")
+    ppg_layout.AddItem("visibility_indirect_diffuse_enable", "Diffuse")
+    ppg_layout.AddItem("visibility_indirect_glossy_enable", "Glossy")
+    ppg_layout.AddItem("visibility_indirect_specular_enable", "Specular")
+    ppg_layout.EndGroup()
+
+    ppg_layout.Language = "Python"
+    ppg_layout.Logic = '''
+def enable_OnChanged():
+    prop = PPG.Inspected(0)
+    enable = prop.Parameters("enable").Value
+    prop.Parameters("gain").ReadOnly = not enable
+    prop.Parameters("turbidity").ReadOnly = not enable
+    prop.Parameters("relsize").ReadOnly = not enable
+    prop.Parameters("dir_x").ReadOnly = not enable
+    prop.Parameters("dir_y").ReadOnly = not enable
+    prop.Parameters("dir_z").ReadOnly = not enable
+    prop.Parameters("rotation_x").ReadOnly = not enable
+    prop.Parameters("rotation_y").ReadOnly = not enable
+    prop.Parameters("rotation_z").ReadOnly = not enable
+    prop.Parameters("visibility_indirect_diffuse_enable").ReadOnly = not enable
+    prop.Parameters("visibility_indirect_glossy_enable").ReadOnly = not enable
+    prop.Parameters("visibility_indirect_specular_enable").ReadOnly = not enable
+'''
+
+    # Renderer definition
+    rendererDef = shaderDef.AddRendererDef("LuxCore")
+    rendererDef.SymbolName = "PassSun"
 
     return True
 

@@ -1,5 +1,6 @@
 #pragma once
 #include "../../render_base/render_visual_buffer.h"
+#include "../../render_base/render_engine_base.h"
 
 #include <luxcore/luxcore.h>
 
@@ -35,7 +36,7 @@ static std::vector<std::string> pipline_names = {
 };
 
 void sync_imagepipline(luxrays::Properties& render_props, const XSI::CTime& eval_time);
-luxcore::RenderSession* sync_render_config(luxcore::Scene* scene, const XSI::Property &render_property, const XSI::CTime &eval_time,
+luxcore::RenderSession* sync_render_config(luxcore::Scene* scene, const RenderType render_type, const XSI::Property &render_property, const XSI::CTime &eval_time,
 	const int image_x_start, const int image_x_end, const int image_y_start, const int image_y_end,
 	const int image_width, const int image_height);
 

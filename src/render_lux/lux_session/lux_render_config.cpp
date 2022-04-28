@@ -2,7 +2,7 @@
 #include "../../utilities/logs.h"
 #include "../../utilities/xsi_shaders.h"
 
-luxcore::RenderSession* sync_render_config(luxcore::Scene* scene, const XSI::Property& render_property, const XSI::CTime& eval_time,
+luxcore::RenderSession* sync_render_config(luxcore::Scene* scene, const RenderType render_type, const XSI::Property& render_property, const XSI::CTime& eval_time,
 	const int image_x_start, const int image_x_end, const int image_y_start, const int image_y_end,
 	const int image_width, const int image_height)
 {
@@ -16,7 +16,10 @@ luxcore::RenderSession* sync_render_config(luxcore::Scene* scene, const XSI::Pro
 	render_props.Set(luxrays::Property("film.subregion")(image_x_start, image_x_end, image_y_start, image_y_end));
  
 	//image piplines
-	sync_imagepipline(render_props, eval_time);
+	if (render_type != RenderType_Shaderball)
+	{
+		sync_imagepipline(render_props, eval_time);
+	}
 	
 	//outputs
 	render_props.Set(luxrays::Property("film.outputs.0.type")("RGB_IMAGEPIPELINE"));

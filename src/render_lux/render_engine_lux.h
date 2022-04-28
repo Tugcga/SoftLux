@@ -76,4 +76,7 @@ private:
 	//should we reassigna materials after scene creation
 	//activate when we update material and this update contains reassign to some object
 	bool reassign_materials;
+	//ids of pass environment shader node, whcich recognized as lights
+	std::vector<ULONG> xsi_environment_in_lux;
+	bool reinit_environments;
 };

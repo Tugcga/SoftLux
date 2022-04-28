@@ -34,6 +34,7 @@ void sync_shaderball_lights(luxcore::Scene* scene);
 bool sync_xsi_light(luxcore::Scene* scene, XSI::Light& xsi_light, const XSI::CTime& eval_time);
 bool update_light_object(luxcore::Scene* scene, XSI::X3DObject& xsi_object, const XSI::CTime& eval_time);
 void sync_ambient(luxcore::Scene* scene, const XSI::CTime& eval_time);
+std::vector<ULONG> sync_environment(luxcore::Scene* scene, const XSI::CTime& eval_time);
 void sync_camera_scene(luxcore::Scene* scene, const XSI::Camera& xsi_camera, const XSI::CTime& eval_time);
 void sync_camera_shaderball(luxcore::Scene* scene);
 void sync_camera(luxcore::Scene* scene, const RenderType render_type, XSI::RendererContext& xsi_render_context, const XSI::CTime& eval_time);

@@ -82,7 +82,20 @@ bool sync_xsi_light(luxcore::Scene* scene, XSI::Light &xsi_light, const XSI::CTi
 					scale_matrix.SetValue(0, 0, size_x * 0.5 / xsi_transform.GetSclX());
 					scale_matrix.SetValue(1, 1, size_y * 0.5 / xsi_transform.GetSclY());
 					scale_matrix.SetValue(2, 2, 1.0 / xsi_transform.GetSclZ());
-					scale_matrix.MulInPlace(xsi_matrix);
+
+					//also we should rotate the light source
+					XSI::MATH::CTransformation rotate_tfm;
+					rotate_tfm.SetIdentity();
+					float rotation_x = xsi_light.GetParameterValue("LightAreaXformRX", eval_time);
+					float rotation_y = xsi_light.GetParameterValue("LightAreaXformRY", eval_time);
+					float rotation_z = xsi_light.GetParameterValue("LightAreaXformRZ", eval_time);
+					rotate_tfm.SetRotX(rotation_x);
+					rotate_tfm.SetRotY(rotation_y);
+					rotate_tfm.SetRotZ(rotation_z);
+					XSI::MATH::CMatrix4 rotate_matrix = rotate_tfm.GetMatrix4();
+					rotate_matrix.MulInPlace(xsi_matrix);
+					scale_matrix.MulInPlace(rotate_matrix);
+					
 					std::vector<double> lux_matrix = xsi_to_lux_matrix(scale_matrix);
 					light_props.Set(luxrays::Property("scene.objects." + light_name + ".transformation")(lux_matrix));
 					scene->Parse(light_props);

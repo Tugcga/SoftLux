@@ -89,7 +89,7 @@ XSI::CStatus RenderEngineBase::update_scene(const XSI::SIObject &si_object, cons
 	return XSI::CStatus::OK;
 }
 
-XSI::CStatus RenderEngineBase::update_scene(const XSI::Material &xsi_material)
+XSI::CStatus RenderEngineBase::update_scene(const XSI::Material &xsi_material, bool material_assigning)
 {
 	log_message("[Base Render] Update scene for material is not implemented", XSI::siWarningMsg);
 	return XSI::CStatus::OK;
@@ -445,7 +445,10 @@ XSI::CStatus RenderEngineBase::scene_process()
 						//change material
 						//also called when we assign other material to the mesh
 						XSI::Material xsi_material(in_ref);
-						update_status = update_scene(xsi_material);
+						//xsi_material is a local instance of the material inside the object
+						//it has another id with respect to the same material in the library
+						//moreover, this material does not belongs to any library
+						update_status = update_scene(xsi_material, xsi_material.GetParent().GetClassID() != XSI::siMaterialLibraryID);
 						break;
 					}
 					case XSI::siParameterID:
@@ -514,7 +517,7 @@ XSI::CStatus RenderEngineBase::scene_process()
 						if (shader_root.GetClassID() == XSI::siMaterialID)
 						{
 							XSI::Material shader_material(shader_root);
-							update_status = update_scene(shader_material);
+							update_status = update_scene(shader_material, false);
 						}
 						else
 						{

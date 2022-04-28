@@ -55,3 +55,39 @@ void sync_materials(luxcore::Scene *scene, const XSI::Scene &xsi_scene, std::set
 		}
 	}
 }
+
+void reassign_all_materials(luxcore::Scene* scene, const XSI::Scene& xsi_scene, std::set<ULONG>& xsi_materials_in_lux, const std::set<ULONG> &xsi_objects_in_lux, const XSI::CTime &eval_time)
+{
+	XSI::CRefArray material_libraries = xsi_scene.GetMaterialLibraries();
+	for (LONG lib_index = 0; lib_index < material_libraries.GetCount(); lib_index++)
+	{
+		XSI::MaterialLibrary libray = material_libraries.GetItem(lib_index);
+		XSI::CRefArray materials = libray.GetItems();
+		for (LONG mat_index = 0; mat_index < materials.GetCount(); mat_index++)
+		{
+			XSI::Material xsi_material = materials.GetItem(mat_index);
+			std::string lux_material_name = xsi_object_id_string(xsi_material);
+			ULONG material_id = xsi_material.GetObjectID();
+			XSI::CRefArray used_objects = xsi_material.GetUsedBy();
+			for (ULONG obj_index = 0; obj_index < used_objects.GetCount(); obj_index++)
+			{
+				XSI::CRef object_ref = used_objects[obj_index];
+				XSI::siClassID object_class = object_ref.GetClassID();
+				if (object_class == XSI::siX3DObjectID)
+				{
+					XSI::X3DObject object(object_ref);
+					ULONG object_id = object.GetObjectID();
+					if (!scene->IsMaterialDefined(lux_material_name))
+					{
+						sync_material(scene, xsi_material, xsi_materials_in_lux, eval_time);
+					}
+
+					if(xsi_materials_in_lux.contains(material_id) && xsi_objects_in_lux.contains(object_id))
+					{
+						scene->UpdateObjectMaterial(xsi_object_id_string(object), lux_material_name);
+					}
+				}
+			}
+		}
+	}
+}

@@ -8,6 +8,7 @@
 #include "xsi_primitive.h"
 #include "xsi_application.h"
 #include "xsi_project.h"
+#include "xsi_library.h"
 
 #include <chrono>
 #include <thread>
@@ -30,6 +31,7 @@ RenderEngineLux::RenderEngineLux()
 	updated_xsi_ids.clear();
 	xsi_objects_in_lux.clear();
 	xsi_materials_in_lux.clear();
+	reassign_materials = false;
 
 	RenderEngineLux::is_log = false;
 }
@@ -163,6 +165,7 @@ XSI::CStatus RenderEngineLux::update_scene(XSI::X3DObject& xsi_object, const Upd
 						if (is_sync)
 						{
 							updated_xsi_ids.push_back(xsi_object.GetObjectID());
+							xsi_objects_in_lux.insert(xsi_object.GetObjectID());
 						}
 					}
 				}
@@ -216,6 +219,7 @@ XSI::CStatus RenderEngineLux::update_scene(XSI::X3DObject& xsi_object, const Upd
 				if (is_sync)
 				{
 					updated_xsi_ids.push_back(xsi_object.GetObjectID());
+					xsi_objects_in_lux.insert(xsi_object.GetObjectID());
 				}
 			}
 			else
@@ -245,17 +249,24 @@ XSI::CStatus RenderEngineLux::update_scene(const XSI::SIObject& si_object, const
 	return XSI::CStatus::OK;
 }
 
-XSI::CStatus RenderEngineLux::update_scene(const XSI::Material& xsi_material)
+XSI::CStatus RenderEngineLux::update_scene(const XSI::Material& xsi_material, bool material_assigning)
 {
-	//here we update only materials
-	sync_material(scene, xsi_material, xsi_materials_in_lux, eval_time);
+	if (is_scene_create)
+	{
+		//here we update only materials
+		sync_material(scene, xsi_material, xsi_materials_in_lux, eval_time);
+		if (material_assigning)
+		{
+			reassign_materials = true;
+		}
 
-	//if we change any host of the material (reassign material to an object)
-	//then we should reexport object with this new material
-	//current material is new material for the object
-	//this material may be not exported, because in previous render call it contains no hosts
-
-	return XSI::CStatus::OK;
+		return XSI::CStatus::OK;
+	}
+	else
+	{
+		return XSI::CStatus::Abort;
+	}
+	
 }
 
 XSI::CStatus RenderEngineLux::update_scene_render()
@@ -275,6 +286,7 @@ XSI::CStatus RenderEngineLux::create_scene()
 	clear_session();
 	scene = luxcore::Scene::Create();
 	is_scene_create = true;
+	reassign_materials = false;
 
 	//always update the camera
 	sync_camera(scene, render_type, m_render_context, eval_time);
@@ -322,6 +334,13 @@ XSI::CStatus RenderEngineLux::post_scene()
 		sync_camera(scene, render_type, m_render_context, eval_time);
 		is_update_camera = true;
 	}
+
+	//reassign materials to all objects in the scene
+	if (reassign_materials)
+	{
+		reassign_all_materials(scene, XSI::Application().GetActiveProject().GetActiveScene(), xsi_materials_in_lux, xsi_objects_in_lux, eval_time);
+	}
+	reassign_materials = false;
 
 	//here we should create the session and render parameters
 	if (!is_session)

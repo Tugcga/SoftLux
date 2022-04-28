@@ -26,6 +26,7 @@ void sync_shaderball_back_material(luxcore::Scene* scene);
 void sync_default_material(luxcore::Scene* scene);
 void sync_material(luxcore::Scene* scene, const XSI::Material& xsi_material, std::set<ULONG>& xsi_materials_in_lux, const XSI::CTime& eval_time);
 void sync_materials(luxcore::Scene* scene, const XSI::Scene& xsi_scene, std::set<ULONG>& xsi_materials_in_lux, const XSI::CTime& eval_time);
+void reassign_all_materials(luxcore::Scene* scene, const XSI::Scene& xsi_scene, std::set<ULONG>& xsi_materials_in_lux, const std::set<ULONG>& xsi_objects_in_lux, const XSI::CTime& eval_time);
 
 void define_area_light_mesh(luxcore::Scene* scene, const std::string& shape_name);
 bool sync_polymesh(luxcore::Scene* scene, XSI::X3DObject& xsi_object, const XSI::CTime& eval_time, const ULONG override_material = 0, const bool use_default_material = false);

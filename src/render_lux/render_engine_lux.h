@@ -28,7 +28,7 @@ public:
 	//update scene events
 	XSI::CStatus update_scene(XSI::X3DObject& xsi_object, const UpdateType update_type);
 	XSI::CStatus update_scene(const XSI::SIObject& si_object, const UpdateType update_type);
-	XSI::CStatus update_scene(const XSI::Material& xsi_material);
+	XSI::CStatus update_scene(const XSI::Material& xsi_material, bool material_assigning);
 	XSI::CStatus update_scene_render();
 	
 	void abort();
@@ -73,4 +73,7 @@ private:
 	std::set<ULONG> xsi_objects_in_lux;
 	//the same list for exported materials
 	std::set<ULONG> xsi_materials_in_lux;
+	//should we reassigna materials after scene creation
+	//activate when we update material and this update contains reassign to some object
+	bool reassign_materials;
 };

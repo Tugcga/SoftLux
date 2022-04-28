@@ -95,7 +95,9 @@ public:
 	//update methods return OK, if update success and Abort if update fails, in the last case we will start rectreate the scene
 	virtual XSI::CStatus update_scene(XSI::X3DObject &xsi_object, const UpdateType update_type); 
 	//here we update material (change any shader parameter)
-	virtual XSI::CStatus update_scene(const XSI::Material &xsi_material);
+	//if material_assigning = true, then we assign material to an object
+	//in this case xsi_material is not material from library, but local subobject material (it has different id and empty library)
+	virtual XSI::CStatus update_scene(const XSI::Material &xsi_material, bool material_assigning);
 	//this can be called when pass is updated
 	virtual XSI::CStatus update_scene(const XSI::SIObject &si_object, const UpdateType update_type);
 	//this method called when we change render settings

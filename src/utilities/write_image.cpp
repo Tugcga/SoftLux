@@ -10,6 +10,41 @@
 #define TINYEXR_IMPLEMENTATION
 #include "tinyexr.h"
 
+bool create_dir(const std::string& file_path)
+{
+	const size_t last_slash = file_path.find_last_of("/\\");
+	std::string folder_path = file_path.substr(0, last_slash);
+	std::string file_name = file_path.substr(last_slash + 1, file_path.length());
+	if (file_name.length() > 0 && file_name[0] == ':')//unsupported file start
+	{
+		return false;
+	}
+	while (CreateDirectory(folder_path.c_str(), NULL) == FALSE)
+	{
+		if (ERROR_ALREADY_EXISTS == GetLastError())
+		{
+			return true;
+		}
+		TCHAR s_temp[MAX_PATH];
+		int k = folder_path.length();
+		strcpy(s_temp, folder_path.c_str());
+
+		while (CreateDirectory(s_temp, NULL) != TRUE)
+		{
+			while (s_temp[--k] != '\\')
+			{
+				if (k <= 1)
+				{
+					return false;
+				}
+				s_temp[k] = NULL;
+			}
+		}
+	}
+
+	return true;
+}
+
 
 float clamp_float(float value, float min, float max)
 {
@@ -18,9 +53,9 @@ float clamp_float(float value, float min, float max)
 	return value;
 }
 
-void write_ppm(const XSI::CString &path, int width, int height, int components, const std::vector<float> &pixels)
+void write_ppm(const std::string &path, int width, int height, int components, const std::vector<float> &pixels)
 {
-	std::ofstream file(path.GetAsciiString());
+	std::ofstream file(path);
 	file << "P3\n" << width << ' ' << height << "\n255\n";
 	for (int j = height - 1; j >= 0; --j)
 	{
@@ -67,7 +102,7 @@ bool write_exr(const XSI::CString &path, int width, int height, int input_compon
 		return out == 0;
 	}
 
-	//output components = 3
+	//if input_components != output_components
 
 	EXRHeader header;
 	InitEXRHeader(&header);
@@ -77,9 +112,10 @@ bool write_exr(const XSI::CString &path, int width, int height, int input_compon
 
 	image.num_channels = output_components;
 	std::vector<float> images[3];
-	images[0].resize(width * height);
-	images[1].resize(width * height);
-	images[2].resize(width * height);
+	size_t pixels_count = static_cast<size_t>(width) * height;
+	images[0].resize(pixels_count);
+	images[1].resize(pixels_count);
+	images[2].resize(pixels_count);
 
 	for (int i = 0; i < width * height; i++)
 	{
@@ -101,9 +137,21 @@ bool write_exr(const XSI::CString &path, int width, int height, int input_compon
 	header.num_channels = output_components;
 	header.channels = (EXRChannelInfo *)malloc(sizeof(EXRChannelInfo) * header.num_channels);
 	// Must be BGR(A) order, since most of EXR viewers expect this channel order.
-	strncpy(header.channels[0].name, "B", 255); header.channels[0].name[strlen("B")] = '\0';
-	strncpy(header.channels[1].name, "G", 255); header.channels[1].name[strlen("G")] = '\0';
-	strncpy(header.channels[2].name, "R", 255); header.channels[2].name[strlen("R")] = '\0';
+	if (output_components == 3)
+	{
+		strncpy(header.channels[0].name, "B", 255); header.channels[0].name[strlen("B")] = '\0';
+		strncpy(header.channels[1].name, "G", 255); header.channels[1].name[strlen("G")] = '\0';
+		strncpy(header.channels[2].name, "R", 255); header.channels[2].name[strlen("R")] = '\0';
+	}
+	else if (output_components == 2)
+	{
+		strncpy(header.channels[0].name, "G", 255); header.channels[0].name[strlen("G")] = '\0';
+		strncpy(header.channels[1].name, "R", 255); header.channels[1].name[strlen("R")] = '\0';
+	}
+	else if (output_components == 1)
+	{
+		strncpy(header.channels[0].name, "A", 255); header.channels[0].name[strlen("A")] = '\0';
+	}
 
 	header.pixel_types = (int *)malloc(sizeof(int) * header.num_channels);
 	header.requested_pixel_types = (int *)malloc(sizeof(int) * header.num_channels);
@@ -135,59 +183,80 @@ bool write_exr(const XSI::CString &path, int width, int height, int input_compon
 bool write_float(const XSI::CString &path, const XSI::CString &ext, const XSI::CString &data_type, int width, int height, int components, const std::vector<float> &pixels)
 {
 	stbi_flip_vertically_on_write(true);
-	if (ext == "ppm")
+	std::string output_path = path.GetAsciiString();
+	if (create_dir(output_path))
 	{
-		write_ppm(path, width, height, components, pixels);
-		return true;
-	}
-	if (ext == "png" || ext == "bmp" || ext == "tga" || ext == "jpg")
-	{
-		unsigned char* u_pixels = new unsigned char[pixels.size()];
-		for (size_t i = 0; i < pixels.size(); i++)
+		int output_components = data_type.Length();
+		if (ext == "ppm")
 		{
-			u_pixels[i] = int(pixels[i] * 255.99);
+			write_ppm(output_path, width, height, components, pixels);
+			return true;
 		}
+		if (ext == "png" || ext == "bmp" || ext == "tga" || ext == "jpg")
+		{
+			size_t otput_pixels_size = static_cast<size_t>(width) * height * output_components;
+			unsigned char* u_pixels = new unsigned char[otput_pixels_size];
+			for (size_t y = 0; y < height; y++)
+			{
+				for (size_t x = 0; x < width; x++)
+				{
+					for (size_t c = 0; c < output_components; c++)
+					{
+						u_pixels[(y * width + x) * output_components + c] = static_cast<unsigned char>(int(pixels[(y * width + x) * components + c] * 255.99f));
+					}
+				}
+			}
 
-		int out = 0;
+			int out = 0;
 
-		if (ext == "png")
-		{
-			out = stbi_write_png(path.GetAsciiString(), width, height, components, u_pixels, width * components);
-		}
-		else if (ext == "bmp")
-		{
-			out = stbi_write_bmp(path.GetAsciiString(), width, height, components, u_pixels);
-		}
-		else if (ext == "tga")
-		{
-			out = stbi_write_tga(path.GetAsciiString(), width, height, components, u_pixels);
-		}
-		else if (ext == "jpg")
-		{
-			out = stbi_write_jpg(path.GetAsciiString(), width, height, components, u_pixels, 100);
-		}
-		
-		return out > 0;
-	}
-	else if (ext == "hdr")
-	{
-		float* f_pixels = new float[pixels.size()];
-		for (size_t i = 0; i < pixels.size(); i++)
-		{
-			f_pixels[i] = pixels[i];
-		}
+			if (ext == "png")
+			{
+				out = stbi_write_png(path.GetAsciiString(), width, height, output_components, u_pixels, width * output_components);
+			}
+			else if (ext == "bmp")
+			{
+				out = stbi_write_bmp(path.GetAsciiString(), width, height, output_components, u_pixels);
+			}
+			else if (ext == "tga")
+			{
+				out = stbi_write_tga(path.GetAsciiString(), width, height, output_components, u_pixels);
+			}
+			else if (ext == "jpg")
+			{
+				out = stbi_write_jpg(path.GetAsciiString(), width, height, output_components, u_pixels, 100);
+			}
 
-		int out = stbi_write_hdr(path.GetAsciiString(), width, height, components, f_pixels);
-		return out > 0;
-	}
-	else if (ext == "exr")
-	{
-		log_message("we should write exr output data type " + data_type);
-		return write_exr(path, width, height, 4, pixels, data_type.Length());
+			delete[]u_pixels;
+
+			return out > 0;
+		}
+		else if (ext == "hdr")
+		{
+			//we assume that input pixels always has 4 components
+			//if render engine produce image with less components, then we should extend it to 4 components and fill output_pixels buffer
+			float* f_pixels = new float[pixels.size()];
+			for (size_t i = 0; i < pixels.size(); i++)
+			{
+				f_pixels[i] = (float)pixels[i];
+			}
+
+			int out = stbi_write_hdr(path.GetAsciiString(), width, height, components, f_pixels);
+			delete[]f_pixels;
+			return out > 0;
+		}
+		else if (ext == "exr")
+		{
+			return write_exr(path, width, height, 4, pixels, output_components);
+		}
+		else
+		{
+			//unknow file extension
+			return false;
+		}
 	}
 	else
 	{
-		//unknow file extension
+		log_message("Fails to create dirctory for the path " + path, XSI::siWarningMsg);
 		return false;
 	}
 }

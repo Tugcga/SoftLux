@@ -79,4 +79,7 @@ private:
 	//ids of pass environment shader node, whcich recognized as lights
 	std::vector<ULONG> xsi_environment_in_lux;
 	bool reinit_environments;
+
+	luxcore::Film::FilmOutputType lux_visual_output_type;
+	luxcore::Film::FilmOutputType last_lux_visual_output_type;
 };

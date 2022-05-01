@@ -149,6 +149,8 @@ bool sync_polymesh(luxcore::Scene* scene, XSI::X3DObject &xsi_object, const XSI:
 	XSI::MATH::CMatrix4 xsi_matrix = xsi_object.GetKinematics().GetGlobal().GetTransform().GetMatrix4();
 	std::vector<double> lux_matrix = xsi_to_lux_matrix(xsi_matrix);
 	polymesh_props.Set(luxrays::Property("scene.objects." + object_name + ".transformation")(lux_matrix));
+	//set default id
+	polymesh_props.Set(luxrays::Property("scene.objects." + object_name + ".id")(0));
 
 	scene->Parse(polymesh_props);
 

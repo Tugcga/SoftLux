@@ -9,6 +9,8 @@
 #include "xsi_application.h"
 #include "xsi_project.h"
 #include "xsi_library.h"
+#include "xsi_renderchannel.h"
+#include "xsi_framebuffer.h"
 
 #include <chrono>
 #include <thread>
@@ -34,6 +36,8 @@ RenderEngineLux::RenderEngineLux()
 	reassign_materials = false;
 	xsi_environment_in_lux.clear();
 	reinit_environments = false;
+	lux_visual_output_type = luxcore::Film::OUTPUT_RGB_IMAGEPIPELINE;
+	last_lux_visual_output_type = luxcore::Film::OUTPUT_RGB_IMAGEPIPELINE;
 
 	RenderEngineLux::is_log = false;
 }
@@ -125,6 +129,17 @@ XSI::CStatus RenderEngineLux::pre_scene_process()
 	is_update_camera = false;
 
 	updated_xsi_ids.clear();
+
+	//get visual renderbuffer
+	XSI::Framebuffer frame_buffer = m_render_context.GetDisplayFramebuffer();
+	XSI::RenderChannel render_channel = frame_buffer.GetRenderChannel();
+	lux_visual_output_type = output_string_to_lux(render_channel.GetName());
+
+	if (lux_visual_output_type != last_lux_visual_output_type)
+	{
+		clear_session();
+		last_lux_visual_output_type = lux_visual_output_type;
+	}
 		
 	return XSI::CStatus::OK;
 }
@@ -378,7 +393,9 @@ XSI::CStatus RenderEngineLux::post_scene()
 	//here we should create the session and render parameters
 	if (!is_session)
 	{
+		log_message("\trecreate session");
 		session = sync_render_config(scene, render_type, m_render_property, eval_time,
+			lux_visual_output_type, output_channels,
 			image_corner_x, image_corner_x + image_size_width, image_corner_y, image_corner_y + image_size_height,
 			image_full_size_width, image_full_size_height);
 		is_session = true;
@@ -406,8 +423,8 @@ void RenderEngineLux::render()
 		const double elapsedTime = stats.Get("stats.renderengine.time").Get<double>();
 		const float convergence = stats.Get("stats.renderengine.convergence").Get<unsigned int>();
 
-		read_visual_buffer(film, visual_buffer);
-		m_render_context.NewFragment(RenderTile(visual_buffer.corner_x, visual_buffer.corner_y, visual_buffer.width, visual_buffer.height, visual_buffer.pixels, true, 4));
+		read_visual_buffer(film, lux_visual_output_type, visual_buffer);
+		m_render_context.NewFragment(RenderTile(visual_buffer.corner_x, visual_buffer.corner_y, visual_buffer.width, visual_buffer.height, visual_buffer.pixels, false, 4));
 
 		//calculate percentage of the render samples, pass is done samples
 		const unsigned int pass = stats.Get("stats.renderengine.pass").Get<unsigned int>();
@@ -419,8 +436,12 @@ void RenderEngineLux::render()
 	session->Stop();
 
 	//after render fill the buffer at last time
-	read_visual_buffer(film, visual_buffer);
-	m_render_context.NewFragment(RenderTile(visual_buffer.corner_x, visual_buffer.corner_y, visual_buffer.width, visual_buffer.height, visual_buffer.pixels, true, 4));
+	read_visual_buffer(film, lux_visual_output_type, visual_buffer);
+	m_render_context.NewFragment(RenderTile(visual_buffer.corner_x, visual_buffer.corner_y, visual_buffer.width, visual_buffer.height, visual_buffer.pixels, false, 4));
+
+	//after render is finish, copy all rendered pixels from film to output_pixels
+	//next in post_render (before post_render_engine) we save it into images
+	copy_film_to_output_pixels(film, output_pixels, output_channels);
 }
 
 XSI::CStatus RenderEngineLux::post_render_engine()

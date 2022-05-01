@@ -189,23 +189,25 @@ XSI::CStatus RenderEngineBase::pre_render(XSI::RendererContext &render_context)
 			if (is_skip && is_file_exists(output_path.GetAsciiString()))
 			{
 				//we shpuld skip this pass to render
-				log_message("[Base Render] File " + output_path + " exists, skip it.");
+				log_message("File " + output_path + " exists, skip it.");
 			}
 			else
 			{
-				//add path to the render
-				output_paths.Add(output_path);
-
 				XSI::CString fb_format = fb.GetParameterValue("Format");
 				XSI::CString fb_data_type = fb.GetParameterValue("DataType");
 				int fb_bits = fb.GetParameterValue("BitDepth");
 				XSI::CString fb_channel_name = remove_digits(fb.GetName());
 				
-				//save output data to array buffers
-				output_formats.Add(fb_format);
-				output_data_types.Add(fb_data_type);
-				output_channels.Add(fb_channel_name);
-				output_bits.push_back(fb_bits);
+				if (fb_bits >= 0 && fb_data_type.Length() > 0 && fb_format.Length() > 0)
+				{
+					//add path to the render
+					output_paths.Add(output_path);
+					//save output data to array buffers
+					output_formats.Add(fb_format);
+					output_data_types.Add(fb_data_type);
+					output_channels.Add(fb_channel_name);
+					output_bits.push_back(fb_bits);
+				}
 			}
 		}
 	}
@@ -303,7 +305,8 @@ XSI::CStatus RenderEngineBase::scene_process()
 
 	if (output_paths.GetCount() > 0)
 	{//prepare output pixel buffers
-		output_pixels = std::vector<float>(image_size_width * image_size_height * 4 * output_paths.GetCount(), 0.0f);
+		ULONG size = (LONG)image_size_width * image_size_height * 4 * output_paths.GetCount();
+		output_pixels = std::vector<float>(size, 0.0f);
 	}
 
 	//next all other general staff for the engine
@@ -609,14 +612,16 @@ XSI::CStatus RenderEngineBase::start_render()
 XSI::CStatus RenderEngineBase::post_render()
 {
 	//save output images
-	for (LONG i = 0; i < output_paths.GetCount(); i++)
+	for (ULONG i = 0; i < output_paths.GetCount(); i++)
 	{
 		//construct subvector
-		std::vector<float>::const_iterator first = output_pixels.begin() + i * image_size_width * image_size_height * 4;
-		std::vector<float>::const_iterator last = output_pixels.begin() + (i + 1) * image_size_width * image_size_height * 4;
+		ULONG shift_a = i * static_cast<ULONG>(image_size_width) * static_cast<ULONG>(image_size_height) * 4;
+		ULONG shift_b = (i + 1) * static_cast<ULONG>(image_size_width) * static_cast<ULONG>(image_size_height) * 4;
+		std::vector<float>::const_iterator first = output_pixels.begin() + shift_a;
+		std::vector<float>::const_iterator last = output_pixels.begin() + shift_b;
 		std::vector<float> pixels(first, last);
 
-		//sve these pixels
+		//save these pixels
 		write_float(output_paths[i], output_formats[i], output_data_types[i], image_size_width, image_size_height, 4, pixels);
 
 		pixels.clear();

@@ -22,14 +22,20 @@ SICALLBACK LuxCoreRenderer_Init(XSI::CRef &in_ctxt)
 
 	//setup output formats
 	renderer.AddOutputImageFormat("Portable Network Graphics (PNG)", "png");
-	renderer.AddOutputImageFormatSubType(XSI::siRenderChannelColorType, "RGBA", XSI::siImageBitDepthInteger8);  // use only one type of the data (RGBA or RGB), because we save images by stb_write and it does not simply supports different channels count
+	renderer.AddOutputImageFormatSubType(XSI::siRenderChannelColorType, "RGBA", XSI::siImageBitDepthInteger8);
+	renderer.AddOutputImageFormatSubType(XSI::siRenderChannelColorType, "RGB", XSI::siImageBitDepthInteger8);
+	renderer.AddOutputImageFormatSubType(XSI::siRenderChannelGrayscaleType, "A", XSI::siImageBitDepthInteger8);
 
 	renderer.AddOutputImageFormat(L"Joint Photographic Experts Group (JPG)", "jpg");
-	renderer.AddOutputImageFormatSubType(XSI::siRenderChannelColorType, L"RGB", XSI::siImageBitDepthInteger8);
+	renderer.AddOutputImageFormatSubType(XSI::siRenderChannelColorType, "RGB", XSI::siImageBitDepthInteger8);
 
 	renderer.AddOutputImageFormat("EXR - OpenEXR", "exr");
 	renderer.AddOutputImageFormatSubType(XSI::siRenderChannelColorType, "RGBA", XSI::siImageBitDepthFloat32);
+	renderer.AddOutputImageFormatSubType(XSI::siRenderChannelColorType, "RGB", XSI::siImageBitDepthFloat32);
 	renderer.AddOutputImageFormatSubType(XSI::siRenderChannelVectorType, "XYZ", XSI::siImageBitDepthFloat32);
+	renderer.AddOutputImageFormatSubType(XSI::siRenderChannelNormalVectorType, "XYZ", XSI::siImageBitDepthFloat32);
+	renderer.AddOutputImageFormatSubType(XSI::siRenderChannelDepthType, "D", XSI::siImageBitDepthFloat32);
+	renderer.AddOutputImageFormatSubType(XSI::siRenderChannelGrayscaleType, "A", XSI::siImageBitDepthFloat32);
 
 	renderer.AddOutputImageFormat("High Dynamic Range (HDR)", "hdr");
 	renderer.AddOutputImageFormatSubType(XSI::siRenderChannelColorType, "RGB", XSI::siImageBitDepthFloat32);
@@ -39,19 +45,41 @@ SICALLBACK LuxCoreRenderer_Init(XSI::CRef &in_ctxt)
 
 	renderer.AddOutputImageFormat("Truevision (TGA)", "tga");
 	renderer.AddOutputImageFormatSubType(XSI::siRenderChannelColorType, "RGBA", XSI::siImageBitDepthInteger8);
-
-	renderer.AddOutputImageFormat("Truevision (TGA)", "tga");
-	renderer.AddOutputImageFormatSubType(XSI::siRenderChannelColorType, "RGBA", XSI::siImageBitDepthInteger8);
+	renderer.AddOutputImageFormatSubType(XSI::siRenderChannelColorType, "RGB", XSI::siImageBitDepthInteger8);
 
 	renderer.AddOutputImageFormat("Portable Anymap (PPM)", "ppm");
 	renderer.AddOutputImageFormatSubType(XSI::siRenderChannelColorType, "RGB", XSI::siImageBitDepthInteger8);
 
 	//setup render channels
-	//renderer.AddDefaultChannel("luxColor", XSI::siRenderChannelColorType);
-	//renderer.AddDefaultChannel("luxDepth", XSI::siRenderChannelColorType);
-	//renderer.AddDefaultChannel("luxAlbedo", XSI::siRenderChannelColorType);
-	//vector type output channel
-	//renderer.AddDefaultChannel("luxNormal", XSI::siRenderChannelVectorType);
+	renderer.AddDefaultChannel("Luxcore RGBA", XSI::siRenderChannelColorType);
+	renderer.AddDefaultChannel("Luxcore RGBA Image Pipline", XSI::siRenderChannelColorType);
+	renderer.AddDefaultChannel("Luxcore Alpha", XSI::siRenderChannelGrayscaleType);
+	renderer.AddDefaultChannel("Luxcore Depth", XSI::siRenderChannelDepthType);
+	renderer.AddDefaultChannel("Luxcore Position", XSI::siRenderChannelVectorType);
+	renderer.AddDefaultChannel("Luxcore Geometry Normal", XSI::siRenderChannelNormalVectorType);
+	renderer.AddDefaultChannel("Luxcore Shading Normal", XSI::siRenderChannelNormalVectorType);
+	renderer.AddDefaultChannel("Luxcore Direct Diffuse", XSI::siRenderChannelColorType);
+	renderer.AddDefaultChannel("Luxcore Direct Glossy", XSI::siRenderChannelColorType);
+	renderer.AddDefaultChannel("Luxcore Emission", XSI::siRenderChannelColorType);
+	renderer.AddDefaultChannel("Luxcore Indirect Diffuse", XSI::siRenderChannelColorType);
+	renderer.AddDefaultChannel("Luxcore Indirect Glossy", XSI::siRenderChannelColorType);
+	renderer.AddDefaultChannel("Luxcore Indirect Specular", XSI::siRenderChannelColorType);
+	renderer.AddDefaultChannel("Luxcore Material ID Mask", XSI::siRenderChannelGrayscaleType);
+	renderer.AddDefaultChannel("Luxcore Direct Shadow Mask", XSI::siRenderChannelGrayscaleType);
+	renderer.AddDefaultChannel("Luxcore Indirect Shadow Mask", XSI::siRenderChannelGrayscaleType);
+	renderer.AddDefaultChannel("Luxcore Radiance Group", XSI::siRenderChannelColorType);
+	renderer.AddDefaultChannel("Luxcore UV", XSI::siRenderChannelVectorType);
+	renderer.AddDefaultChannel("Luxcore Raycount", XSI::siRenderChannelGrayscaleType);
+	renderer.AddDefaultChannel("Luxcore By Material ID", XSI::siRenderChannelColorType);
+	renderer.AddDefaultChannel("Luxcore Material ID", XSI::siRenderChannelGrayscaleType);
+	renderer.AddDefaultChannel("Luxcore Irradiance", XSI::siRenderChannelColorType);
+	renderer.AddDefaultChannel("Luxcore Object ID", XSI::siRenderChannelGrayscaleType);
+	renderer.AddDefaultChannel("Luxcore Object ID Mask", XSI::siRenderChannelGrayscaleType);
+	renderer.AddDefaultChannel("Luxcore By Object ID", XSI::siRenderChannelColorType);
+	renderer.AddDefaultChannel("Luxcore Sample Count", XSI::siRenderChannelGrayscaleType);
+	renderer.AddDefaultChannel("Luxcore Convergence", XSI::siRenderChannelGrayscaleType);
+	renderer.AddDefaultChannel("Luxcore Noise", XSI::siRenderChannelGrayscaleType);
+	renderer.AddDefaultChannel("Luxcore Material ID Color", XSI::siRenderChannelColorType);
 
 	render = &g_render;
 	render->set_render_options_name(options_name);

@@ -12,13 +12,16 @@ void sync_material(luxcore::Scene* scene, const XSI::Material &xsi_material, std
 	//and assign it to the polygon meshes
 
 	std::string material_name = xsi_object_id_string(xsi_material);
-	scene->Parse(
-		luxrays::Property("scene.materials." + material_name + ".type")("matte") <<
-		luxrays::Property("scene.materials." + material_name + ".kd")(
-			int(material_name[material_name.size() - 1] - '0') / (float)10, 
-			int(material_name[material_name.size() - 2] - '0') / (float)10, 
-			int(material_name[material_name.size() - 3] - '0') / (float)10)
-	);
+	luxrays::Properties material_props;
+	material_props.Set(luxrays::Property("scene.materials." + material_name + ".type")("matte"));
+	material_props.Set(luxrays::Property("scene.materials." + material_name + ".kd")(
+		int(material_name[material_name.size() - 1] - '0') / (float)10,
+		int(material_name[material_name.size() - 2] - '0') / (float)10,
+		int(material_name[material_name.size() - 3] - '0') / (float)10));
+	//set default id
+	material_props.Set(luxrays::Property("scene.materials." + material_name + ".id")(0));
+
+	scene->Parse(material_props);
 
 	xsi_materials_in_lux.insert(xsi_material.GetObjectID());
 }
@@ -26,10 +29,11 @@ void sync_material(luxcore::Scene* scene, const XSI::Material &xsi_material, std
 void sync_default_material(luxcore::Scene* scene)
 {
 	//export default material
-	scene->Parse(
-		luxrays::Property("scene.materials.default_material.type")("matte") <<
-		luxrays::Property("scene.materials.default_material.kd")(0.8, 0.8, 0.8)
-	);
+	luxrays::Properties default_props;
+	default_props.Set(luxrays::Property("scene.materials.default_material.type")("matte"));
+	default_props.Set(luxrays::Property("scene.materials.default_material.kd")(0.8, 0.8, 0.8));
+	default_props.Set(luxrays::Property("scene.materials.default_material.id")(0));
+	scene->Parse(default_props);
 }
 
 void sync_materials(luxcore::Scene *scene, const XSI::Scene &xsi_scene, std::set<ULONG>& xsi_materials_in_lux, const XSI::CTime &eval_time)

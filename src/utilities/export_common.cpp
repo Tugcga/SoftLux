@@ -9,6 +9,7 @@
 #include <xsi_utils.h>
 #include <xsi_project.h>
 #include <xsi_material.h>
+#include <xsi_model.h>
 
 bool is_xsi_object_visible(const XSI::CTime &eval_time, XSI::X3DObject &xsi_object)
 {
@@ -47,6 +48,41 @@ std::vector<std::string> xsi_object_id_string(XSI::ProjectItem& xsi_item)
 		else
 		{
 			return std::vector<std::string> {XSI::CString(xsi_item.GetObjectID()).GetAsciiString()};
+		}
+	}
+	else if (xsi_item.GetClassID() == XSI::siModelID)
+	{
+		XSI::Model xsi_model(xsi_item);
+		XSI::siModelKind model_kind = xsi_model.GetModelKind();
+		if (model_kind == XSI::siModelKind_Instance)
+		{
+			//for the instance return array of the form modelID_subobjectName
+			ULONG xsi_id = xsi_model.GetObjectID();
+			XSI::Model master = xsi_model.GetInstanceMaster();
+			XSI::CStringArray str_families_subobject;
+			XSI::CRefArray children = master.FindChildren2("", "", str_families_subobject);
+			std::vector<std::string> to_return;
+			for (ULONG i = 0; i < children.GetCount(); i++)
+			{
+				XSI::X3DObject object(children[i]);
+				XSI::CString object_type = object.GetType();
+				//TODO: add another types when exporter will supports it
+				if (object_type == "polymsh")
+				{
+					std::vector<std::string> names = xsi_object_id_string(object);
+					for (ULONG j = 0; j < names.size(); j++)
+					{
+						to_return.push_back(std::to_string(xsi_id) + "_" + names[j]);
+					}
+				}
+			}
+
+			return to_return;
+		}
+		else
+		{
+			//for non-instance model return object id
+			return std::vector<std::string> {XSI::CString(xsi_model.GetObjectID()).GetAsciiString()};
 		}
 	}
 	else

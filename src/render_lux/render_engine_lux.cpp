@@ -11,6 +11,7 @@
 #include "xsi_library.h"
 #include "xsi_renderchannel.h"
 #include "xsi_framebuffer.h"
+#include "xsi_projectitem.h"
 
 #include <chrono>
 #include <thread>
@@ -38,6 +39,7 @@ RenderEngineLux::RenderEngineLux()
 	last_lux_visual_output_type = luxcore::Film::OUTPUT_RGB_IMAGEPIPELINE;
 
 	xsi_id_to_lux_names_map.clear();
+	master_to_instance_map.clear();
 
 	RenderEngineLux::is_log = false;
 }
@@ -83,6 +85,7 @@ void RenderEngineLux::clear_scene()
 	xsi_materials_in_lux.clear();
 	xsi_environment_in_lux.clear();
 	xsi_id_to_lux_names_map.clear();
+	master_to_instance_map.clear();
 }
 
 //here we clear session and render config
@@ -129,6 +132,7 @@ XSI::CStatus RenderEngineLux::pre_scene_process()
 	is_update_camera = false;
 
 	updated_xsi_ids.clear();
+	update_instances.clear();
 
 	//get visual renderbuffer
 	XSI::Framebuffer frame_buffer = m_render_context.GetDisplayFramebuffer();
@@ -142,6 +146,19 @@ XSI::CStatus RenderEngineLux::pre_scene_process()
 	}
 		
 	return XSI::CStatus::OK;
+}
+
+void RenderEngineLux::update_instance_masters(ULONG xsi_id)
+{
+	if (master_to_instance_map.contains(xsi_id))
+	{
+		//this object is the master object for some instance
+		//we should delete corresponding instances and create it again
+		for (ULONG i = 0; i < master_to_instance_map[xsi_id].size(); i++)
+		{
+			update_instances.insert(master_to_instance_map[xsi_id][i]);
+		}
+	}
 }
 
 void RenderEngineLux::update_object(XSI::X3DObject& xsi_object)
@@ -160,17 +177,15 @@ void RenderEngineLux::update_object(XSI::X3DObject& xsi_object)
 	//sync object again
 	if (is_xsi_object_visible(eval_time, xsi_object))
 	{
-		bool is_sync = sync_object(scene, xsi_object, xsi_materials_in_lux, eval_time);
+		bool is_sync = sync_object(scene, xsi_object, xsi_materials_in_lux, xsi_id_to_lux_names_map, master_to_instance_map, eval_time);
 		if (is_sync)
 		{
 			ULONG xsi_id = xsi_object.GetObjectID();
 			updated_xsi_ids.push_back(xsi_id);
-
-			xsi_id_to_lux_names_map[xsi_object.GetObjectID()] = xsi_object_id_string(xsi_object);
-
-			updated_xsi_ids.push_back(xsi_id);
+			xsi_id_to_lux_names_map[xsi_id] = xsi_object_id_string(xsi_object);
 		}
 	}
+	update_instance_masters(xsi_id);
 }
 
 //return OK, if object successfully updates, Abort in other case
@@ -227,6 +242,16 @@ XSI::CStatus RenderEngineLux::update_scene(XSI::X3DObject& xsi_object, const Upd
 						updated_xsi_ids.push_back(xsi_object.GetObjectID());
 					}
 				}
+				else if (xsi_type == "#model")
+				{
+					XSI::Model xsi_model(xsi_object);
+					XSI::siModelKind model_kind = xsi_model.GetModelKind();
+					if (model_kind == XSI::siModelKind_Instance && xsi_id_to_lux_names_map.contains(xsi_id))
+					{
+						sync_instance_transform(scene, xsi_model);
+					}
+					//ignore change transform of all other models
+				}
 				else
 				{
 					//for other objects in the scene, update only transform
@@ -237,6 +262,7 @@ XSI::CStatus RenderEngineLux::update_scene(XSI::X3DObject& xsi_object, const Upd
 						{
 							sync_transform(scene, object_names[i], xsi_object.GetKinematics().GetGlobal().GetTransform(), eval_time);
 						}
+						update_instance_masters(xsi_id);
 					}
 					else
 					{
@@ -382,11 +408,24 @@ XSI::CStatus RenderEngineLux::create_scene()
 		sync_ambient(scene, eval_time);
 
 		//sync scene objects
-		sync_scene_objects(scene, m_render_context, xsi_materials_in_lux, xsi_id_to_lux_names_map, eval_time);
+		sync_scene_objects(scene, m_render_context, xsi_materials_in_lux, xsi_id_to_lux_names_map, master_to_instance_map, eval_time);
 
 		//environment light (hdri, sky, sun)
 		xsi_environment_in_lux = sync_environment(scene, eval_time);
 	}
+
+	//print update maps
+	/*log_message("master_to_instance_map:");
+	for (const auto& [key, value]: master_to_instance_map)
+	{
+		log_message("\t" + XSI::CString(key) + ": " + to_string(value));
+	}
+
+	log_message("xsi_id_to_lux_names_map:");
+	for (const auto& [key, value] : xsi_id_to_lux_names_map)
+	{
+		log_message("\t" + XSI::CString(key) + ": " + to_string(value));
+	}*/
 
 	return XSI::CStatus::OK;
 }
@@ -407,6 +446,25 @@ XSI::CStatus RenderEngineLux::post_scene()
 		xsi_environment_in_lux = sync_environment(scene, eval_time);
 	}
 	reinit_environments = false;
+
+	//may be we should update instances
+	std::set<unsigned long>::iterator it;
+	for (it = update_instances.begin(); it != update_instances.end(); ++it) 
+	{
+		ULONG xsi_id = *it;
+		//remove instance
+		remove_from_scene(scene, xsi_id, xsi_id_to_lux_names_map);
+
+		//next create it again
+		XSI::Model xsi_model(XSI::Application().GetObjectFromID(xsi_id));
+		bool is_sync = sync_instance(scene, xsi_model, xsi_id_to_lux_names_map, xsi_materials_in_lux, master_to_instance_map, eval_time);
+		if (is_sync)
+		{
+			xsi_id_to_lux_names_map[xsi_model.GetObjectID()] = xsi_object_id_string(xsi_model);
+		}
+	}
+
+	update_instances.clear();
 
 	//here we should create the session and render parameters
 	if (!is_session)

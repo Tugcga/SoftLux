@@ -373,7 +373,6 @@ bool sync_polymesh(luxcore::Scene* scene, XSI::X3DObject& xsi_object, std::set<U
 			vertex_colors_array_count > 0 ? &colors : NULL,
 			vertex_colors_array_count > 0 ? &alphas : NULL);
 
-
 		//add mesh to the scene
 		luxrays::Properties submobject_props;
 		submobject_props.Set(luxrays::Property("scene.objects." + subobject_name + ".shape")(submesh_name));

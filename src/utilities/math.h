@@ -14,6 +14,7 @@ std::array<float, 3> xsi_to_lux_vector(const XSI::MATH::CVector3 vector);
 
 //convert transform matrix from xsi to luxcore
 std::vector<double> xsi_to_lux_matrix(const XSI::MATH::CMatrix4& xsi_matrix);
+std::vector<float> xsi_to_lux_matrix_float(const XSI::MATH::CMatrix4& xsi_matrix);
 std::string xsi_to_lux_matrix_string(const XSI::MATH::CMatrix4& xsi_matrix);
 
 float get_distant_light_normalization_factor(float theta);

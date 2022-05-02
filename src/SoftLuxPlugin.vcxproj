@@ -69,6 +69,7 @@
     <ClCompile Include=".\SoftLuxPlugin.cpp" />
     <ClCompile Include="render_base\render_engine_base.cpp" />
     <ClCompile Include="render_lux\lux_scene\lux_camera.cpp" />
+    <ClCompile Include="render_lux\lux_scene\lux_instance.cpp" />
     <ClCompile Include="render_lux\lux_scene\lux_light.cpp" />
     <ClCompile Include="render_lux\lux_scene\lux_material.cpp" />
     <ClCompile Include="render_lux\lux_scene\lux_polymesh.cpp" />

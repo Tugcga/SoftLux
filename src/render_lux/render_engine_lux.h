@@ -49,6 +49,7 @@ private:
 	void clear_session();
 
 	void update_object(XSI::X3DObject& xsi_object);
+	void update_instance_masters(ULONG xsi_id);
 
 	//-----------------------------------------------
 	//internal class members
@@ -71,10 +72,16 @@ private:
 	//store here ids of xsi_object which we already update
 	//to prevent update twise
 	std::vector<ULONG> updated_xsi_ids;
+	//store here all instaces, we should update after general update process
+	std::set<ULONG> update_instances;
 	//this map used when we should reset some object in the Luxcore scene
 	//the key - object id in XSI, value - corresponding names in Luxcore scene
 	//polygonmesh objects can corresponds several object in scene
 	std::unordered_map<ULONG, std::vector<std::string>> xsi_id_to_lux_names_map;
+	//this map allows update instances when some master object is changed
+	//key - id of the master object, values - array of ids of corresponding instances
+	//different keys can contains the same set of instances, if (for example) instance contains several master objects
+	std::unordered_map<ULONG, std::vector<ULONG>> master_to_instance_map;
 	//the same list for exported materials
 	std::set<ULONG> xsi_materials_in_lux;
 	//should we reassigna materials after scene creation

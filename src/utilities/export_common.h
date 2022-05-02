@@ -10,6 +10,9 @@
 //return true if object have active render visibility
 bool is_xsi_object_visible(const XSI::CTime &eval_time, XSI::X3DObject &xsi_object);
 
+//return true, if pointcloud should be interpret as strands
+bool is_pointcloud_strands(XSI::X3DObject& xsi_object, const XSI::CTime& eval_time);
+
 //conver unique id of the object to string
 std::vector<std::string> xsi_object_id_string(XSI::ProjectItem& xsi_item);
 

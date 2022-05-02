@@ -18,6 +18,7 @@ XSI::CString to_string(const std::vector<std::string>& array);
 XSI::CString to_string(const std::vector<ULONG> &array);
 XSI::CString to_string(const std::vector<unsigned int> &array);
 XSI::CString to_string(const std::vector<float> &array);
+XSI::CString to_string(const std::vector<unsigned short>& array);
 XSI::CString to_string(const std::vector<double>& array);
 XSI::CString to_string(const XSI::CColor &color);
 XSI::CString to_string(const XSI::MATH::CColor4f &color);

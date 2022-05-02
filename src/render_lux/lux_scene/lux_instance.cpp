@@ -79,6 +79,9 @@ void sync_instance(luxcore::Scene* scene,
 						{
 							sync_transform(scene, names[j], tfm, eval_time);
 						}
+
+						names.clear();
+						names.shrink_to_fit();
 					}
 				}
 			}
@@ -97,6 +100,12 @@ void sync_instance(luxcore::Scene* scene,
 					}
 				}
 			}
+
+			lux_matrix.clear();
+			lux_matrix.shrink_to_fit();
+
+			object_names.clear();
+			object_names.shrink_to_fit();
 		}
 		else if (object_type == "light")
 		{
@@ -112,7 +121,6 @@ bool sync_instance(luxcore::Scene* scene, XSI::Model &xsi_model,
 	std::unordered_map<ULONG, std::vector<ULONG>>& master_to_instance_map,
 	const XSI::CTime& eval_time)
 {
-	//std::vector<std::string> model_names = xsi_object_id_string(xsi_model);
 	ULONG model_id = xsi_model.GetObjectID();
 	//this array start from id of the model, and then contain names of subobkects
 	//for example, if the mode has it 1458 and it contains three subobjects (12 with cluster materials 3 and 9, 127 with material 62 and 56 with material 3)

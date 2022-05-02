@@ -110,6 +110,22 @@ XSI::CString to_string(const std::vector<float> &array)
 	return to_return;
 }
 
+XSI::CString to_string(const std::vector<unsigned short>& array)
+{
+	if (array.size() == 0)
+	{
+		return "[]";
+	}
+
+	XSI::CString to_return = "[" + XSI::CString((int)array[0]);
+	for (ULONG i = 1; i < array.size(); i++)
+	{
+		to_return += ", " + XSI::CString((int)array[i]);
+	}
+	to_return += "]";
+	return to_return;
+}
+
 XSI::CString to_string(const std::vector<double>& array)
 {
 	if (array.size() == 0)

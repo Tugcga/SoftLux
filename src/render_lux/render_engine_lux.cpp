@@ -172,6 +172,9 @@ void RenderEngineLux::update_object(XSI::X3DObject& xsi_object)
 			scene->DeleteObject(object_names[i]);
 		}
 
+		object_names.clear();
+		object_names.shrink_to_fit();
+
 		xsi_id_to_lux_names_map.erase(xsi_object.GetObjectID());
 	}
 	//sync object again
@@ -217,7 +220,7 @@ XSI::CStatus RenderEngineLux::update_scene(XSI::X3DObject& xsi_object, const Upd
 				}
 				else
 				{
-					if (xsi_object.GetType() == "pointcloud")
+					if (xsi_object.GetType() == "pointcloud" && !is_pointcloud_strands(xsi_object, eval_time))
 					{
 						//we can not delete all object from particles, because one pointcloud create mny objects in Luxcore scene
 						//so, simply clear the whole scene
@@ -272,6 +275,9 @@ XSI::CStatus RenderEngineLux::update_scene(XSI::X3DObject& xsi_object, const Upd
 						{
 							sync_transform(scene, object_names[i], xsi_object.GetKinematics().GetGlobal().GetTransform(), eval_time);
 						}
+						object_names.clear();
+						object_names.shrink_to_fit();
+
 						update_instance_masters(xsi_id);
 					}
 					else
@@ -299,8 +305,15 @@ XSI::CStatus RenderEngineLux::update_scene(XSI::X3DObject& xsi_object, const Upd
 			{
 				//for simplicity, if we change pointcloud, reset the scene
 				//also clear the scene to prevent all other updates
-				clear_scene();
-				return XSI::CStatus::Abort;
+				if (is_pointcloud_strands(xsi_object, eval_time))
+				{
+					update_object(xsi_object);
+				}
+				else
+				{
+					clear_scene();
+					return XSI::CStatus::Abort;
+				}
 			}
 			else
 			{

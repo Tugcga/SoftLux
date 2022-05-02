@@ -204,4 +204,7 @@ void copy_film_to_output_pixels(luxcore::Film& film, std::vector<float> &output_
 		film_pixels.clear();
 		film_pixels.shrink_to_fit();
 	}
+
+	alpha_pixels.clear();
+	alpha_pixels.shrink_to_fit();
 }

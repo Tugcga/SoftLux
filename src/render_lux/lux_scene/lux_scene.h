@@ -40,7 +40,13 @@ bool sync_pointcloud(luxcore::Scene* scene,
 	std::unordered_map<ULONG, std::vector<ULONG>>& master_to_instance_map,
 	const XSI::CTime& eval_time);
 
-bool sync_polymesh(luxcore::Scene* scene, XSI::X3DObject& xsi_object, std::set<ULONG>& xsi_materials_in_lux, const XSI::CTime& eval_time, const ULONG override_material = 0, const bool use_default_material = false);
+bool sync_polymesh(luxcore::Scene* scene, 
+	XSI::X3DObject& xsi_object, 
+	std::set<ULONG>& xsi_materials_in_lux,
+	const XSI::CTime& eval_time, 
+	const ULONG override_material = 0, 
+	const bool use_default_material = false);
+
 std::vector<float> get_instance_object_tfm(const XSI::CRefArray& children, ULONG index, const XSI::MATH::CTransformation& master_tfm, const XSI::MATH::CTransformation& model_tfm);
 
 //this method use from pointcloud export
@@ -55,6 +61,10 @@ void sync_instance(luxcore::Scene* scene,
 	const XSI::CTime& eval_time,
 	const bool ignore_master_visibility = false,
 	const bool is_branch = true);
+
+bool sync_pointcloud_strands(luxcore::Scene* scene, 
+	XSI::X3DObject& xsi_object, 
+	const XSI::CTime& eval_time);
 
 //this method used for instances, next it call the more general method
 bool sync_instance(luxcore::Scene* scene, XSI::Model& xsi_model, std::unordered_map<ULONG, std::vector<std::string>>& xsi_id_to_lux_names_map, std::set<ULONG>& xsi_materials_in_lux, std::unordered_map<ULONG, std::vector<ULONG>>& master_to_instance_map, const XSI::CTime& eval_time);

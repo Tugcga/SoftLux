@@ -76,6 +76,7 @@
     <ClCompile Include="render_lux\lux_scene\lux_polymesh.cpp" />
     <ClCompile Include="render_lux\lux_scene\lux_scene.cpp" />
     <ClCompile Include="render_lux\lux_scene\lux_shaderball.cpp" />
+    <ClCompile Include="render_lux\lux_scene\lux_strands.cpp" />
     <ClCompile Include="render_lux\lux_session\lux_film.cpp" />
     <ClCompile Include="render_lux\lux_session\lux_imagepipline.cpp" />
     <ClCompile Include="render_lux\lux_session\lux_render_config.cpp" />

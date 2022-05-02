@@ -10,6 +10,10 @@
 #include <xsi_project.h>
 #include <xsi_material.h>
 #include <xsi_model.h>
+#include <xsi_geometry.h>
+#include <xsi_primitive.h>
+#include <xsi_iceattribute.h>
+#include <xsi_iceattributedataarray2D.h>
 
 bool is_xsi_object_visible(const XSI::CTime &eval_time, XSI::X3DObject &xsi_object)
 {
@@ -18,6 +22,19 @@ bool is_xsi_object_visible(const XSI::CTime &eval_time, XSI::X3DObject &xsi_obje
 	if (visibility_prop.IsValid())
 	{
 		return visibility_prop.GetParameterValue("rendvis", eval_time);
+	}
+	return false;
+}
+
+bool is_pointcloud_strands(XSI::X3DObject &xsi_object, const XSI::CTime &eval_time)
+{
+	XSI::Geometry geometry = xsi_object.GetActivePrimitive(eval_time).GetGeometry(eval_time);
+	XSI::ICEAttribute sc_attr = geometry.GetICEAttributeFromName("StrandCount");
+	XSI::ICEAttribute sp_attr = geometry.GetICEAttributeFromName("StrandPosition");
+	XSI::ICEAttribute pp_attr = geometry.GetICEAttributeFromName("PointPosition");
+	if (sc_attr.GetElementCount() > 0 && sp_attr.GetElementCount() > 0 && pp_attr.GetElementCount() > 0)
+	{
+		return true;
 	}
 	return false;
 }

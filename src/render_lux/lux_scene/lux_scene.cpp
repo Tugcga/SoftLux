@@ -22,11 +22,18 @@ bool sync_object(luxcore::Scene* scene, XSI::X3DObject &xsi_object,
 	}
 	else if (xsi_type == "pointcloud")
 	{
-		return sync_pointcloud(scene, xsi_object, xsi_id_to_lux_names_map, xsi_materials_in_lux, master_to_instance_map, eval_time);
+		if (is_pointcloud_strands(xsi_object, eval_time))
+		{
+			return sync_pointcloud_strands(scene, xsi_object, eval_time);
+		}
+		else
+		{
+			return sync_pointcloud(scene, xsi_object, xsi_id_to_lux_names_map, xsi_materials_in_lux, master_to_instance_map, eval_time);
+		}
 	}
 	else if (xsi_type == "hair")
 	{
-
+		
 	}
 	else if (xsi_type == "#model")
 	{
@@ -121,6 +128,9 @@ void sync_scene_objects(luxcore::Scene* scene,
 					{
 						sync_transform(scene, names[j], xsi_object.GetKinematics().GetGlobal().GetTransform(), eval_time);
 					}
+
+					names.clear();
+					names.shrink_to_fit();
 				}
 			}
 		}
@@ -166,6 +176,9 @@ void remove_from_scene(luxcore::Scene* scene, ULONG xsi_id, std::unordered_map<U
 	{
 		scene->DeleteObject(names[i]);
 	}
+
+	names.clear();
+	names.shrink_to_fit();
 }
 
 void sync_transform(luxcore::Scene* scene, const std::string &object_name, const XSI::MATH::CTransformation &xsi_tfm, const XSI::CTime &eval_time)
@@ -177,6 +190,9 @@ void sync_transform(luxcore::Scene* scene, const std::string &object_name, const
 		matrix[i] = lux_matrix[i];
 	}
 	scene->UpdateObjectTransformation(object_name, matrix);
+
+	lux_matrix.clear();
+	lux_matrix.shrink_to_fit();
 }
 
 void sync_instance_transform(luxcore::Scene* scene, XSI::Model &xsi_model)
@@ -201,6 +217,9 @@ void sync_instance_transform(luxcore::Scene* scene, XSI::Model &xsi_model)
 			{
 				scene->UpdateObjectTransformation(model_id_str + "_" + object_names[j], &lux_matrix[0]);
 			}
+
+			lux_matrix.clear();
+			lux_matrix.shrink_to_fit();
 		}
 	}
 }

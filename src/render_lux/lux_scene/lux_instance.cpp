@@ -22,25 +22,30 @@ std::vector<float> get_instance_object_tfm(const XSI::CRefArray &children, ULONG
 	return xsi_to_lux_matrix_float(object_matrix);
 }
 
-bool sync_instance(luxcore::Scene* scene, XSI::Model &xsi_model, 
-	std::unordered_map<ULONG, std::vector<std::string>>& xsi_id_to_lux_names_map, 
+void sync_instance(luxcore::Scene* scene, 
+	ULONG model_id,
+	std::string &model_id_str,
+	XSI::X3DObject &master, 
+	XSI::MATH::CTransformation &model_tfm, 
+	std::unordered_map<ULONG, std::vector<std::string>>& xsi_id_to_lux_names_map,
 	std::set<ULONG>& xsi_materials_in_lux,
 	std::unordered_map<ULONG, std::vector<ULONG>>& master_to_instance_map,
-	const XSI::CTime& eval_time)
+	const XSI::CTime& eval_time,
+	const bool ignore_master_visibility,
+	const bool is_branch)
 {
-	//std::vector<std::string> model_names = xsi_object_id_string(xsi_model);
-	ULONG model_id = xsi_model.GetObjectID();
-	std::string model_id_str = std::to_string(xsi_model.GetObjectID());
-	//this array start from id of the model, and then contain names of subobkects
-	//for example, if the mode has it 1458 and it contains three subobjects (12 with cluster materials 3 and 9, 127 with material 62 and 56 with material 3)
-	//then it returns [1458_12_3, 1458_12_9, 1458_127_62, 1458_56_3]
-
-	//get names of the master objects
-	XSI::Model master = xsi_model.GetInstanceMaster();
-	XSI::CStringArray str_families_subobject;
-	XSI::CRefArray children = master.FindChildren2("", "", str_families_subobject);
+	XSI::CRefArray children;
+	if (is_branch)
+	{
+		XSI::CStringArray str_families_subobject;
+		children = master.FindChildren2("", "", str_families_subobject);
+	}
+	else
+	{
+		children.Add(master);
+	}
+	
 	XSI::MATH::CTransformation root_tfm = master.GetKinematics().GetGlobal().GetTransform();
-	XSI::MATH::CTransformation model_tfm = xsi_model.GetKinematics().GetGlobal().GetTransform();
 	for (ULONG i = 0; i < children.GetCount(); i++)
 	{
 		XSI::X3DObject object(children[i]);
@@ -57,7 +62,7 @@ bool sync_instance(luxcore::Scene* scene, XSI::Model &xsi_model,
 			{
 				//master object is not exported yet
 				//this is because it outside of the isolation view, because in non-isolation mode we at first export geometry and only then - instances
-				if (is_xsi_object_visible(eval_time, object))
+				if (ignore_master_visibility || is_xsi_object_visible(eval_time, object))
 				{
 					bool is_sync = sync_object(scene, object, xsi_materials_in_lux, xsi_id_to_lux_names_map, master_to_instance_map, eval_time);
 					if (is_sync)
@@ -84,13 +89,40 @@ bool sync_instance(luxcore::Scene* scene, XSI::Model &xsi_model,
 			//check is we really export the object, or may be it was invisible
 			if (xsi_id_to_lux_names_map.contains(xsi_id))
 			{
-				for (ULONG j = 0; j < object_names.size(); j++)
+				if (ignore_master_visibility || is_xsi_object_visible(eval_time, object))
 				{
-					scene->DuplicateObject(object_names[j], model_id_str + "_" + object_names[j], &lux_matrix[0]);  //does we need generate new id for the instance, or use id from the instance?
+					for (ULONG j = 0; j < object_names.size(); j++)
+					{
+						scene->DuplicateObject(object_names[j], model_id_str + "_" + object_names[j], &lux_matrix[0]);  //does we need generate new id for the instance, or use id from the instance?
+					}
 				}
 			}
 		}
+		else if (object_type == "light")
+		{
+			//TODO: make support of the light inside instance
+			//for now only polygon mesh objects are supported
+		}
 	}
+}
+
+bool sync_instance(luxcore::Scene* scene, XSI::Model &xsi_model, 
+	std::unordered_map<ULONG, std::vector<std::string>>& xsi_id_to_lux_names_map, 
+	std::set<ULONG>& xsi_materials_in_lux,
+	std::unordered_map<ULONG, std::vector<ULONG>>& master_to_instance_map,
+	const XSI::CTime& eval_time)
+{
+	//std::vector<std::string> model_names = xsi_object_id_string(xsi_model);
+	ULONG model_id = xsi_model.GetObjectID();
+	//this array start from id of the model, and then contain names of subobkects
+	//for example, if the mode has it 1458 and it contains three subobjects (12 with cluster materials 3 and 9, 127 with material 62 and 56 with material 3)
+	//then it returns [1458_12_3, 1458_12_9, 1458_127_62, 1458_56_3]
+
+	//get names of the master objects
+	XSI::Model master = xsi_model.GetInstanceMaster();
+	XSI::MATH::CTransformation model_tfm = xsi_model.GetKinematics().GetGlobal().GetTransform();
+	std::string model_id_str = std::to_string(model_id);
+	sync_instance(scene, model_id, model_id_str, master, model_tfm, xsi_id_to_lux_names_map, xsi_materials_in_lux, master_to_instance_map, eval_time);
 
 	return true;
 }

@@ -217,9 +217,19 @@ XSI::CStatus RenderEngineLux::update_scene(XSI::X3DObject& xsi_object, const Upd
 				}
 				else
 				{
-					//only plygonmesh object in XSI corresponds to several objects in Luxcore
-					//each of the has the name: id_materialID
-					update_object(xsi_object);
+					if (xsi_object.GetType() == "pointcloud")
+					{
+						//we can not delete all object from particles, because one pointcloud create mny objects in Luxcore scene
+						//so, simply clear the whole scene
+						clear_scene();
+						return XSI::CStatus::Abort;
+					}
+					else
+					{
+						//only plygonmesh object in XSI corresponds to several objects in Luxcore
+						//each of the has the name: id_materialID
+						update_object(xsi_object);
+					}
 				}
 				return XSI::CStatus::OK;
 			}
@@ -284,6 +294,13 @@ XSI::CStatus RenderEngineLux::update_scene(XSI::X3DObject& xsi_object, const Upd
 			{
 				//here we delete corresponding objects form Luxcore scene and create the mesh again
 				update_object(xsi_object);
+			}
+			else if (update_type == UpdateType_Pointcloud)
+			{
+				//for simplicity, if we change pointcloud, reset the scene
+				//also clear the scene to prevent all other updates
+				clear_scene();
+				return XSI::CStatus::Abort;
 			}
 			else
 			{
@@ -425,6 +442,14 @@ XSI::CStatus RenderEngineLux::create_scene()
 	for (const auto& [key, value] : xsi_id_to_lux_names_map)
 	{
 		log_message("\t" + XSI::CString(key) + ": " + to_string(value));
+	}
+
+	log_message("update_instances:");
+	std::set<unsigned long>::iterator it;
+	for (it = update_instances.begin(); it != update_instances.end(); ++it)
+	{
+		ULONG xsi_id = *it;
+		log_message(XSI::CString(xsi_id));
 	}*/
 
 	return XSI::CStatus::OK;
@@ -456,11 +481,11 @@ XSI::CStatus RenderEngineLux::post_scene()
 		remove_from_scene(scene, xsi_id, xsi_id_to_lux_names_map);
 
 		//next create it again
-		XSI::Model xsi_model(XSI::Application().GetObjectFromID(xsi_id));
-		bool is_sync = sync_instance(scene, xsi_model, xsi_id_to_lux_names_map, xsi_materials_in_lux, master_to_instance_map, eval_time);
+		XSI::X3DObject xsi_instance(XSI::Application().GetObjectFromID(xsi_id));
+		bool is_sync = sync_object(scene, xsi_instance, xsi_materials_in_lux, xsi_id_to_lux_names_map, master_to_instance_map, eval_time);
 		if (is_sync)
 		{
-			xsi_id_to_lux_names_map[xsi_model.GetObjectID()] = xsi_object_id_string(xsi_model);
+			xsi_id_to_lux_names_map[xsi_instance.GetObjectID()] = xsi_object_id_string(xsi_instance);
 		}
 	}
 

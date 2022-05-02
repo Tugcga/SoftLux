@@ -32,9 +32,31 @@ void sync_materials(luxcore::Scene* scene, const XSI::Scene& xsi_scene, std::set
 void reassign_all_materials(luxcore::Scene* scene, const XSI::Scene& xsi_scene, std::set<ULONG>& xsi_materials_in_lux, std::unordered_map<ULONG, std::vector<std::string>>& xsi_id_to_lux_names_map, const XSI::CTime& eval_time);
 
 void define_area_light_mesh(luxcore::Scene* scene, const std::string& shape_name);
-//bool sync_polymesh_old(luxcore::Scene* scene, XSI::X3DObject& xsi_object, const XSI::CTime& eval_time, const ULONG override_material, const bool use_default_material);
+
+bool sync_pointcloud(luxcore::Scene* scene, 
+	XSI::X3DObject& xsi_object, 
+	std::unordered_map<ULONG, std::vector<std::string>>& xsi_id_to_lux_names_map,
+	std::set<ULONG>& xsi_materials_in_lux,
+	std::unordered_map<ULONG, std::vector<ULONG>>& master_to_instance_map,
+	const XSI::CTime& eval_time);
+
 bool sync_polymesh(luxcore::Scene* scene, XSI::X3DObject& xsi_object, std::set<ULONG>& xsi_materials_in_lux, const XSI::CTime& eval_time, const ULONG override_material = 0, const bool use_default_material = false);
 std::vector<float> get_instance_object_tfm(const XSI::CRefArray& children, ULONG index, const XSI::MATH::CTransformation& master_tfm, const XSI::MATH::CTransformation& model_tfm);
+
+//this method use from pointcloud export
+void sync_instance(luxcore::Scene* scene,
+	ULONG model_id,
+	std::string& model_id_str,
+	XSI::X3DObject &master,
+	XSI::MATH::CTransformation& model_tfm,
+	std::unordered_map<ULONG, std::vector<std::string>>& xsi_id_to_lux_names_map,
+	std::set<ULONG>& xsi_materials_in_lux,
+	std::unordered_map<ULONG, std::vector<ULONG>>& master_to_instance_map,
+	const XSI::CTime& eval_time,
+	const bool ignore_master_visibility = false,
+	const bool is_branch = true);
+
+//this method used for instances, next it call the more general method
 bool sync_instance(luxcore::Scene* scene, XSI::Model& xsi_model, std::unordered_map<ULONG, std::vector<std::string>>& xsi_id_to_lux_names_map, std::set<ULONG>& xsi_materials_in_lux, std::unordered_map<ULONG, std::vector<ULONG>>& master_to_instance_map, const XSI::CTime& eval_time);
 void sync_shaderball_lights(luxcore::Scene* scene);
 bool sync_xsi_light(luxcore::Scene* scene, XSI::Light& xsi_light, const XSI::CTime& eval_time);

@@ -22,7 +22,7 @@ bool sync_object(luxcore::Scene* scene, XSI::X3DObject &xsi_object,
 	}
 	else if (xsi_type == "pointcloud")
 	{
-
+		return sync_pointcloud(scene, xsi_object, xsi_id_to_lux_names_map, xsi_materials_in_lux, master_to_instance_map, eval_time);
 	}
 	else if (xsi_type == "hair")
 	{
@@ -112,12 +112,15 @@ void sync_scene_objects(luxcore::Scene* scene,
 		{
 			//object already exported, then simply update it transform
 			XSI::CString xsi_type = xsi_object.GetType();
-			if (xsi_type != "#model")
+			if (xsi_type != "#model" && xsi_type != "pointcloud")
 			{
-				std::vector<std::string> names = xsi_id_to_lux_names_map[xsi_id];
-				for (ULONG j = 0; j < names.size(); j++)
+				if (is_xsi_object_visible(eval_time, xsi_object))
 				{
-					sync_transform(scene, names[j], xsi_object.GetKinematics().GetGlobal().GetTransform(), eval_time);
+					std::vector<std::string> names = xsi_id_to_lux_names_map[xsi_id];
+					for (ULONG j = 0; j < names.size(); j++)
+					{
+						sync_transform(scene, names[j], xsi_object.GetKinematics().GetGlobal().GetTransform(), eval_time);
+					}
 				}
 			}
 		}

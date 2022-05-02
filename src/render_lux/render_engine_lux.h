@@ -28,7 +28,7 @@ public:
 
 	//update scene events
 	XSI::CStatus update_scene(XSI::X3DObject& xsi_object, const UpdateType update_type);
-	XSI::CStatus update_scene(const XSI::SIObject& si_object, const UpdateType update_type);
+	XSI::CStatus update_scene(XSI::SIObject& si_object, const UpdateType update_type);
 	XSI::CStatus update_scene(XSI::Material& xsi_material, bool material_assigning);
 	XSI::CStatus update_scene_render();
 	

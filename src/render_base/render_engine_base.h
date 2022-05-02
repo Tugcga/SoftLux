@@ -99,7 +99,7 @@ public:
 	//in this case xsi_material is not material from library, but local subobject material (it has different id and empty library)
 	virtual XSI::CStatus update_scene(XSI::Material &xsi_material, bool material_assigning);
 	//this can be called when pass is updated
-	virtual XSI::CStatus update_scene(const XSI::SIObject &si_object, const UpdateType update_type);
+	virtual XSI::CStatus update_scene(XSI::SIObject &si_object, const UpdateType update_type);
 	//this method called when we change render settings
 	virtual XSI::CStatus update_scene_render();
 	

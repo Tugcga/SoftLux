@@ -83,7 +83,7 @@ XSI::CStatus RenderEngineBase::update_scene(XSI::X3DObject &xsi_object, const Up
 	return XSI::CStatus::OK;
 }
 
-XSI::CStatus RenderEngineBase::update_scene(const XSI::SIObject &si_object, const UpdateType update_type)
+XSI::CStatus RenderEngineBase::update_scene(XSI::SIObject &si_object, const UpdateType update_type)
 {
 	log_message("[Base Render] Update scene for SIObject is not implemented", XSI::siWarningMsg);
 	return XSI::CStatus::OK;
@@ -434,7 +434,8 @@ XSI::CStatus RenderEngineBase::scene_process()
 						else if (xsi_obj.GetType() == "poly" || xsi_obj.GetType() == "sample")
 						{
 							//change cluster in the polygonmesh
-							update_status = update_scene(XSI::X3DObject(XSI::SIObject(xsi_obj.GetParent()).GetParent()), UpdateType_Mesh);
+							XSI::X3DObject xsi_object = XSI::X3DObject(XSI::SIObject(xsi_obj.GetParent()).GetParent());
+							update_status = update_scene(xsi_object, UpdateType_Mesh);
 						}
 						else
 						{

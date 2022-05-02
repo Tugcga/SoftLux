@@ -274,7 +274,7 @@ XSI::CStatus RenderEngineLux::update_scene(XSI::X3DObject& xsi_object, const Upd
 	}
 }
 
-XSI::CStatus RenderEngineLux::update_scene(const XSI::SIObject& si_object, const UpdateType update_type)
+XSI::CStatus RenderEngineLux::update_scene(XSI::SIObject& si_object, const UpdateType update_type)
 {
 	if (is_scene_create)
 	{

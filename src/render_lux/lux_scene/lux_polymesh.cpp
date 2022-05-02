@@ -28,6 +28,34 @@ public:
 	float u, v;
 };
 
+class Color
+{
+public:
+	Color(float _r = 0.0f, float _g = 0.0f, float _b = 0.0f)
+		: r(_r), g(_g), b(_b) { }
+
+	XSI::CString to_string()
+	{
+		return "{" + XSI::CString(r) + ", " + XSI::CString(g) + ", " + XSI::CString(b) + "}";
+	}
+
+	float r, g, b;
+};
+
+class Alpha
+{
+public:
+	Alpha(float _a = 0.0f)
+		: a(_a) { }
+
+	XSI::CString to_string()
+	{
+		return "(" + XSI::CString(a) + ")";
+	}
+
+	float a;
+};
+
 class Point {
 public:
 	Point(float _x = 0.0f, float _y = 0.0f, float _z = 0.0f)
@@ -244,11 +272,28 @@ bool sync_polymesh(luxcore::Scene* scene, XSI::X3DObject& xsi_object, std::set<U
 	std::vector<Point*> submesh_points(submeshes_count);
 	std::vector<Triangle*> submesh_triangles(submeshes_count);
 	std::vector<Normal*> submesh_normals(submeshes_count);
+	std::vector<std::vector<UV*>> submesh_uvs(submeshes_count);
+	std::vector<std::vector<Color*>> submesh_colors(submeshes_count);
+	std::vector<std::vector<Alpha*>> submesh_alphas(submeshes_count);
 	for (ULONG i = 0; i < submeshes_count; i++)
 	{
 		submesh_points[i] = (Point*)luxcore::Scene::AllocVerticesBuffer(submesh_vertices_count[i]);
 		submesh_triangles[i] = (Triangle*)luxcore::Scene::AllocTrianglesBuffer(submesh_triangles_count[i]);
 		submesh_normals[i] = new Normal[submesh_vertices_count[i]];
+
+		submesh_uvs[i] = std::vector<UV*>(uv_count);
+		for (ULONG j = 0; j < uv_count; j++)
+		{
+			submesh_uvs[i][j] = new UV[submesh_vertices_count[i]];
+		}
+
+		submesh_colors[i] = std::vector<Color*>(vertex_colors_array_count);
+		submesh_alphas[i] = std::vector<Alpha*>(vertex_colors_array_count);
+		for (ULONG j = 0; j < vertex_colors_array_count; j++)
+		{
+			submesh_colors[i][j] = new Color[submesh_vertices_count[i]];
+			submesh_alphas[i][j] = new Alpha[submesh_vertices_count[i]];
+		}
 	}
 
 	//fill the data
@@ -266,10 +311,25 @@ bool sync_polymesh(luxcore::Scene* scene, XSI::X3DObject& xsi_object, std::set<U
 			XSI::PolygonNode node(polygon_nodes[j]);
 			ULONG n = node.GetIndex();
 
+			ULONG point_pointer = submesh_point_index[submesh_index] + j;
 			//set positions
-			submesh_points[submesh_index][submesh_point_index[submesh_index] + j] = points[n];
+			submesh_points[submesh_index][point_pointer] = points[n];
 			//set normal
-			submesh_normals[submesh_index][submesh_point_index[submesh_index] + j] = Normal(node_normals[3 * n], node_normals[3 * n + 1], node_normals[3 * n + 2]);
+			submesh_normals[submesh_index][point_pointer] = Normal(node_normals[3 * n], node_normals[3 * n + 1], node_normals[3 * n + 2]);
+
+			//set uvs
+			for (ULONG k = 0; k < uv_count; k++)
+			{
+				//we should set k-th uv coordinates of the node with index n
+				submesh_uvs[submesh_index][k][point_pointer] = UV(xsi_uvs[2 * nodes_count * k + 2 * n], xsi_uvs[2 * nodes_count * k + 2 * n + 1]);
+			}
+
+			//set colors
+			for (ULONG k = 0; k < vertex_colors_array_count; k++)
+			{
+				submesh_colors[submesh_index][k][point_pointer] = Color(xsi_colors[3 * nodes_count * k + 3 * n], xsi_colors[3 * nodes_count * k + 3 * n + 1], xsi_colors[3 * nodes_count * k + 3 * n + 2]);
+				submesh_alphas[submesh_index][k][point_pointer] = Alpha(xsi_alphas[nodes_count * k + n]);
+			}
 		}
 		XSI::CLongArray polygon_trianglulation = polygon.GetTriangleSubIndexArray();
 		ULONG v = submesh_point_index[submesh_index];
@@ -290,7 +350,29 @@ bool sync_polymesh(luxcore::Scene* scene, XSI::X3DObject& xsi_object, std::set<U
 		std::string submesh_name = mesh_name + "_" + xsi_material_names[i];
 		std::string subobject_name = object_names[i];
 		
-		scene->DefineMesh(submesh_name, submesh_vertices_count[i], submesh_triangles_count[i], (float*)submesh_points[i], (unsigned int*)submesh_triangles[i], (float*)submesh_normals[i], NULL, NULL, NULL);
+		std::array<float*, LC_MESH_MAX_DATA_COUNT> uvs;
+		fill(uvs.begin(), uvs.end(), nullptr);
+		for (ULONG j = 0; j < std::min(uv_count, (ULONG)LC_MESH_MAX_DATA_COUNT); j++)
+		{
+			uvs[j] = (float*)&submesh_uvs[i][j][0];
+		}
+		std::array<float*, LC_MESH_MAX_DATA_COUNT> colors;
+		std::array<float*, LC_MESH_MAX_DATA_COUNT> alphas;
+		fill(colors.begin(), colors.end(), nullptr);
+		fill(alphas.begin(), alphas.end(), nullptr);
+		for (ULONG j = 0; j < std::min(vertex_colors_array_count, (ULONG)LC_MESH_MAX_DATA_COUNT); j++)
+		{
+			colors[j] = (float*)&submesh_colors[i][j][0];
+			alphas[j] = (float*)&submesh_alphas[i][j][0];
+		}
+		scene->DefineMeshExt(submesh_name, submesh_vertices_count[i], submesh_triangles_count[i], 
+			(float*)submesh_points[i], 
+			(unsigned int*)submesh_triangles[i], 
+			(float*)submesh_normals[i],
+			uv_count > 0 ? &uvs : NULL,
+			vertex_colors_array_count > 0 ? &colors : NULL,
+			vertex_colors_array_count > 0 ? &alphas : NULL);
+
 
 		//add mesh to the scene
 		luxrays::Properties submobject_props;
@@ -346,6 +428,15 @@ bool sync_polymesh(luxcore::Scene* scene, XSI::X3DObject& xsi_object, std::set<U
 
 	object_names.clear();
 	object_names.shrink_to_fit();
+
+	submesh_uvs.clear();
+	submesh_uvs.shrink_to_fit();
+
+	submesh_colors.clear();
+	submesh_colors.shrink_to_fit();
+
+	submesh_alphas.clear();
+	submesh_alphas.shrink_to_fit();
 
 	return true;
 }

@@ -1,4 +1,6 @@
 #include "export_common.h"
+#include "arrays.h"
+#include "logs.h"
 
 #include <xsi_x3dobject.h>
 #include <xsi_time.h>
@@ -6,6 +8,7 @@
 #include <xsi_application.h>
 #include <xsi_utils.h>
 #include <xsi_project.h>
+#include <xsi_material.h>
 
 bool is_xsi_object_visible(const XSI::CTime &eval_time, XSI::X3DObject &xsi_object)
 {
@@ -18,9 +21,38 @@ bool is_xsi_object_visible(const XSI::CTime &eval_time, XSI::X3DObject &xsi_obje
 	return false;
 }
 
-std::string xsi_object_id_string(const XSI::ProjectItem& xsi_item)
+std::vector<std::string> xsi_object_id_string(XSI::ProjectItem& xsi_item)
 {
-	return XSI::CString(xsi_item.GetObjectID()).GetAsciiString();
+	if (xsi_item.GetClassID() == XSI::siX3DObjectID)
+	{
+		XSI::X3DObject xsi_object(xsi_item);
+
+		if (xsi_item.GetType() == "polymsh")
+		{
+			XSI::CRefArray xsi_materials = xsi_object.GetMaterials();  // this list can contains the same material several times
+			std::string object_id = XSI::CString(xsi_object.GetObjectID()).GetAsciiString();
+
+			std::vector<std::string> to_return;
+			for (ULONG i = 0; i < xsi_materials.GetCount(); i++)
+			{
+				XSI::Material m(xsi_materials[i]);
+				std::string m_name = object_id + "_" + XSI::CString(m.GetObjectID()).GetAsciiString();
+				if (!is_contains(to_return, m_name))
+				{
+					to_return.push_back(m_name);
+				}
+			}
+			return to_return;
+		}
+		else
+		{
+			return std::vector<std::string> {XSI::CString(xsi_item.GetObjectID()).GetAsciiString()};
+		}
+	}
+	else
+	{
+		return std::vector<std::string> {XSI::CString(xsi_item.GetObjectID()).GetAsciiString()};
+	}
 }
 
 XSI::CString resolve_path(const XSI::CString &input_path)

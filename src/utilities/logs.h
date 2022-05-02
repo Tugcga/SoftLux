@@ -6,11 +6,15 @@
 #include <xsi_color4f.h>
 
 #include <vector>
+#include <string>
 
 //output the message to the console
 void log_message(const XSI::CString &message, XSI::siSeverityType level = XSI::siSeverityType::siInfoMsg);
 
 //convert data to string
+XSI::CString to_string(const XSI::CFloatArray& array);
+XSI::CString to_string(const XSI::CLongArray& array);
+XSI::CString to_string(const std::vector<std::string>& array);
 XSI::CString to_string(const std::vector<ULONG> &array);
 XSI::CString to_string(const std::vector<unsigned int> &array);
 XSI::CString to_string(const std::vector<float> &array);

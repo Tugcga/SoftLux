@@ -115,10 +115,11 @@ XSI::CRefArray gather_all_subobjects(const XSI::Model& root)
 	return output;
 }
 
-void sync_shaderball(luxcore::Scene* scene, XSI::RendererContext& xsi_render_context, std::set<ULONG>& xsi_objects_in_lux, const XSI::CTime& eval_time, const ULONG override_material)
+void sync_shaderball(luxcore::Scene* scene, XSI::RendererContext& xsi_render_context, std::unordered_map<ULONG, std::vector<std::string>>& xsi_id_to_lux_names_map, const XSI::CTime& eval_time, const ULONG override_material_id)
 {
 	//shaderball secene export
 	sync_default_material(scene);
+	std::set<ULONG> empty_set;
 	XSI::CRefArray models = xsi_render_context.GetAttribute("Scene");
 	if (models.GetCount() > 0)
 	{
@@ -133,10 +134,10 @@ void sync_shaderball(luxcore::Scene* scene, XSI::RendererContext& xsi_render_con
 			{
 				//here we should override material of the object
 				//because in the model it contains local model material instead of editor one
-				bool is_sync = sync_polymesh(scene, xsi_object, eval_time, override_material);
+				bool is_sync = sync_polymesh(scene, xsi_object, empty_set,  eval_time, override_material_id);
 				if (is_sync)
 				{
-					xsi_objects_in_lux.insert(xsi_object.GetObjectID());
+					xsi_id_to_lux_names_map[xsi_object.GetObjectID()] = xsi_object_id_string(xsi_object);
 				}
 			}
 			else if (xsi_type == "light")
@@ -161,12 +162,13 @@ void sync_shaderball(luxcore::Scene* scene, XSI::RendererContext& xsi_render_con
 			if (xsi_object.GetType() == "polymsh")
 			{
 				//add object as background
-				bool is_sync = sync_polymesh(scene, xsi_object, eval_time, 0, true);
+				bool is_sync = sync_polymesh(scene, xsi_object, empty_set, eval_time, 0, true);
 				if (is_sync)
 				{
 					//override material to the background material
-					scene->UpdateObjectMaterial(xsi_object_id_string(xsi_object), "background_material");  // use hardcoded name here
-					xsi_objects_in_lux.insert(xsi_object.GetObjectID());
+					override_material(scene, xsi_object, "background_material");
+					//xsi_objects_in_lux.insert(xsi_object.GetObjectID());
+					xsi_id_to_lux_names_map[xsi_object.GetObjectID()] = xsi_object_id_string(xsi_object);
 				}
 			}
 		}

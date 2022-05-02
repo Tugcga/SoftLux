@@ -15,21 +15,24 @@
 #include "xsi_light.h"
 
 #include <set>
+#include <unordered_map>
 
 void set_lux_camera_positions(luxrays::Properties& camera_props, const XSI::MATH::CVector3& xsi_position, const XSI::MATH::CVector3& xsi_target_position);
 
 //return true if we add the object to the scene, and false in other case (unsupported object, for example)
-bool sync_object(luxcore::Scene* scene, XSI::X3DObject& xsi_object, const XSI::CTime& eval_time);
-void sync_shaderball(luxcore::Scene* scene, XSI::RendererContext& xsi_render_context, std::set<ULONG>& xsi_objects_in_lux, const XSI::CTime& eval_time, const ULONG override_material);
-void sync_scene_objects(luxcore::Scene* scene, XSI::RendererContext& xsi_render_context, std::set<ULONG>& xsi_objects_in_lux, const XSI::CTime& eval_time);
+bool sync_object(luxcore::Scene* scene, XSI::X3DObject& xsi_object, std::set<ULONG>& xsi_materials_in_lux, const XSI::CTime& eval_time);
+void sync_shaderball(luxcore::Scene* scene, XSI::RendererContext& xsi_render_context, std::unordered_map<ULONG, std::vector<std::string>>& xsi_id_to_lux_names_map, const XSI::CTime& eval_time, const ULONG override_material_id);
+void sync_scene_objects(luxcore::Scene* scene, XSI::RendererContext& xsi_render_context, std::set<ULONG>& xsi_materials_in_lux, std::unordered_map<ULONG, std::vector<std::string>> &xsi_id_to_lux_names_map, const XSI::CTime& eval_time);
 void sync_shaderball_back_material(luxcore::Scene* scene);
 void sync_default_material(luxcore::Scene* scene);
-void sync_material(luxcore::Scene* scene, const XSI::Material& xsi_material, std::set<ULONG>& xsi_materials_in_lux, const XSI::CTime& eval_time);
+void override_material(luxcore::Scene* scene, XSI::X3DObject& xsi_object, const std::string material_name);
+void sync_material(luxcore::Scene* scene, XSI::Material& xsi_material, std::set<ULONG>& xsi_materials_in_lux, const XSI::CTime& eval_time);
 void sync_materials(luxcore::Scene* scene, const XSI::Scene& xsi_scene, std::set<ULONG>& xsi_materials_in_lux, const XSI::CTime& eval_time);
-void reassign_all_materials(luxcore::Scene* scene, const XSI::Scene& xsi_scene, std::set<ULONG>& xsi_materials_in_lux, const std::set<ULONG>& xsi_objects_in_lux, const XSI::CTime& eval_time);
+void reassign_all_materials(luxcore::Scene* scene, const XSI::Scene& xsi_scene, std::set<ULONG>& xsi_materials_in_lux, std::unordered_map<ULONG, std::vector<std::string>>& xsi_id_to_lux_names_map, const XSI::CTime& eval_time);
 
 void define_area_light_mesh(luxcore::Scene* scene, const std::string& shape_name);
-bool sync_polymesh(luxcore::Scene* scene, XSI::X3DObject& xsi_object, const XSI::CTime& eval_time, const ULONG override_material = 0, const bool use_default_material = false);
+//bool sync_polymesh_old(luxcore::Scene* scene, XSI::X3DObject& xsi_object, const XSI::CTime& eval_time, const ULONG override_material, const bool use_default_material);
+bool sync_polymesh(luxcore::Scene* scene, XSI::X3DObject& xsi_object, std::set<ULONG>& xsi_materials_in_lux, const XSI::CTime& eval_time, const ULONG override_material = 0, const bool use_default_material = false);
 void sync_shaderball_lights(luxcore::Scene* scene);
 bool sync_xsi_light(luxcore::Scene* scene, XSI::Light& xsi_light, const XSI::CTime& eval_time);
 bool update_light_object(luxcore::Scene* scene, XSI::X3DObject& xsi_object, const XSI::CTime& eval_time);

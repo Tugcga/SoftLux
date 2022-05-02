@@ -43,7 +43,7 @@ bool sync_xsi_light(luxcore::Scene* scene, XSI::Light &xsi_light, const XSI::CTi
 				//we does not need shader parameters, because we already memorize it
 				root_parameter_array.clear();
 
-				std::string light_name = xsi_object_id_string(xsi_light);
+				std::string light_name = xsi_object_id_string(xsi_light)[0];
 
 				//next we can export light by it type
 				if (is_area)
@@ -199,7 +199,7 @@ bool update_light_object(luxcore::Scene* scene, XSI::X3DObject& xsi_object, cons
 	if (xsi_object.GetType() == "light")
 	{
 		//delete the light
-		std::string object_name = xsi_object_id_string(xsi_object);
+		std::string object_name = xsi_object_id_string(xsi_object)[0];
 		XSI::Light xsi_light(xsi_object);
 		//delete both from objects and lights, because we can switch light type from are to point, and in this case we should delete from object, but now this light is not are
 		scene->DeleteObject(object_name);
@@ -299,11 +299,11 @@ std::vector<ULONG> sync_environment(luxcore::Scene* scene, const XSI::CTime& eva
 
 	if (environment_map.size() > 0)
 	{
-		for (const auto& [key, value] : environment_map)
+		for (auto& [key, value] : environment_map)
 		{
 			XSI::CString name = value.GetProgID().Split(".")[1];
 			//we use id of the shader node as name
-			std::string lux_light_name = xsi_object_id_string(value);
+			std::string lux_light_name = xsi_object_id_string(value)[0];
 
 			XSI::CParameterRefArray all_parameters = value.GetParameters();
 

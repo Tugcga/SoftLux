@@ -31,13 +31,13 @@ RenderEngineLux::RenderEngineLux()
 	prev_width = 0;
 	prev_height = 0;
 	updated_xsi_ids.clear();
-	xsi_objects_in_lux.clear();
 	xsi_materials_in_lux.clear();
-	reassign_materials = false;
 	xsi_environment_in_lux.clear();
 	reinit_environments = false;
 	lux_visual_output_type = luxcore::Film::OUTPUT_RGB_IMAGEPIPELINE;
 	last_lux_visual_output_type = luxcore::Film::OUTPUT_RGB_IMAGEPIPELINE;
+
+	xsi_id_to_lux_names_map.clear();
 
 	RenderEngineLux::is_log = false;
 }
@@ -80,9 +80,9 @@ void RenderEngineLux::clear_scene()
 		scene = NULL;
 		is_scene_create = false;
 	}
-	xsi_objects_in_lux.clear();
 	xsi_materials_in_lux.clear();
 	xsi_environment_in_lux.clear();
+	xsi_id_to_lux_names_map.clear();
 }
 
 //here we clear session and render config
@@ -144,6 +144,35 @@ XSI::CStatus RenderEngineLux::pre_scene_process()
 	return XSI::CStatus::OK;
 }
 
+void RenderEngineLux::update_object(XSI::X3DObject& xsi_object)
+{
+	ULONG xsi_id = xsi_object.GetObjectID();
+	if (xsi_id_to_lux_names_map.contains(xsi_id))
+	{
+		std::vector<std::string> object_names = xsi_id_to_lux_names_map[xsi_object.GetObjectID()];
+		for (ULONG i = 0; i < object_names.size(); i++)
+		{
+			scene->DeleteObject(object_names[i]);
+		}
+
+		xsi_id_to_lux_names_map.erase(xsi_object.GetObjectID());
+	}
+	//sync object again
+	if (is_xsi_object_visible(eval_time, xsi_object))
+	{
+		bool is_sync = sync_object(scene, xsi_object, xsi_materials_in_lux, eval_time);
+		if (is_sync)
+		{
+			ULONG xsi_id = xsi_object.GetObjectID();
+			updated_xsi_ids.push_back(xsi_id);
+
+			xsi_id_to_lux_names_map[xsi_object.GetObjectID()] = xsi_object_id_string(xsi_object);
+
+			updated_xsi_ids.push_back(xsi_id);
+		}
+	}
+}
+
 //return OK, if object successfully updates, Abort in other case
 XSI::CStatus RenderEngineLux::update_scene(XSI::X3DObject& xsi_object, const UpdateType update_type)
 {
@@ -162,7 +191,6 @@ XSI::CStatus RenderEngineLux::update_scene(XSI::X3DObject& xsi_object, const Upd
 			{
 				//change object visibility
 				//delete the object
-				std::string object_name = xsi_object_id_string(xsi_object);
 				XSI::CString xsi_type = xsi_object.GetType();
 				if (xsi_type == "light")
 				{
@@ -174,18 +202,9 @@ XSI::CStatus RenderEngineLux::update_scene(XSI::X3DObject& xsi_object, const Upd
 				}
 				else
 				{
-					scene->DeleteObject(object_name);
-					xsi_objects_in_lux.erase(xsi_object.GetObjectID());
-					if (is_xsi_object_visible(eval_time, xsi_object))
-					{
-						//add it, if it come visible
-						bool is_sync = sync_object(scene, xsi_object, eval_time);
-						if (is_sync)
-						{
-							updated_xsi_ids.push_back(xsi_object.GetObjectID());
-							xsi_objects_in_lux.insert(xsi_object.GetObjectID());
-						}
-					}
+					//only plygonmesh object in XSI corresponds to several objects in Luxcore
+					//each of the has the name: id_materialID
+					update_object(xsi_object);
 				}
 				return XSI::CStatus::OK;
 			}
@@ -211,9 +230,17 @@ XSI::CStatus RenderEngineLux::update_scene(XSI::X3DObject& xsi_object, const Upd
 				else
 				{
 					//for other objects in the scene, update only transform
-					if (xsi_objects_in_lux.contains(xsi_id))
+					if (xsi_id_to_lux_names_map.contains(xsi_id))
 					{
-						sync_transform(scene, xsi_object_id_string(xsi_object), xsi_object.GetKinematics().GetGlobal().GetTransform(), eval_time);
+						std::vector<std::string> object_names = xsi_id_to_lux_names_map[xsi_object.GetObjectID()];
+						for (ULONG i = 0; i < object_names.size(); i++)
+						{
+							sync_transform(scene, object_names[i], xsi_object.GetKinematics().GetGlobal().GetTransform(), eval_time);
+						}
+					}
+					else
+					{
+						return XSI::CStatus::Abort;
 					}
 				}
 				
@@ -229,16 +256,8 @@ XSI::CStatus RenderEngineLux::update_scene(XSI::X3DObject& xsi_object, const Upd
 			}
 			else if (update_type == UpdateType_Mesh)
 			{
-				std::string object_name = xsi_object_id_string(xsi_object);
-				scene->DeleteObject(object_name);
-				xsi_objects_in_lux.erase(xsi_object.GetObjectID());
-				//sync mesh again
-				bool is_sync = sync_polymesh(scene, xsi_object, eval_time);
-				if (is_sync)
-				{
-					updated_xsi_ids.push_back(xsi_object.GetObjectID());
-					xsi_objects_in_lux.insert(xsi_object.GetObjectID());
-				}
+				//here we delete corresponding objects form Luxcore scene and create the mesh again
+				update_object(xsi_object);
 			}
 			else
 			{
@@ -286,7 +305,7 @@ XSI::CStatus RenderEngineLux::update_scene(const XSI::SIObject& si_object, const
 	}
 }
 
-XSI::CStatus RenderEngineLux::update_scene(const XSI::Material& xsi_material, bool material_assigning)
+XSI::CStatus RenderEngineLux::update_scene(XSI::Material& xsi_material, bool material_assigning)
 {
 	if (is_scene_create)
 	{
@@ -294,7 +313,14 @@ XSI::CStatus RenderEngineLux::update_scene(const XSI::Material& xsi_material, bo
 		sync_material(scene, xsi_material, xsi_materials_in_lux, eval_time);
 		if (material_assigning)
 		{
-			reassign_materials = true;
+			//get host object
+			XSI::X3DObject host_object = xsi_material.GetParent3DObject();
+			ULONG xsi_id = host_object.GetObjectID();
+			if (!is_contains(updated_xsi_ids, xsi_id))
+			{
+				update_object(host_object);
+			}
+
 		}
 
 		return XSI::CStatus::OK;
@@ -323,7 +349,6 @@ XSI::CStatus RenderEngineLux::create_scene()
 	clear_session();
 	scene = luxcore::Scene::Create();
 	is_scene_create = true;
-	reassign_materials = false;
 	reinit_environments = false;
 
 	//always update the camera
@@ -339,7 +364,7 @@ XSI::CStatus RenderEngineLux::create_scene()
 		{
 			XSI::Material shaderball_material(shaderball_item);
 			sync_material(scene, shaderball_material, xsi_materials_in_lux, eval_time);
-			sync_shaderball(scene, m_render_context, xsi_objects_in_lux, eval_time, shaderball_material.GetObjectID());
+			sync_shaderball(scene, m_render_context, xsi_id_to_lux_names_map, eval_time, shaderball_material.GetObjectID());
 		}
 		else
 		{
@@ -357,7 +382,7 @@ XSI::CStatus RenderEngineLux::create_scene()
 		sync_ambient(scene, eval_time);
 
 		//sync scene objects
-		sync_scene_objects(scene, m_render_context, xsi_objects_in_lux, eval_time);
+		sync_scene_objects(scene, m_render_context, xsi_materials_in_lux, xsi_id_to_lux_names_map, eval_time);
 
 		//environment light (hdri, sky, sun)
 		xsi_environment_in_lux = sync_environment(scene, eval_time);
@@ -376,13 +401,6 @@ XSI::CStatus RenderEngineLux::post_scene()
 		is_update_camera = true;
 	}
 
-	//reassign materials to all objects in the scene
-	if (reassign_materials)
-	{
-		reassign_all_materials(scene, XSI::Application().GetActiveProject().GetActiveScene(), xsi_materials_in_lux, xsi_objects_in_lux, eval_time);
-	}
-	reassign_materials = false;
-
 	if (reinit_environments)
 	{
 		xsi_environment_in_lux.clear();
@@ -393,7 +411,6 @@ XSI::CStatus RenderEngineLux::post_scene()
 	//here we should create the session and render parameters
 	if (!is_session)
 	{
-		log_message("\trecreate session");
 		session = sync_render_config(scene, render_type, m_render_property, eval_time,
 			lux_visual_output_type, output_channels,
 			image_corner_x, image_corner_x + image_size_width, image_corner_y, image_corner_y + image_size_height,

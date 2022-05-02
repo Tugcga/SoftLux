@@ -3,12 +3,63 @@
 #include <xsi_color.h>
 #include <xsi_color4f.h>
 #include <xsi_vector3.h>
+#include <xsi_floatarray.h>
+#include <xsi_longarray.h>
 
 #include <vector>
+#include <string>
 
 void log_message(const XSI::CString &message, XSI::siSeverityType level)
 {
 	XSI::Application().LogMessage("[LuxCore Renderer] " + message, level);
+}
+
+XSI::CString to_string(const XSI::CFloatArray& array)
+{
+	if (array.GetCount() == 0)
+	{
+		return "[]";
+	}
+
+	XSI::CString to_return = "[" + XSI::CString(array[0]);
+	for (ULONG i = 1; i < array.GetCount(); i++)
+	{
+		to_return += ", " + XSI::CString(array[i]);
+	}
+	to_return += "]";
+	return to_return;
+}
+
+XSI::CString to_string(const XSI::CLongArray& array)
+{
+	if (array.GetCount() == 0)
+	{
+		return "[]";
+	}
+
+	XSI::CString to_return = "[" + XSI::CString(array[0]);
+	for (ULONG i = 1; i < array.GetCount(); i++)
+	{
+		to_return += ", " + XSI::CString(array[i]);
+	}
+	to_return += "]";
+	return to_return;
+}
+
+XSI::CString to_string(const std::vector<std::string>& array)
+{
+	if (array.size() == 0)
+	{
+		return "[]";
+	}
+
+	XSI::CString to_return = "[" + XSI::CString(array[0].c_str());
+	for (ULONG i = 1; i < array.size(); i++)
+	{
+		to_return += ", " + XSI::CString(array[i].c_str());
+	}
+	to_return += "]";
+	return to_return;
 }
 
 XSI::CString to_string(const std::vector<ULONG> &array)

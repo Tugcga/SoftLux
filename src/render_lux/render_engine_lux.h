@@ -5,6 +5,7 @@
 #include <luxcore/luxcore.h>
 
 #include <set>
+#include <unordered_map>
 
 class RenderEngineLux : public RenderEngineBase 
 {
@@ -28,7 +29,7 @@ public:
 	//update scene events
 	XSI::CStatus update_scene(XSI::X3DObject& xsi_object, const UpdateType update_type);
 	XSI::CStatus update_scene(const XSI::SIObject& si_object, const UpdateType update_type);
-	XSI::CStatus update_scene(const XSI::Material& xsi_material, bool material_assigning);
+	XSI::CStatus update_scene(XSI::Material& xsi_material, bool material_assigning);
 	XSI::CStatus update_scene_render();
 	
 	void abort();
@@ -46,6 +47,8 @@ private:
 	void try_to_init();
 	void clear_scene();
 	void clear_session();
+
+	void update_object(XSI::X3DObject& xsi_object);
 
 	//-----------------------------------------------
 	//internal class members
@@ -68,14 +71,14 @@ private:
 	//store here ids of xsi_object which we already update
 	//to prevent update twise
 	std::vector<ULONG> updated_xsi_ids;
-	//store here xsi object, which added to the lux scene
-	//and use this array when try update some object
-	std::set<ULONG> xsi_objects_in_lux;
+	//this map used when we should reset some object in the Luxcore scene
+	//the key - object id in XSI, value - corresponding names in Luxcore scene
+	//polygonmesh objects can corresponds several object in scene
+	std::unordered_map<ULONG, std::vector<std::string>> xsi_id_to_lux_names_map;
 	//the same list for exported materials
 	std::set<ULONG> xsi_materials_in_lux;
 	//should we reassigna materials after scene creation
 	//activate when we update material and this update contains reassign to some object
-	bool reassign_materials;
 	//ids of pass environment shader node, whcich recognized as lights
 	std::vector<ULONG> xsi_environment_in_lux;
 	bool reinit_environments;

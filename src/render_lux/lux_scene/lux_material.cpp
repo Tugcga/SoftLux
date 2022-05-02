@@ -5,13 +5,13 @@
 
 #include "xsi_materiallibrary.h"
 
-void sync_material(luxcore::Scene* scene, const XSI::Material &xsi_material, std::set<ULONG>& xsi_materials_in_lux, const XSI::CTime& eval_time)
+void sync_material(luxcore::Scene* scene, XSI::Material &xsi_material, std::set<ULONG>& xsi_materials_in_lux, const XSI::CTime& eval_time)
 {
 	//we should set the name of material equal to UniqueID of the object
 	//next we should export some basic material
 	//and assign it to the polygon meshes
 
-	std::string material_name = xsi_object_id_string(xsi_material);
+	std::string material_name = xsi_object_id_string(xsi_material)[0];
 	luxrays::Properties material_props;
 	material_props.Set(luxrays::Property("scene.materials." + material_name + ".type")("matte"));
 	material_props.Set(luxrays::Property("scene.materials." + material_name + ".kd")(
@@ -24,6 +24,18 @@ void sync_material(luxcore::Scene* scene, const XSI::Material &xsi_material, std
 	scene->Parse(material_props);
 
 	xsi_materials_in_lux.insert(xsi_material.GetObjectID());
+}
+
+void override_material(luxcore::Scene* scene, XSI::X3DObject &xsi_object, const std::string material_name)
+{
+	//get object materials
+	XSI::CRefArray xsi_materials = xsi_object.GetMaterials();
+
+	std::vector<std::string> object_names = xsi_object_id_string(xsi_object);
+	for (ULONG i = 0; i < object_names.size(); i++)
+	{
+		scene->UpdateObjectMaterial(object_names[i], material_name);
+	}
 }
 
 void sync_default_material(luxcore::Scene* scene)
@@ -60,7 +72,7 @@ void sync_materials(luxcore::Scene *scene, const XSI::Scene &xsi_scene, std::set
 	}
 }
 
-void reassign_all_materials(luxcore::Scene* scene, const XSI::Scene& xsi_scene, std::set<ULONG>& xsi_materials_in_lux, const std::set<ULONG> &xsi_objects_in_lux, const XSI::CTime &eval_time)
+void reassign_all_materials(luxcore::Scene* scene, const XSI::Scene& xsi_scene, std::set<ULONG>& xsi_materials_in_lux, std::unordered_map<ULONG, std::vector<std::string>>& xsi_id_to_lux_names_map, const XSI::CTime &eval_time)
 {
 	XSI::CRefArray material_libraries = xsi_scene.GetMaterialLibraries();
 	for (LONG lib_index = 0; lib_index < material_libraries.GetCount(); lib_index++)
@@ -70,7 +82,7 @@ void reassign_all_materials(luxcore::Scene* scene, const XSI::Scene& xsi_scene, 
 		for (LONG mat_index = 0; mat_index < materials.GetCount(); mat_index++)
 		{
 			XSI::Material xsi_material = materials.GetItem(mat_index);
-			std::string lux_material_name = xsi_object_id_string(xsi_material);
+			std::string lux_material_name = xsi_object_id_string(xsi_material)[0];
 			ULONG material_id = xsi_material.GetObjectID();
 			XSI::CRefArray used_objects = xsi_material.GetUsedBy();
 			for (ULONG obj_index = 0; obj_index < used_objects.GetCount(); obj_index++)
@@ -86,9 +98,17 @@ void reassign_all_materials(luxcore::Scene* scene, const XSI::Scene& xsi_scene, 
 						sync_material(scene, xsi_material, xsi_materials_in_lux, eval_time);
 					}
 
-					if(xsi_materials_in_lux.contains(material_id) && xsi_objects_in_lux.contains(object_id))
+					if(xsi_materials_in_lux.contains(material_id) && xsi_id_to_lux_names_map.contains(object_id))
 					{
-						scene->UpdateObjectMaterial(xsi_object_id_string(object), lux_material_name);
+						std::vector<std::string> object_names = xsi_id_to_lux_names_map[object_id];
+						for (ULONG i = 0; i < object_names.size(); i++)
+						{
+							scene->UpdateObjectMaterial(object_names[i], lux_material_name);
+						}
+					}
+					else
+					{
+						
 					}
 				}
 			}

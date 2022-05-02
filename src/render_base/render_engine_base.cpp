@@ -89,7 +89,7 @@ XSI::CStatus RenderEngineBase::update_scene(const XSI::SIObject &si_object, cons
 	return XSI::CStatus::OK;
 }
 
-XSI::CStatus RenderEngineBase::update_scene(const XSI::Material &xsi_material, bool material_assigning)
+XSI::CStatus RenderEngineBase::update_scene(XSI::Material &xsi_material, bool material_assigning)
 {
 	log_message("[Base Render] Update scene for material is not implemented", XSI::siWarningMsg);
 	return XSI::CStatus::OK;

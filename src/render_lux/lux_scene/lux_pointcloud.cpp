@@ -16,7 +16,7 @@ bool sync_pointcloud(luxcore::Scene* scene,
 {
 	ULONG xsi_id = xsi_object.GetObjectID();
 
-	XSI::MATH::CMatrix4 particles_matrix = xsi_object.GetKinematics().GetGlobal().GetTransform().GetMatrix4();
+	XSI::MATH::CTransformation particles_tfm = xsi_object.GetKinematics().GetGlobal().GetTransform();
 
 	XSI::Primitive pc_primitive = xsi_object.GetActivePrimitive(eval_time);
 	XSI::Geometry pc_geometry = pc_primitive.GetGeometry(eval_time);
@@ -77,6 +77,7 @@ bool sync_pointcloud(luxcore::Scene* scene,
 				rotation.GetXYZAngles(rot_x, rot_y, rot_z);
 				point_tfm.SetRotationFromXYZAnglesValues(rot_x, rot_y, rot_z);
 				point_tfm.SetScalingFromValues(size.GetX(), size.GetY(), size.GetZ());
+				point_tfm.MulInPlace(particles_tfm);
 
 				std::string point_name = std::to_string(xsi_id) + "_" + std::to_string(i);
 				sync_instance(scene, xsi_id, point_name, master_root, point_tfm, xsi_id_to_lux_names_map, xsi_materials_in_lux, master_to_instance_map, eval_time, true, is_branch_selected);

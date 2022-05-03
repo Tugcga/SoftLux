@@ -52,8 +52,8 @@ void sync_instance(luxcore::Scene* scene,
 		ULONG xsi_id = object.GetObjectID();
 		XSI::CString object_type = object.GetType();
 		//TODO: add other types when exporter will supports it
-		//the similar on lux_scene (in transform section) and export_common (in nema section)
-		if (object_type == "polymsh")
+		//the similar on lux_scene (in transform section) and export_common (in name section)
+		if (object_type == "polymsh" || object_type == "hair")
 		{
 			std::vector<float> lux_matrix = get_instance_object_tfm(children, i, root_tfm, model_tfm);
 

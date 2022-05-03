@@ -8,7 +8,7 @@
 #include "xsi_iceattributedataarray.h"
 #include "xsi_iceattributedataarray2D.h"
 
-bool sync_pointcloud_strands(luxcore::Scene* scene, XSI::X3DObject& xsi_object, const XSI::CTime &eval_time)
+bool sync_pointcloud_strands(luxcore::Scene* scene, XSI::X3DObject& xsi_object, std::set<ULONG>& xsi_materials_in_lux, const XSI::CTime &eval_time)
 {
 	//get attributes
 	XSI::Geometry xsi_geometry = xsi_object.GetActivePrimitive(eval_time).GetGeometry(eval_time);
@@ -110,6 +110,10 @@ bool sync_pointcloud_strands(luxcore::Scene* scene, XSI::X3DObject& xsi_object, 
 	strands_props.Set(luxrays::Property("scene.objects." + object_name + ".shape")(shape_name));
 	XSI::Material xsi_material = xsi_object.GetMaterial();
 	std::string mat_name = xsi_object_id_string(xsi_material)[0];
+	if (!scene->IsMaterialDefined(mat_name))
+	{
+		sync_material(scene, xsi_material, xsi_materials_in_lux, eval_time);
+	}
 	strands_props.Set(luxrays::Property("scene.objects." + object_name + ".material")(mat_name));
 
 	//set transform

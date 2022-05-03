@@ -64,6 +64,12 @@ void sync_instance(luxcore::Scene* scene,
 
 bool sync_pointcloud_strands(luxcore::Scene* scene, 
 	XSI::X3DObject& xsi_object, 
+	std::set<ULONG>& xsi_materials_in_lux,
+	const XSI::CTime& eval_time);
+
+bool sync_hair(luxcore::Scene* scene,
+	XSI::X3DObject& xsi_object,
+	std::set<ULONG>& xsi_materials_in_lux,
 	const XSI::CTime& eval_time);
 
 //this method used for instances, next it call the more general method

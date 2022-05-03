@@ -315,6 +315,10 @@ XSI::CStatus RenderEngineLux::update_scene(XSI::X3DObject& xsi_object, const Upd
 					return XSI::CStatus::Abort;
 				}
 			}
+			else if (update_type == UpdateType_Hair)
+			{
+				update_object(xsi_object);
+			}
 			else
 			{
 				

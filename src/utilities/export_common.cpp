@@ -83,7 +83,7 @@ std::vector<std::string> xsi_object_id_string(XSI::ProjectItem& xsi_item)
 				XSI::X3DObject object(children[i]);
 				XSI::CString object_type = object.GetType();
 				//TODO: add another types when exporter will supports it
-				if (object_type == "polymsh")
+				if (object_type == "polymsh" || object_type == "hair")
 				{
 					std::vector<std::string> names = xsi_object_id_string(object);
 					for (ULONG j = 0; j < names.size(); j++)

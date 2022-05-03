@@ -24,7 +24,7 @@ bool sync_object(luxcore::Scene* scene, XSI::X3DObject &xsi_object,
 	{
 		if (is_pointcloud_strands(xsi_object, eval_time))
 		{
-			return sync_pointcloud_strands(scene, xsi_object, eval_time);
+			return sync_pointcloud_strands(scene, xsi_object, xsi_materials_in_lux, eval_time);
 		}
 		else
 		{
@@ -33,7 +33,7 @@ bool sync_object(luxcore::Scene* scene, XSI::X3DObject &xsi_object,
 	}
 	else if (xsi_type == "hair")
 	{
-		
+		return sync_hair(scene, xsi_object, xsi_materials_in_lux, eval_time);
 	}
 	else if (xsi_type == "#model")
 	{
@@ -208,7 +208,7 @@ void sync_instance_transform(luxcore::Scene* scene, XSI::Model &xsi_model)
 		XSI::X3DObject object(children[i]);
 		XSI::CString object_type = object.GetType();
 		//TODO: add other types when exporter will supports it
-		if (object_type == "polymsh")
+		if (object_type == "polymsh" || object_type == "hair")
 		{
 			std::vector<float> lux_matrix = get_instance_object_tfm(children, i, root_tfm, model_tfm);
 

@@ -1277,7 +1277,7 @@ def LUXShadersPlugin_PassWhiteBalance_1_0_Define(in_ctxt):
     add_input_boolean(nonport_pram_options(), params, True, "enable")
     add_input_float(nonport_pram_options(), params, 6500.0, "temperature", 1000.0, 40000.0)
     add_input_boolean(nonport_pram_options(), params, True, "reverse")
-    add_input_boolean(nonport_pram_options(), params, False, "normalize")
+    add_input_boolean(nonport_pram_options(), params, True, "normalize")
     
     # Output Parameter: out
     add_output_closure(shaderDef, "out")

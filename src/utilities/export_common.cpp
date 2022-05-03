@@ -29,10 +29,9 @@ bool is_xsi_object_visible(const XSI::CTime &eval_time, XSI::X3DObject &xsi_obje
 bool is_pointcloud_strands(XSI::X3DObject &xsi_object, const XSI::CTime &eval_time)
 {
 	XSI::Geometry geometry = xsi_object.GetActivePrimitive(eval_time).GetGeometry(eval_time);
-	XSI::ICEAttribute sc_attr = geometry.GetICEAttributeFromName("StrandCount");
 	XSI::ICEAttribute sp_attr = geometry.GetICEAttributeFromName("StrandPosition");
 	XSI::ICEAttribute pp_attr = geometry.GetICEAttributeFromName("PointPosition");
-	if (sc_attr.GetElementCount() > 0 && sp_attr.GetElementCount() > 0 && pp_attr.GetElementCount() > 0)
+	if (sp_attr.IsDefined() && sp_attr.GetElementCount() > 0 && pp_attr.GetElementCount() > 0)
 	{
 		return true;
 	}

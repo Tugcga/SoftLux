@@ -14,7 +14,6 @@ bool sync_pointcloud(luxcore::Scene* scene,
 	std::unordered_map<ULONG, std::vector<ULONG>>& master_to_instance_map,
 	const XSI::CTime& eval_time)
 {
-
 	ULONG xsi_id = xsi_object.GetObjectID();
 
 	XSI::MATH::CMatrix4 particles_matrix = xsi_object.GetKinematics().GetGlobal().GetTransform().GetMatrix4();
@@ -84,6 +83,5 @@ bool sync_pointcloud(luxcore::Scene* scene,
 			}
 		}
 	}
-
 	return true;
 }

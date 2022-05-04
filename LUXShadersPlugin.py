@@ -114,6 +114,33 @@ camera_function_name_enum = [
     "Portra 800CD", "Portra_800CD"
 ]
 
+glass_type_enum = [
+    "Rough", "rough",
+    "Default", "default",
+    "Architectural", "architectural"
+]
+
+cloth_preset_enum = [
+    "Denim", "denim",
+    "Silk Charmeuse", "silk_charmeuse",
+    "Silk Shantung", "silk_shantung",
+    "Cotton Twill", "cotton_twill",
+    "Wool Gabardine", "wool_gabardine",
+    "Polyester Lining Cloth", "polyester_lining_cloth"
+]
+
+carpaint_preset_enum = [
+    "Manual Settings", "manual",
+    "2K Aacrylack", "2k_acrylack",
+    "Blue", "blue",
+    "Blue Matte", "blue_matte",
+    "BMW 339", "bmw_339",
+    "Ford F8", "ford_f8",
+    "Opel Titan", "opel_titan",
+    "Polaris Silber", "polaris_silber",
+    "White", "white"
+]
+
 
 def XSILoadPlugin(in_reg):
     in_reg.Author = "Shekn Itrch"
@@ -123,7 +150,25 @@ def XSILoadPlugin(in_reg):
 
     #RegistrationInsertionPoint - do not remove this line
     # rendertree shader nodes
-    in_reg.RegisterShader("ShaderMatte", 1, 0)
+    in_reg.RegisterShader("ShaderMatte", 1, 0)  # matte, roughmatte
+    in_reg.RegisterShader("ShaderMirror", 1, 0)  # mirror
+    in_reg.RegisterShader("ShaderGlass", 1, 0)  # glass, archglass, roughglass
+    in_reg.RegisterShader("ShaderMix", 1, 0)  # mix
+    in_reg.RegisterShader("ShaderNull", 1, 0)  # null
+    in_reg.RegisterShader("ShaderMatteTranslucent", 1, 0)  # mattetranslucent, roughmattetranslucent
+    in_reg.RegisterShader("ShaderGlossy", 1, 0)  # glossy2
+    in_reg.RegisterShader("ShaderMetal", 1, 0)  # metal2
+    in_reg.RegisterShader("ShaderVelvet", 1, 0)  # velvet
+    in_reg.RegisterShader("ShaderCloth", 1, 0)  # cloth
+    in_reg.RegisterShader("ShaderCarpaint", 1, 0)  # carpaint
+    in_reg.RegisterShader("ShaderGlossyTranslucent", 1, 0)  # glossytranslucent
+    in_reg.RegisterShader("ShaderGlossyCoating", 1, 0)  # glossycoating
+    in_reg.RegisterShader("ShaderDisney", 1, 0)  # disney
+    in_reg.RegisterShader("ShaderTwoSided", 1, 0)  # twosided
+    # rendertree textures
+    in_reg.RegisterShader("TextureImage", 1, 0)
+    in_reg.RegisterShader("TextureFloat", 1, 0)
+    in_reg.RegisterShader("TextureColor", 1, 0)
     # camera lense shader nodes
     in_reg.RegisterShader("LensePanoramic", 1, 0)
     in_reg.RegisterShader("LenseBokeh", 1, 0)
@@ -177,6 +222,27 @@ def add_output_closure(shader_def, name="closure"):
     params = shader_def.OutputParamDefs
     param_def = params.AddParamDef2(name, c.siShaderDataTypeColor4, param_options)
     param_def.MainPort = False
+
+
+def add_output_texture(shader_def, name="texture"):
+    param_options = XSIFactory.CreateShaderParamDefOptions()
+    param_options.SetLongName(name)
+    params = shader_def.OutputParamDefs
+    param_def = params.AddParamDef2(name, c.siShaderDataTypeColor3, param_options)
+    param_def.MainPort = False
+
+
+def add_output_float(shader_def, name="float"):
+    param_options = XSIFactory.CreateShaderParamDefOptions()
+    param_options.SetLongName(name)
+    params = shader_def.OutputParamDefs
+    param_def = params.AddParamDef2(name, c.siShaderDataTypeScalar, param_options)
+    param_def.MainPort = False
+
+
+def add_input_material(param_options, params, default_value=1, name="material"):
+    param_options.SetDefaultValue(default_value)
+    params.AddParamDef(name, c.siShaderDataTypeColor4, param_options)
 
 
 def add_input_color(param_options, params, default_value=1, name="color"):
@@ -1759,7 +1825,7 @@ def enable_OnChanged():
 #------------------------------------------------------------
 #--------------------RT Shader nodes-------------------------
 
-#---------------------matte----------------------------------
+#---------------------matte, roughmatte----------------------------------
 def LUXShadersPlugin_ShaderMatte_1_0_DefineInfo(in_ctxt):
     in_ctxt.SetAttribute("Category", "LuxCore/Shader/Material")
     in_ctxt.SetAttribute("DisplayName", "luxMatte")
@@ -1775,18 +1841,1228 @@ def LUXShadersPlugin_ShaderMatte_1_0_Define(in_ctxt):
 
     # parameters
     add_input_color(standart_pram_options(), params, 0.8, "kd")
+    add_input_float(standart_pram_options(), params, 0.0, "sigma")
+    # default parameters
+    add_input_float(standart_pram_options(), params, 1.0, "opacity", 0.0, 1.0)
+    # for these three parameters we use only ports
+    add_input_color(standart_pram_options(), params, [0.0, 0.0, 0.0], "bump")
+    add_input_color(standart_pram_options(), params, [0.0, 0.0, 0.0], "normal")
+    add_input_color(standart_pram_options(), params, [0.0, 0.0, 0.0], "emission")
 
-    # Output Parameter: out
-    add_output_closure(shaderDef, "out")
+    # Output Parameter
+    add_output_closure(shaderDef, "Material")
 
     # next init ppg
-    ppgLayout = shaderDef.PPGLayout
-    ppgLayout.AddGroup("Parameters")
-    ppgLayout.AddItem("kd", "Diffuse Color")
-    ppgLayout.EndGroup()
+    ppg_layout = shaderDef.PPGLayout
+    ppg_layout.AddGroup("Parameters")
+    ppg_layout.AddItem("kd", "Diffuse Color")
+    ppg_layout.AddItem("sigma", "Sigma")
+    # default parameters
+    ppg_layout.AddItem("opacity", "Opacity")
+    ppg_layout.EndGroup()
+
+    ppg_layout.Language = "Python"
+    ppg_layout.Logic = '''
+def OnInit():
+    prop = PPG.Inspected(0)
+    prop.Parameters("bump").ReadOnly = True
+    prop.Parameters("normal").ReadOnly = True
+    prop.Parameters("emission").ReadOnly = True
+'''
 
     # Renderer definition
     rendererDef = shaderDef.AddRendererDef("LuxCore")
     rendererDef.SymbolName = "ShaderMatte"
+
+    return True
+
+#---------------------mirror----------------------------------
+def LUXShadersPlugin_ShaderMirror_1_0_DefineInfo(in_ctxt):
+    in_ctxt.SetAttribute("Category", "LuxCore/Shader/Material")
+    in_ctxt.SetAttribute("DisplayName", "luxMirror")
+    return True
+
+
+def LUXShadersPlugin_ShaderMirror_1_0_Define(in_ctxt):
+    shaderDef = in_ctxt.GetAttribute("Definition")
+    shaderDef.AddShaderFamily(c.siShaderFamilySurfaceMat)
+
+    # Input Parameter: input
+    params = shaderDef.InputParamDefs
+
+    # parameters
+    add_input_color(standart_pram_options(), params, [1.0, 1.0, 1.0], "kr")
+    # default parameters
+    add_input_float(standart_pram_options(), params, 1.0, "opacity", 0.0, 1.0)
+    # for these three parameters we use only ports
+    add_input_color(standart_pram_options(), params, [0.0, 0.0, 0.0], "bump")
+    add_input_color(standart_pram_options(), params, [0.0, 0.0, 0.0], "normal")
+    add_input_color(standart_pram_options(), params, [0.0, 0.0, 0.0], "emission")
+
+    # Output Parameter
+    add_output_closure(shaderDef, "Material")
+
+    # next init ppg
+    ppg_layout = shaderDef.PPGLayout
+    ppg_layout.AddGroup("Parameters")
+    ppg_layout.AddItem("kr", "Reflection Color")
+    # default parameters
+    ppg_layout.AddItem("opacity", "Opacity")
+    ppg_layout.EndGroup()
+
+    ppg_layout.Language = "Python"
+    ppg_layout.Logic = '''
+def OnInit():
+    prop = PPG.Inspected(0)
+    prop.Parameters("bump").ReadOnly = True
+    prop.Parameters("normal").ReadOnly = True
+    prop.Parameters("emission").ReadOnly = True
+'''
+
+    # Renderer definition
+    rendererDef = shaderDef.AddRendererDef("LuxCore")
+    rendererDef.SymbolName = "ShaderMirror"
+
+    return True
+
+#---------------------glass, archglass, roughglassrror----------------------------------
+def LUXShadersPlugin_ShaderGlass_1_0_DefineInfo(in_ctxt):
+    in_ctxt.SetAttribute("Category", "LuxCore/Shader/Material")
+    in_ctxt.SetAttribute("DisplayName", "luxGlass")
+    return True
+
+
+def LUXShadersPlugin_ShaderGlass_1_0_Define(in_ctxt):
+    shaderDef = in_ctxt.GetAttribute("Definition")
+    shaderDef.AddShaderFamily(c.siShaderFamilySurfaceMat)
+
+    # Input Parameter: input
+    params = shaderDef.InputParamDefs
+
+    # parameters
+    add_input_string(nonport_pram_options(), params, "default", "glass_mode");
+    add_input_boolean(nonport_pram_options(), params, False, "is_film")
+    add_input_boolean(nonport_pram_options(), params, False, "is_anisotropic")
+    add_input_color(standart_pram_options(), params, [1.0, 1.0, 1.0], "kr")
+    add_input_color(standart_pram_options(), params, [1.0, 1.0, 1.0], "kt")
+    add_input_float(standart_pram_options(), params, 1.0, "exteriorior", 0.5, 2.0)
+    add_input_float(standart_pram_options(), params, 1.5, "interiorior", 0.5, 2.0)
+    add_input_float(standart_pram_options(), params, 0.0, "filmthickness", 0.0, 1.0)
+    add_input_float(standart_pram_options(), params, 1.5, "filmior", 0.5, 2.0)
+    add_input_float(standart_pram_options(), params, 0.0, "cauchyb", 0.0, 0.05)
+    add_input_float(standart_pram_options(), params, 0.1, "uroughness", 0.0, 1.0)
+    add_input_float(standart_pram_options(), params, 0.1, "vroughness", 0.0, 1.0)
+    # default parameters
+    add_input_float(standart_pram_options(), params, 1.0, "opacity", 0.0, 1.0)
+    # for these three parameters we use only ports
+    add_input_color(standart_pram_options(), params, [0.0, 0.0, 0.0], "bump")
+    add_input_color(standart_pram_options(), params, [0.0, 0.0, 0.0], "normal")
+    add_input_color(standart_pram_options(), params, [0.0, 0.0, 0.0], "emission")
+
+    # Output Parameter
+    add_output_closure(shaderDef, "Material")
+
+    # next init ppg
+    ppg_layout = shaderDef.PPGLayout
+    ppg_layout.AddGroup("Parameters")
+    ppg_layout.AddItem("is_film", "This Film Coating")
+    ppg_layout.AddItem("is_anisotropic", "Anisotropic Roughness")
+    ppg_layout.AddEnumControl("glass_mode", glass_type_enum, "Mode")
+    ppg_layout.AddItem("kr", "Reflection Color")
+    ppg_layout.AddItem("kt", "Transmission Color")
+    ppg_layout.AddItem("exteriorior", "Exterior IOR")
+    ppg_layout.AddItem("interiorior", "Interior IOR")
+    ppg_layout.AddItem("cauchyb", "Dispersion")
+    ppg_layout.AddItem("filmthickness", "Film Thickness")
+    ppg_layout.AddItem("filmior", "Film IOR")
+    ppg_layout.AddItem("uroughness", "U Roughness")
+    ppg_layout.AddItem("vroughness", "V Roughness")
+    # default parameters
+    ppg_layout.AddItem("opacity", "Opacity")
+    ppg_layout.EndGroup()
+
+    ppg_layout.Language = "Python"
+    ppg_layout.Logic = '''
+def OnInit():
+    prop = PPG.Inspected(0)
+    prop.Parameters("bump").ReadOnly = True
+    prop.Parameters("normal").ReadOnly = True
+    prop.Parameters("emission").ReadOnly = True
+    is_film = prop.Parameters("is_film").Value
+    if is_film:
+        prop.Parameters("filmthickness").ReadOnly = False
+        prop.Parameters("filmior").ReadOnly = False
+    else:
+        prop.Parameters("filmthickness").ReadOnly = True
+        prop.Parameters("filmior").ReadOnly = True
+    glass_mode = prop.Parameters("glass_mode").Value
+    if glass_mode == "default":
+        prop.Parameters("cauchyb").ReadOnly = False
+    else:
+        prop.Parameters("cauchyb").ReadOnly = True
+    if glass_mode != "rough":
+        prop.Parameters("is_anisotropic").ReadOnly = True
+        prop.Parameters("uroughness").ReadOnly = True
+        prop.Parameters("vroughness").ReadOnly = True
+    else:
+        prop.Parameters("is_anisotropic").ReadOnly = False
+        prop.Parameters("uroughness").ReadOnly = False
+        is_anisotropic = prop.Parameters("is_anisotropic").Value
+        if is_anisotropic:
+            prop.Parameters("vroughness").ReadOnly = False
+        else:
+            prop.Parameters("vroughness").ReadOnly = True
+
+def is_film_OnChanged():
+    prop = PPG.Inspected(0)
+    is_film = prop.Parameters("is_film").Value
+    if is_film:
+        prop.Parameters("filmthickness").ReadOnly = False
+        prop.Parameters("filmior").ReadOnly = False
+    else:
+        prop.Parameters("filmthickness").ReadOnly = True
+        prop.Parameters("filmior").ReadOnly = True
+
+def glass_mode_OnChanged():
+    prop = PPG.Inspected(0)
+    glass_mode = prop.Parameters("glass_mode").Value
+    if glass_mode == "default":
+        prop.Parameters("cauchyb").ReadOnly = False
+    else:
+        prop.Parameters("cauchyb").ReadOnly = True
+    if glass_mode != "rough":
+        prop.Parameters("is_anisotropic").ReadOnly = True
+        prop.Parameters("uroughness").ReadOnly = True
+        prop.Parameters("vroughness").ReadOnly = True
+    else:
+        prop.Parameters("is_anisotropic").ReadOnly = False
+        prop.Parameters("uroughness").ReadOnly = False
+        is_anisotropic = prop.Parameters("is_anisotropic").Value
+        if is_anisotropic:
+            prop.Parameters("vroughness").ReadOnly = False
+        else:
+            prop.Parameters("vroughness").ReadOnly = True
+
+def is_anisotropic_OnChanged():
+    prop = PPG.Inspected(0)
+    is_anisotropic = prop.Parameters("is_anisotropic").Value
+    if is_anisotropic:
+        prop.Parameters("vroughness").ReadOnly = False
+    else:
+        prop.Parameters("vroughness").ReadOnly = True
+'''
+
+    # Renderer definition
+    rendererDef = shaderDef.AddRendererDef("LuxCore")
+    rendererDef.SymbolName = "ShaderGlass"
+
+    return True
+
+#---------------------mix----------------------------------
+def LUXShadersPlugin_ShaderMix_1_0_DefineInfo(in_ctxt):
+    in_ctxt.SetAttribute("Category", "LuxCore/Shader/Material")
+    in_ctxt.SetAttribute("DisplayName", "luxMix")
+    return True
+
+
+def LUXShadersPlugin_ShaderMix_1_0_Define(in_ctxt):
+    shaderDef = in_ctxt.GetAttribute("Definition")
+    shaderDef.AddShaderFamily(c.siShaderFamilySurfaceMat)
+
+    # Input Parameter: input
+    params = shaderDef.InputParamDefs
+
+    # parameters
+    add_input_material(standart_pram_options(), params, [0.0, 0.0, 0.0], "material1")
+    add_input_material(standart_pram_options(), params, [0.0, 0.0, 0.0], "material2")
+    add_input_float(standart_pram_options(), params, 0.5, "amount", 0.0, 1.0)
+    # default parameters
+    add_input_float(standart_pram_options(), params, 1.0, "opacity", 0.0, 1.0)
+    # for these three parameters we use only ports
+    add_input_color(standart_pram_options(), params, [0.0, 0.0, 0.0], "bump")
+    add_input_color(standart_pram_options(), params, [0.0, 0.0, 0.0], "normal")
+    add_input_color(standart_pram_options(), params, [0.0, 0.0, 0.0], "emission")
+
+    # Output Parameter
+    add_output_closure(shaderDef, "Material")
+
+    # next init ppg
+    ppg_layout = shaderDef.PPGLayout
+    ppg_layout.AddGroup("Parameters")
+    ppg_layout.AddItem("amount", "Amount")
+    # default parameters
+    ppg_layout.AddItem("opacity", "Opacity")
+    ppg_layout.EndGroup()
+
+    ppg_layout.Language = "Python"
+    ppg_layout.Logic = '''
+def OnInit():
+    prop = PPG.Inspected(0)
+    prop.Parameters("bump").ReadOnly = True
+    prop.Parameters("normal").ReadOnly = True
+    prop.Parameters("emission").ReadOnly = True
+'''
+
+    # Renderer definition
+    rendererDef = shaderDef.AddRendererDef("LuxCore")
+    rendererDef.SymbolName = "ShaderMix"
+
+    return True
+
+#---------------------null----------------------------------
+def LUXShadersPlugin_ShaderNull_1_0_DefineInfo(in_ctxt):
+    in_ctxt.SetAttribute("Category", "LuxCore/Shader/Material")
+    in_ctxt.SetAttribute("DisplayName", "luxNull")
+    return True
+
+
+def LUXShadersPlugin_ShaderNull_1_0_Define(in_ctxt):
+    shaderDef = in_ctxt.GetAttribute("Definition")
+    shaderDef.AddShaderFamily(c.siShaderFamilySurfaceMat)
+
+    # Input Parameter: input
+    params = shaderDef.InputParamDefs
+
+    # parameters
+
+    # Output Parameter
+    add_output_closure(shaderDef, "Material")
+
+    # next init ppg
+    ppg_layout = shaderDef.PPGLayout
+    ppg_layout.AddGroup("Parameters")
+    # default parameters
+    ppg_layout.EndGroup()
+
+    # Renderer definition
+    rendererDef = shaderDef.AddRendererDef("LuxCore")
+    rendererDef.SymbolName = "ShaderNull"
+
+    return True
+
+#---------------------mattetranslucent, roughmattetranslucent----------------------------------
+def LUXShadersPlugin_ShaderMatteTranslucent_1_0_DefineInfo(in_ctxt):
+    in_ctxt.SetAttribute("Category", "LuxCore/Shader/Material")
+    in_ctxt.SetAttribute("DisplayName", "luxMatteTranslucent")
+    return True
+
+
+def LUXShadersPlugin_ShaderMatteTranslucent_1_0_Define(in_ctxt):
+    shaderDef = in_ctxt.GetAttribute("Definition")
+    shaderDef.AddShaderFamily(c.siShaderFamilySurfaceMat)
+
+    # Input Parameter: input
+    params = shaderDef.InputParamDefs
+
+    # parameters
+    add_input_color(standart_pram_options(), params, [0.5, 0.5, 0.5], "kr")
+    add_input_color(standart_pram_options(), params, [0.5, 0.5, 0.5], "kt")
+    add_input_float(standart_pram_options(), params, 0.0, "sigma", 0.0, 1.0)
+    # default parameters
+    add_input_float(standart_pram_options(), params, 1.0, "opacity", 0.0, 1.0)
+    # for these three parameters we use only ports
+    add_input_color(standart_pram_options(), params, [0.0, 0.0, 0.0], "bump")
+    add_input_color(standart_pram_options(), params, [0.0, 0.0, 0.0], "normal")
+    add_input_color(standart_pram_options(), params, [0.0, 0.0, 0.0], "emission")
+
+    # Output Parameter
+    add_output_closure(shaderDef, "Material")
+
+    # next init ppg
+    ppg_layout = shaderDef.PPGLayout
+    ppg_layout.AddGroup("Parameters")
+    ppg_layout.AddItem("kr", "Reflection Color")
+    ppg_layout.AddItem("kt", "Transmission Color")
+    ppg_layout.AddItem("sigma", "Sigma")
+    # default parameters
+    ppg_layout.AddItem("opacity", "Opacity")
+    ppg_layout.EndGroup()
+
+    ppg_layout.Language = "Python"
+    ppg_layout.Logic = '''
+def OnInit():
+    prop = PPG.Inspected(0)
+    prop.Parameters("bump").ReadOnly = True
+    prop.Parameters("normal").ReadOnly = True
+    prop.Parameters("emission").ReadOnly = True
+'''
+
+    # Renderer definition
+    rendererDef = shaderDef.AddRendererDef("LuxCore")
+    rendererDef.SymbolName = "ShaderMatteTranslucent"
+
+    return True
+
+#---------------------glossy2----------------------------------
+def LUXShadersPlugin_ShaderGlossy_1_0_DefineInfo(in_ctxt):
+    in_ctxt.SetAttribute("Category", "LuxCore/Shader/Material")
+    in_ctxt.SetAttribute("DisplayName", "luxGlossy")
+    return True
+
+
+def LUXShadersPlugin_ShaderGlossy_1_0_Define(in_ctxt):
+    shaderDef = in_ctxt.GetAttribute("Definition")
+    shaderDef.AddShaderFamily(c.siShaderFamilySurfaceMat)
+
+    # Input Parameter: input
+    params = shaderDef.InputParamDefs
+
+    # parameters
+    add_input_boolean(nonport_pram_options(), params, False, "is_anisotropic")
+    add_input_color(standart_pram_options(), params, [0.8, 0.8, 0.8], "kd")
+    add_input_color(standart_pram_options(), params, [0.1, 0.1, 0.1], "ks")
+    add_input_float(standart_pram_options(), params, 0.1, "uroughness", 0.0, 1.0)
+    add_input_float(standart_pram_options(), params, 0.1, "vroughness", 0.0, 1.0)
+    add_input_color(standart_pram_options(), params, [0.0, 0.0, 0.0], "ka")
+    add_input_float(standart_pram_options(), params, 0.0, "d", 0.0, 1.0)
+    add_input_color(standart_pram_options(), params, [0.0, 0.0, 0.0], "index")
+    add_input_boolean(nonport_pram_options(), params, False, "multibounce")
+    # default parameters
+    add_input_float(standart_pram_options(), params, 1.0, "opacity", 0.0, 1.0)
+    # for these three parameters we use only ports
+    add_input_color(standart_pram_options(), params, [0.0, 0.0, 0.0], "bump")
+    add_input_color(standart_pram_options(), params, [0.0, 0.0, 0.0], "normal")
+    add_input_color(standart_pram_options(), params, [0.0, 0.0, 0.0], "emission")
+
+    # Output Parameter
+    add_output_closure(shaderDef, "Material")
+
+    # next init ppg
+    ppg_layout = shaderDef.PPGLayout
+    ppg_layout.AddGroup("Parameters")
+    ppg_layout.AddItem("multibounce", "Multibounce")
+    ppg_layout.AddItem("is_anisotropic", "Anisotropic Roughness")
+    ppg_layout.AddItem("kd", "Diffuse Color")
+    ppg_layout.AddItem("ks", "Specular Color")
+    ppg_layout.AddItem("ka", "Absorption Color")
+    ppg_layout.AddItem("d", "Absorption Depth")
+    ppg_layout.AddItem("uroughness", "U Roughness")
+    ppg_layout.AddItem("vroughness", "V Roughness")
+    ppg_layout.AddItem("index", "Index")
+    # default parameters
+    ppg_layout.AddItem("opacity", "Opacity")
+    ppg_layout.EndGroup()
+
+    ppg_layout.Language = "Python"
+    ppg_layout.Logic = '''
+def OnInit():
+    prop = PPG.Inspected(0)
+    prop.Parameters("bump").ReadOnly = True
+    prop.Parameters("normal").ReadOnly = True
+    prop.Parameters("emission").ReadOnly = True
+    is_anisotropic = prop.Parameters("is_anisotropic").Value
+    if is_anisotropic:
+        prop.Parameters("vroughness").ReadOnly = False
+    else:
+        prop.Parameters("vroughness").ReadOnly = True
+
+def is_anisotropic_OnChanged():
+    prop = PPG.Inspected(0)
+    is_anisotropic = prop.Parameters("is_anisotropic").Value
+    if is_anisotropic:
+        prop.Parameters("vroughness").ReadOnly = False
+    else:
+        prop.Parameters("vroughness").ReadOnly = True
+'''
+
+    # Renderer definition
+    rendererDef = shaderDef.AddRendererDef("LuxCore")
+    rendererDef.SymbolName = "ShaderGlossy"
+
+    return True
+
+#---------------------metal2----------------------------------
+def LUXShadersPlugin_ShaderMetal_1_0_DefineInfo(in_ctxt):
+    in_ctxt.SetAttribute("Category", "LuxCore/Shader/Material")
+    in_ctxt.SetAttribute("DisplayName", "luxMetal")
+    return True
+
+
+def LUXShadersPlugin_ShaderMetal_1_0_Define(in_ctxt):
+    shaderDef = in_ctxt.GetAttribute("Definition")
+    shaderDef.AddShaderFamily(c.siShaderFamilySurfaceMat)
+
+    # Input Parameter: input
+    params = shaderDef.InputParamDefs
+
+    # parameters
+    add_input_color(standart_pram_options(), params, [0.8, 0.8, 0.8], "kr")  # create implicit fresnel texture with this color at the export
+    add_input_float(standart_pram_options(), params, 0.1, "uroughness", 0.0, 1.0)
+    add_input_float(standart_pram_options(), params, 0.1, "vroughness", 0.0, 1.0)
+    add_input_boolean(nonport_pram_options(), params, False, "is_anisotropic")
+    # default parameters
+    add_input_float(standart_pram_options(), params, 1.0, "opacity", 0.0, 1.0)
+    # for these three parameters we use only ports
+    add_input_color(standart_pram_options(), params, [0.0, 0.0, 0.0], "bump")
+    add_input_color(standart_pram_options(), params, [0.0, 0.0, 0.0], "normal")
+    add_input_color(standart_pram_options(), params, [0.0, 0.0, 0.0], "emission")
+
+    # Output Parameter
+    add_output_closure(shaderDef, "Material")
+
+    # next init ppg
+    ppg_layout = shaderDef.PPGLayout
+    ppg_layout.AddGroup("Parameters")
+    ppg_layout.AddItem("is_anisotropic", "Anisotropic Roughness")
+    ppg_layout.AddItem("kr", "Color")
+    ppg_layout.AddItem("uroughness", "U Roughness")
+    ppg_layout.AddItem("vroughness", "U Roughness")
+    # default parameters
+    ppg_layout.AddItem("opacity", "Opacity")
+    ppg_layout.EndGroup()
+
+    ppg_layout.Language = "Python"
+    ppg_layout.Logic = '''
+def OnInit():
+    prop = PPG.Inspected(0)
+    prop.Parameters("bump").ReadOnly = True
+    prop.Parameters("normal").ReadOnly = True
+    prop.Parameters("emission").ReadOnly = True
+    is_anisotropic = prop.Parameters("is_anisotropic").Value
+    if is_anisotropic:
+        prop.Parameters("vroughness").ReadOnly = False
+    else:
+        prop.Parameters("vroughness").ReadOnly = True
+
+def is_anisotropic_OnChanged():
+    prop = PPG.Inspected(0)
+    is_anisotropic = prop.Parameters("is_anisotropic").Value
+    if is_anisotropic:
+        prop.Parameters("vroughness").ReadOnly = False
+    else:
+        prop.Parameters("vroughness").ReadOnly = True
+'''
+
+    # Renderer definition
+    rendererDef = shaderDef.AddRendererDef("LuxCore")
+    rendererDef.SymbolName = "ShaderMetal"
+
+    return True
+
+#---------------------velvet----------------------------------
+def LUXShadersPlugin_ShaderVelvet_1_0_DefineInfo(in_ctxt):
+    in_ctxt.SetAttribute("Category", "LuxCore/Shader/Material")
+    in_ctxt.SetAttribute("DisplayName", "luxVelvet")
+    return True
+
+
+def LUXShadersPlugin_ShaderVelvet_1_0_Define(in_ctxt):
+    shaderDef = in_ctxt.GetAttribute("Definition")
+    shaderDef.AddShaderFamily(c.siShaderFamilySurfaceMat)
+
+    # Input Parameter: input
+    params = shaderDef.InputParamDefs
+
+    # parameters
+    add_input_boolean(nonport_pram_options(), params, False, "advanced")
+    add_input_color(standart_pram_options(), params, [0.8, 0.8, 0.8], "kd")
+    add_input_float(standart_pram_options(), params, -2.0, "p1", -5.0, 5.0)
+    add_input_float(standart_pram_options(), params, 20.0, "p2", 0.0, 40.0)
+    add_input_float(standart_pram_options(), params, 2.0, "p3", 0.0, 4.0)
+    add_input_float(standart_pram_options(), params, 0.1, "thickness", 0.0, 1.0)
+    # default parameters
+    add_input_float(standart_pram_options(), params, 1.0, "opacity", 0.0, 1.0)
+    # for these three parameters we use only ports
+    add_input_color(standart_pram_options(), params, [0.0, 0.0, 0.0], "bump")
+    add_input_color(standart_pram_options(), params, [0.0, 0.0, 0.0], "normal")
+    add_input_color(standart_pram_options(), params, [0.0, 0.0, 0.0], "emission")
+
+    # Output Parameter
+    add_output_closure(shaderDef, "Material")
+
+    # next init ppg
+    ppg_layout = shaderDef.PPGLayout
+    ppg_layout.AddGroup("Parameters")
+    ppg_layout.AddItem("advanced", "Advanced Options")
+    ppg_layout.AddItem("kd", "Diffuse Color")
+    ppg_layout.AddItem("p1", "P1")
+    ppg_layout.AddItem("p2", "P2")
+    ppg_layout.AddItem("p3", "P3")
+    ppg_layout.AddItem("thickness", "Thickness")
+    # default parameters
+    ppg_layout.AddItem("opacity", "Opacity")
+    ppg_layout.EndGroup()
+
+    ppg_layout.Language = "Python"
+    ppg_layout.Logic = '''
+def OnInit():
+    prop = PPG.Inspected(0)
+    prop.Parameters("bump").ReadOnly = True
+    prop.Parameters("normal").ReadOnly = True
+    prop.Parameters("emission").ReadOnly = True
+    advanced = prop.Parameters("advanced").Value
+    if advanced:
+        prop.Parameters("p1").ReadOnly = False
+        prop.Parameters("p2").ReadOnly = False
+        prop.Parameters("p3").ReadOnly = False
+    else:
+        prop.Parameters("p1").ReadOnly = True
+        prop.Parameters("p2").ReadOnly = True
+        prop.Parameters("p3").ReadOnly = True
+
+def advanced_OnChanged():
+    prop = PPG.Inspected(0)
+    advanced = prop.Parameters("advanced").Value
+    if advanced:
+        prop.Parameters("p1").ReadOnly = False
+        prop.Parameters("p2").ReadOnly = False
+        prop.Parameters("p3").ReadOnly = False
+    else:
+        prop.Parameters("p1").ReadOnly = True
+        prop.Parameters("p2").ReadOnly = True
+        prop.Parameters("p3").ReadOnly = True
+'''
+
+    # Renderer definition
+    rendererDef = shaderDef.AddRendererDef("LuxCore")
+    rendererDef.SymbolName = "ShaderVelvet"
+
+    return True
+
+#---------------------cloth----------------------------------
+def LUXShadersPlugin_ShaderCloth_1_0_DefineInfo(in_ctxt):
+    in_ctxt.SetAttribute("Category", "LuxCore/Shader/Material")
+    in_ctxt.SetAttribute("DisplayName", "luxCloth")
+    return True
+
+
+def LUXShadersPlugin_ShaderCloth_1_0_Define(in_ctxt):
+    shaderDef = in_ctxt.GetAttribute("Definition")
+    shaderDef.AddShaderFamily(c.siShaderFamilySurfaceMat)
+
+    # Input Parameter: input
+    params = shaderDef.InputParamDefs
+
+    # parameters
+    add_input_float(nonport_pram_options(), params, 100.0, "repeat_u", 1.0, 256.0)
+    add_input_float(nonport_pram_options(), params, 100.0, "repeat_v", 1.0, 256.0)
+    add_input_string(nonport_pram_options(), params, "preset", "denim")
+    add_input_color(standart_pram_options(), params, [0.8, 0.8, 0.8], "weft_kd")
+    add_input_color(standart_pram_options(), params, [0.1, 0.1, 0.1], "weft_ks")
+    add_input_color(standart_pram_options(), params, [0.7, 0.1, 0.1], "warp_kd")
+    add_input_color(standart_pram_options(), params, [0.1, 0.1, 0.1], "warp_ks")
+    # default parameters
+    add_input_float(standart_pram_options(), params, 1.0, "opacity", 0.0, 1.0)
+    # for these three parameters we use only ports
+    add_input_color(standart_pram_options(), params, [0.0, 0.0, 0.0], "bump")
+    add_input_color(standart_pram_options(), params, [0.0, 0.0, 0.0], "normal")
+    add_input_color(standart_pram_options(), params, [0.0, 0.0, 0.0], "emission")
+
+    # Output Parameter
+    add_output_closure(shaderDef, "Material")
+
+    # next init ppg
+    ppg_layout = shaderDef.PPGLayout
+    ppg_layout.AddGroup("Parameters")
+    ppg_layout.AddItem("repeat_u", "Repeat U")
+    ppg_layout.AddItem("repeat_v", "Repeat V")
+    ppg_layout.AddEnumControl("preset", cloth_preset_enum, "Preset")
+    ppg_layout.AddItem("warp_kd", "Warp Diffuse Color")
+    ppg_layout.AddItem("warp_ks", "Warp Specular Color")
+    ppg_layout.AddItem("weft_kd", "Waft Diffuse Color")
+    ppg_layout.AddItem("weft_ks", "Waft Specular Color")
+    # default parameters
+    ppg_layout.AddItem("opacity", "Opacity")
+    ppg_layout.EndGroup()
+
+    ppg_layout.Language = "Python"
+    ppg_layout.Logic = '''
+def OnInit():
+    prop = PPG.Inspected(0)
+    prop.Parameters("bump").ReadOnly = True
+    prop.Parameters("normal").ReadOnly = True
+    prop.Parameters("emission").ReadOnly = True
+'''
+
+    # Renderer definition
+    rendererDef = shaderDef.AddRendererDef("LuxCore")
+    rendererDef.SymbolName = "ShaderCloth"
+
+    return True
+
+#---------------------carpaint----------------------------------
+def LUXShadersPlugin_ShaderCarpaint_1_0_DefineInfo(in_ctxt):
+    in_ctxt.SetAttribute("Category", "LuxCore/Shader/Material")
+    in_ctxt.SetAttribute("DisplayName", "luxCarpaint")
+    return True
+
+
+def LUXShadersPlugin_ShaderCarpaint_1_0_Define(in_ctxt):
+    shaderDef = in_ctxt.GetAttribute("Definition")
+    shaderDef.AddShaderFamily(c.siShaderFamilySurfaceMat)
+
+    # Input Parameter: input
+    params = shaderDef.InputParamDefs
+
+    # parameters
+    add_input_string(nonport_pram_options(), params, "manual", "preset")
+    add_input_color(standart_pram_options(), params, [0.0, 0.0, 0.0], "ka")
+    add_input_float(standart_pram_options(), params, 0.0, "d", 0.0, 1.0)
+
+    add_input_color(standart_pram_options(), params, [0.5, 0.5, 0.5], "kd")
+    add_input_color(standart_pram_options(), params, [1.0, 1.0, 1.0], "ks1")
+    add_input_color(standart_pram_options(), params, [1.0, 1.0, 1.0], "ks2")
+    add_input_color(standart_pram_options(), params, [1.0, 1.0, 1.0], "ks3")
+
+    add_input_float(standart_pram_options(), params, 0.95, "r1", 0.0, 1.0)
+    add_input_float(standart_pram_options(), params, 0.9, "r2", 0.0, 1.0)
+    add_input_float(standart_pram_options(), params, 0.7, "r3", 0.0, 1.0)
+
+    add_input_float(standart_pram_options(), params, 0.25, "m1", 0.0, 1.0)
+    add_input_float(standart_pram_options(), params, 0.1, "m2", 0.0, 1.0)
+    add_input_float(standart_pram_options(), params, 0.015, "m3", 0.0, 1.0)
+    # default parameters
+    add_input_float(standart_pram_options(), params, 1.0, "opacity", 0.0, 1.0)
+    # for these three parameters we use only ports
+    add_input_color(standart_pram_options(), params, [0.0, 0.0, 0.0], "bump")
+    add_input_color(standart_pram_options(), params, [0.0, 0.0, 0.0], "normal")
+    add_input_color(standart_pram_options(), params, [0.0, 0.0, 0.0], "emission")
+
+    # Output Parameter
+    add_output_closure(shaderDef, "Material")
+
+    # next init ppg
+    ppg_layout = shaderDef.PPGLayout
+    ppg_layout.AddGroup("Parameters")
+    ppg_layout.AddEnumControl("preset", carpaint_preset_enum, "Preset")
+    ppg_layout.AddItem("kd", "Diffuse Color")
+    ppg_layout.AddItem("ks1", "Specular Color 1")
+    ppg_layout.AddItem("r1", "R1")
+    ppg_layout.AddItem("m1", "M1")
+    ppg_layout.AddItem("ks2", "Specular Color 2")
+    ppg_layout.AddItem("r2", "R2")
+    ppg_layout.AddItem("m2", "M2")
+    ppg_layout.AddItem("ks3", "Specular Color 3")
+    ppg_layout.AddItem("r3", "R3")
+    ppg_layout.AddItem("m3", "M3")
+    ppg_layout.AddItem("ka", "Absorption Color")
+    ppg_layout.AddItem("d", "Absorption Depth")
+    # default parameters
+    ppg_layout.AddItem("opacity", "Opacity")
+    ppg_layout.EndGroup()
+
+    ppg_layout.Language = "Python"
+    ppg_layout.Logic = '''
+def OnInit():
+    prop = PPG.Inspected(0)
+    prop.Parameters("bump").ReadOnly = True
+    prop.Parameters("normal").ReadOnly = True
+    prop.Parameters("emission").ReadOnly = True
+    preset = prop.Parameters("preset").Value
+    if preset == "manual":
+        prop.Parameters("kd").ReadOnly = False
+        prop.Parameters("ks1").ReadOnly = False
+        prop.Parameters("r1").ReadOnly = False
+        prop.Parameters("m1").ReadOnly = False
+        prop.Parameters("ks2").ReadOnly = False
+        prop.Parameters("r2").ReadOnly = False
+        prop.Parameters("m2").ReadOnly = False
+        prop.Parameters("ks3").ReadOnly = False
+        prop.Parameters("r3").ReadOnly = False
+        prop.Parameters("m3").ReadOnly = False
+    else:
+        prop.Parameters("kd").ReadOnly = True
+        prop.Parameters("ks1").ReadOnly = True
+        prop.Parameters("r1").ReadOnly = True
+        prop.Parameters("m1").ReadOnly = True
+        prop.Parameters("ks2").ReadOnly = True
+        prop.Parameters("r2").ReadOnly = True
+        prop.Parameters("m2").ReadOnly = True
+        prop.Parameters("ks3").ReadOnly = True
+        prop.Parameters("r3").ReadOnly = True
+        prop.Parameters("m3").ReadOnly = True
+
+def preset_OnChanged():
+    prop = PPG.Inspected(0)
+    preset = prop.Parameters("preset").Value
+    if preset == "manual":
+        prop.Parameters("kd").ReadOnly = False
+        prop.Parameters("ks1").ReadOnly = False
+        prop.Parameters("r1").ReadOnly = False
+        prop.Parameters("m1").ReadOnly = False
+        prop.Parameters("ks2").ReadOnly = False
+        prop.Parameters("r2").ReadOnly = False
+        prop.Parameters("m2").ReadOnly = False
+        prop.Parameters("ks3").ReadOnly = False
+        prop.Parameters("r3").ReadOnly = False
+        prop.Parameters("m3").ReadOnly = False
+    else:
+        prop.Parameters("kd").ReadOnly = True
+        prop.Parameters("ks1").ReadOnly = True
+        prop.Parameters("r1").ReadOnly = True
+        prop.Parameters("m1").ReadOnly = True
+        prop.Parameters("ks2").ReadOnly = True
+        prop.Parameters("r2").ReadOnly = True
+        prop.Parameters("m2").ReadOnly = True
+        prop.Parameters("ks3").ReadOnly = True
+        prop.Parameters("r3").ReadOnly = True
+        prop.Parameters("m3").ReadOnly = True
+'''
+
+    # Renderer definition
+    rendererDef = shaderDef.AddRendererDef("LuxCore")
+    rendererDef.SymbolName = "ShaderCarpaint"
+
+    return True
+
+#---------------------glossytranslucent----------------------------------
+def LUXShadersPlugin_ShaderGlossyTranslucent_1_0_DefineInfo(in_ctxt):
+    in_ctxt.SetAttribute("Category", "LuxCore/Shader/Material")
+    in_ctxt.SetAttribute("DisplayName", "luxGlossyTranslucent")
+    return True
+
+
+def LUXShadersPlugin_ShaderGlossyTranslucent_1_0_Define(in_ctxt):
+    shaderDef = in_ctxt.GetAttribute("Definition")
+    shaderDef.AddShaderFamily(c.siShaderFamilySurfaceMat)
+
+    # Input Parameter: input
+    params = shaderDef.InputParamDefs
+
+    # parameters
+    add_input_boolean(nonport_pram_options(), params, False, "multibounce")
+    add_input_boolean(nonport_pram_options(), params, False, "is_anisotropic")
+    add_input_boolean(nonport_pram_options(), params, False, "is_double")
+    add_input_color(standart_pram_options(), params, [0.5, 0.5, 0.5], "kd")
+    add_input_color(standart_pram_options(), params, [0.5, 0.5, 0.5], "kt")
+    add_input_color(standart_pram_options(), params, [0.1, 0.1, 0.1], "ks")
+    add_input_color(standart_pram_options(), params, [0.1, 0.1, 0.1], "ks_bf")
+    add_input_color(standart_pram_options(), params, [0.0, 0.0, 0.0], "ka")
+    add_input_color(standart_pram_options(), params, [0.0, 0.0, 0.0], "ka_bf")
+    add_input_float(standart_pram_options(), params, 0.0, "d", 0.0, 1.0)
+    add_input_float(standart_pram_options(), params, 0.0, "d_bf", 0.0, 1.0)
+    add_input_float(standart_pram_options(), params, 0.1, "uroughness", 0.0, 1.0)
+    add_input_float(standart_pram_options(), params, 0.1, "vroughness", 0.0, 1.0)
+    add_input_float(standart_pram_options(), params, 0.1, "uroughness_bf", 0.0, 1.0)
+    add_input_float(standart_pram_options(), params, 0.1, "vroughness_bf", 0.0, 1.0)
+    add_input_color(standart_pram_options(), params, [0.0, 0.0, 0.0], "index")
+    add_input_color(standart_pram_options(), params, [0.0, 0.0, 0.0], "index_bf")
+    # default parameters
+    add_input_float(standart_pram_options(), params, 1.0, "opacity", 0.0, 1.0)
+    # for these three parameters we use only ports
+    add_input_color(standart_pram_options(), params, [0.0, 0.0, 0.0], "bump")
+    add_input_color(standart_pram_options(), params, [0.0, 0.0, 0.0], "normal")
+    add_input_color(standart_pram_options(), params, [0.0, 0.0, 0.0], "emission")
+
+    # Output Parameter
+    add_output_closure(shaderDef, "Material")
+
+    # next init ppg
+    ppg_layout = shaderDef.PPGLayout
+    ppg_layout.AddGroup("Parameters")
+    ppg_layout.AddItem("multibounce", "Multibounce")
+    ppg_layout.AddItem("is_anisotropic", "Anisotropic Roughness")
+    ppg_layout.AddItem("is_double", "Double Sided")
+    ppg_layout.AddItem("kd", "Diffuse Color")
+    ppg_layout.AddItem("kt", "Transmission Color")
+    ppg_layout.AddItem("ks", "Specular Color")
+    ppg_layout.AddItem("ka", "Absorption Color")
+    ppg_layout.AddItem("d", "Absorption Depth")
+    ppg_layout.AddItem("uroughness", "U Roughness")
+    ppg_layout.AddItem("vroughness", "V Roughness")
+    ppg_layout.AddItem("index", "Index")
+    ppg_layout.AddItem("ks_bf", "BF Specular Color")
+    ppg_layout.AddItem("ka_bf", "BF Absorption Color")
+    ppg_layout.AddItem("d_bf", "BF Absorption Depth")
+    ppg_layout.AddItem("uroughness_bf", "BF U Roughness")
+    ppg_layout.AddItem("vroughness_bf", "BF V Roughness")
+    ppg_layout.AddItem("index_bf", "BF Index")
+    # default parameters
+    ppg_layout.AddItem("opacity", "Opacity")
+    ppg_layout.EndGroup()
+
+    ppg_layout.Language = "Python"
+    ppg_layout.Logic = '''
+def OnInit():
+    prop = PPG.Inspected(0)
+    prop.Parameters("bump").ReadOnly = True
+    prop.Parameters("normal").ReadOnly = True
+    prop.Parameters("emission").ReadOnly = True
+    is_anisotropic = prop.Parameters("is_anisotropic").Value
+    is_double = prop.Parameters("is_double").Value
+    if is_anisotropic:
+        prop.Parameters("vroughness").ReadOnly = False
+        if is_double:
+            prop.Parameters("vroughness_bf").ReadOnly = False
+    else:
+        prop.Parameters("vroughness").ReadOnly = True
+        prop.Parameters("vroughness_bf").ReadOnly = True
+    if is_double:
+        prop.Parameters("ks_bf").ReadOnly = False
+        prop.Parameters("ka_bf").ReadOnly = False
+        prop.Parameters("d_bf").ReadOnly = False
+        prop.Parameters("uroughness_bf").ReadOnly = False
+        if is_anisotropic:
+            prop.Parameters("vroughness_bf").ReadOnly = False
+        prop.Parameters("index_bf").ReadOnly = False
+    else:
+        prop.Parameters("ks_bf").ReadOnly = True
+        prop.Parameters("ka_bf").ReadOnly = True
+        prop.Parameters("d_bf").ReadOnly = True
+        prop.Parameters("uroughness_bf").ReadOnly = True
+        prop.Parameters("vroughness_bf").ReadOnly = True
+        prop.Parameters("index_bf").ReadOnly = True
+
+def is_anisotropic_OnChanged():
+    prop = PPG.Inspected(0)
+    is_anisotropic = prop.Parameters("is_anisotropic").Value
+    is_double = prop.Parameters("is_double").Value
+    if is_anisotropic:
+        prop.Parameters("vroughness").ReadOnly = False
+        if is_double:
+            prop.Parameters("vroughness_bf").ReadOnly = False
+    else:
+        prop.Parameters("vroughness").ReadOnly = True
+        prop.Parameters("vroughness_bf").ReadOnly = True
+
+def is_double_OnChanged():
+    prop = PPG.Inspected(0)
+    is_double = prop.Parameters("is_double").Value
+    is_anisotropic = prop.Parameters("is_anisotropic").Value
+    if is_double:
+        prop.Parameters("ks_bf").ReadOnly = False
+        prop.Parameters("ka_bf").ReadOnly = False
+        prop.Parameters("d_bf").ReadOnly = False
+        prop.Parameters("uroughness_bf").ReadOnly = False
+        if is_anisotropic:
+            prop.Parameters("vroughness_bf").ReadOnly = False
+        prop.Parameters("index_bf").ReadOnly = False
+    else:
+        prop.Parameters("ks_bf").ReadOnly = True
+        prop.Parameters("ka_bf").ReadOnly = True
+        prop.Parameters("d_bf").ReadOnly = True
+        prop.Parameters("uroughness_bf").ReadOnly = True
+        prop.Parameters("vroughness_bf").ReadOnly = True
+        prop.Parameters("index_bf").ReadOnly = True
+'''
+
+    # Renderer definition
+    rendererDef = shaderDef.AddRendererDef("LuxCore")
+    rendererDef.SymbolName = "ShaderGlossyTranslucent"
+
+    return True
+
+#---------------------glossycoating----------------------------------
+def LUXShadersPlugin_ShaderGlossyCoating_1_0_DefineInfo(in_ctxt):
+    in_ctxt.SetAttribute("Category", "LuxCore/Shader/Material")
+    in_ctxt.SetAttribute("DisplayName", "luxGlossyCoating")
+    return True
+
+
+def LUXShadersPlugin_ShaderGlossyCoating_1_0_Define(in_ctxt):
+    shaderDef = in_ctxt.GetAttribute("Definition")
+    shaderDef.AddShaderFamily(c.siShaderFamilySurfaceMat)
+
+    # Input Parameter: input
+    params = shaderDef.InputParamDefs
+
+    # parameters
+    add_input_boolean(nonport_pram_options(), params, False, "multibounce")
+    add_input_boolean(nonport_pram_options(), params, False, "is_anisotropic")
+    add_input_material(standart_pram_options(), params, [0.0, 0.0, 0.0], "base")
+    add_input_color(standart_pram_options(), params, [0.1, 0.1, 0.1], "ks")
+    add_input_color(standart_pram_options(), params, [0.0, 0.0, 0.0], "ka")
+    add_input_float(standart_pram_options(), params, 0.0, "d", 0.0, 1.0)
+    add_input_float(standart_pram_options(), params, 0.1, "uroughness", 0.0, 1.0)
+    add_input_float(standart_pram_options(), params, 0.1, "vroughness", 0.0, 1.0)
+    add_input_color(standart_pram_options(), params, [0.0, 0.0, 0.0], "index")
+    # default parameters
+    add_input_float(standart_pram_options(), params, 1.0, "opacity", 0.0, 1.0)
+    # for these three parameters we use only ports
+    add_input_color(standart_pram_options(), params, [0.0, 0.0, 0.0], "bump")
+    add_input_color(standart_pram_options(), params, [0.0, 0.0, 0.0], "normal")
+    add_input_color(standart_pram_options(), params, [0.0, 0.0, 0.0], "emission")
+
+    # Output Parameter
+    add_output_closure(shaderDef, "Material")
+
+    # next init ppg
+    ppg_layout = shaderDef.PPGLayout
+    ppg_layout.AddGroup("Parameters")
+    ppg_layout.AddItem("multibounce", "Multibounce")
+    ppg_layout.AddItem("is_anisotropic", "Anisotropic Roughness")
+    ppg_layout.AddItem("ks", "Specular Color")
+    ppg_layout.AddItem("ka", "Absorption Color")
+    ppg_layout.AddItem("d", "Absorption Depth")
+    ppg_layout.AddItem("uroughness", "U Roughness")
+    ppg_layout.AddItem("vroughness", "V Roughness")
+    ppg_layout.AddItem("index", "Index")
+    # default parameters
+    ppg_layout.AddItem("opacity", "Opacity")
+    ppg_layout.EndGroup()
+
+    ppg_layout.Language = "Python"
+    ppg_layout.Logic = '''
+def OnInit():
+    prop = PPG.Inspected(0)
+    prop.Parameters("bump").ReadOnly = True
+    prop.Parameters("normal").ReadOnly = True
+    prop.Parameters("emission").ReadOnly = True
+    is_anisotropic = prop.Parameters("is_anisotropic").Value
+    if is_anisotropic:
+        prop.Parameters("vroughness").ReadOnly = False
+    else:
+        prop.Parameters("vroughness").ReadOnly = True
+
+def is_anisotropic_OnChanged():
+    prop = PPG.Inspected(0)
+    is_anisotropic = prop.Parameters("is_anisotropic").Value
+    if is_anisotropic:
+        prop.Parameters("vroughness").ReadOnly = False
+    else:
+        prop.Parameters("vroughness").ReadOnly = True
+'''
+
+    # Renderer definition
+    rendererDef = shaderDef.AddRendererDef("LuxCore")
+    rendererDef.SymbolName = "ShaderGlossyCoating"
+
+    return True
+
+#---------------------disney----------------------------------
+def LUXShadersPlugin_ShaderDisney_1_0_DefineInfo(in_ctxt):
+    in_ctxt.SetAttribute("Category", "LuxCore/Shader/Material")
+    in_ctxt.SetAttribute("DisplayName", "luxDisney")
+    return True
+
+
+def LUXShadersPlugin_ShaderDisney_1_0_Define(in_ctxt):
+    shaderDef = in_ctxt.GetAttribute("Definition")
+    shaderDef.AddShaderFamily(c.siShaderFamilySurfaceMat)
+
+    # Input Parameter: input
+    params = shaderDef.InputParamDefs
+
+    # parameters
+    add_input_boolean(nonport_pram_options(), params, False, "is_film")
+    add_input_color(standart_pram_options(), params, [0.8, 0.8, 0.8], "basecolor")
+    add_input_float(standart_pram_options(), params, 0.0, "subsurface", 0.0, 1.0)
+    add_input_float(standart_pram_options(), params, 0.0, "metallic", 0.0, 1.0)
+    add_input_float(standart_pram_options(), params, 0.5, "specular", 0.0, 1.0)
+    add_input_float(standart_pram_options(), params, 0.0, "speculartint", 0.0, 1.0)
+    add_input_float(standart_pram_options(), params, 0.2, "roughness", 0.0, 1.0)
+    add_input_float(standart_pram_options(), params, 0.0, "anisotropic", 0.0, 1.0)
+    add_input_float(standart_pram_options(), params, 0.0, "sheen", 0.0, 1.0)
+    add_input_float(standart_pram_options(), params, 0.0, "sheentint", 0.0, 1.0)
+    add_input_float(standart_pram_options(), params, 0.0, "clearcoat", 0.0, 1.0)
+    add_input_float(standart_pram_options(), params, 1.0, "clearcoatgloss", 0.0, 1.0)
+    add_input_float(standart_pram_options(), params, 1.0, "filmamount", 0.0, 1.0)
+    add_input_float(standart_pram_options(), params, 300.0, "filmthickness", 0.0, 600.0)
+    add_input_float(standart_pram_options(), params, 1.5, "filmior", 0.0, 1.0)
+    # default parameters
+    add_input_float(standart_pram_options(), params, 1.0, "opacity", 0.0, 1.0)
+    # for these three parameters we use only ports
+    add_input_color(standart_pram_options(), params, [0.0, 0.0, 0.0], "bump")
+    add_input_color(standart_pram_options(), params, [0.0, 0.0, 0.0], "normal")
+    add_input_color(standart_pram_options(), params, [0.0, 0.0, 0.0], "emission")
+
+    # Output Parameter
+    add_output_closure(shaderDef, "Material")
+
+    # next init ppg
+    ppg_layout = shaderDef.PPGLayout
+    ppg_layout.AddGroup("Parameters")
+    ppg_layout.AddItem("is_film", "Thin Film Coating")
+    ppg_layout.AddItem("basecolor", "Base Color")
+    ppg_layout.AddItem("subsurface", "Subsurface")
+    ppg_layout.AddItem("metallic", "Metallic")
+    ppg_layout.AddItem("specular", "Specular")
+    ppg_layout.AddItem("speculartint", "Specular Tint")
+    ppg_layout.AddItem("roughness", "Roughness")
+    ppg_layout.AddItem("anisotropic", "Anisotropic")
+    ppg_layout.AddItem("sheen", "Sheen")
+    ppg_layout.AddItem("sheentint", "Sheen Tint")
+    ppg_layout.AddItem("clearcoat", "Clearcoat")
+    ppg_layout.AddItem("clearcoatgloss", "Clearcoat Gloss")
+
+    ppg_layout.AddItem("filmamount", "Film Amount")
+    ppg_layout.AddItem("filmthickness", "Film Thickness")
+    ppg_layout.AddItem("filmior", "Film IOR")
+    # default parameters
+    ppg_layout.AddItem("opacity", "Opacity")
+    ppg_layout.EndGroup()
+
+    ppg_layout.Language = "Python"
+    ppg_layout.Logic = '''
+def OnInit():
+    prop = PPG.Inspected(0)
+    prop.Parameters("bump").ReadOnly = True
+    prop.Parameters("normal").ReadOnly = True
+    prop.Parameters("emission").ReadOnly = True
+    is_film = prop.Parameters("is_film").Value
+    if is_film:
+        prop.Parameters("filmamount").ReadOnly = False
+        prop.Parameters("filmthickness").ReadOnly = False
+        prop.Parameters("filmior").ReadOnly = False
+    else:
+        prop.Parameters("filmamount").ReadOnly = True
+        prop.Parameters("filmthickness").ReadOnly = True
+        prop.Parameters("filmior").ReadOnly = True
+
+def is_film_OnChanged():
+    prop = PPG.Inspected(0)
+    is_film = prop.Parameters("is_film").Value
+    if is_film:
+        prop.Parameters("filmamount").ReadOnly = False
+        prop.Parameters("filmthickness").ReadOnly = False
+        prop.Parameters("filmior").ReadOnly = False
+    else:
+        prop.Parameters("filmamount").ReadOnly = True
+        prop.Parameters("filmthickness").ReadOnly = True
+        prop.Parameters("filmior").ReadOnly = True
+'''
+
+    # Renderer definition
+    rendererDef = shaderDef.AddRendererDef("LuxCore")
+    rendererDef.SymbolName = "ShaderDisney"
+
+    return True
+
+#---------------------twosided----------------------------------
+def LUXShadersPlugin_ShaderTwoSided_1_0_DefineInfo(in_ctxt):
+    in_ctxt.SetAttribute("Category", "LuxCore/Shader/Material")
+    in_ctxt.SetAttribute("DisplayName", "luxTwoSided")
+    return True
+
+
+def LUXShadersPlugin_ShaderTwoSided_1_0_Define(in_ctxt):
+    shaderDef = in_ctxt.GetAttribute("Definition")
+    shaderDef.AddShaderFamily(c.siShaderFamilySurfaceMat)
+
+    # Input Parameter: input
+    params = shaderDef.InputParamDefs
+
+    # parameters
+    add_input_material(standart_pram_options(), params, [0.0, 0.0, 0.0], "frontmaterial")
+    add_input_material(standart_pram_options(), params, [0.0, 0.0, 0.0], "backmaterial")
+    # default parameters
+    add_input_float(standart_pram_options(), params, 1.0, "opacity", 0.0, 1.0)
+    # for these three parameters we use only ports
+    add_input_color(standart_pram_options(), params, [0.0, 0.0, 0.0], "bump")
+    add_input_color(standart_pram_options(), params, [0.0, 0.0, 0.0], "normal")
+    add_input_color(standart_pram_options(), params, [0.0, 0.0, 0.0], "emission")
+
+    # Output Parameter
+    add_output_closure(shaderDef, "Material")
+
+    # next init ppg
+    ppg_layout = shaderDef.PPGLayout
+    ppg_layout.AddGroup("Parameters")
+    # default parameters
+    ppg_layout.AddItem("opacity", "Opacity")
+    ppg_layout.EndGroup()
+
+    ppg_layout.Language = "Python"
+    ppg_layout.Logic = '''
+def OnInit():
+    prop = PPG.Inspected(0)
+    prop.Parameters("bump").ReadOnly = True
+    prop.Parameters("normal").ReadOnly = True
+    prop.Parameters("emission").ReadOnly = True
+'''
+
+    # Renderer definition
+    rendererDef = shaderDef.AddRendererDef("LuxCore")
+    rendererDef.SymbolName = "ShaderTwoSided"
+
+    return True
+
+#---------------------------------------------------------------
+#---------------------Textures----------------------------------
+
+#---------------------imagemap----------------------------------
+def LUXShadersPlugin_TextureImage_1_0_DefineInfo(in_ctxt):
+    in_ctxt.SetAttribute("Category", "LuxCore/Shader/Texture/Texture")
+    in_ctxt.SetAttribute("DisplayName", "luxImage")
+    return True
+
+
+def LUXShadersPlugin_TextureImage_1_0_Define(in_ctxt):
+    shaderDef = in_ctxt.GetAttribute("Definition")
+    shaderDef.AddShaderFamily(c.siShaderFamilyTexture)
+
+    # Input Parameter: input
+    params = shaderDef.InputParamDefs
+
+    # parameters
+    add_input_image(nonport_pram_options(), params, "", "file")
+
+    # Output Parameter
+    add_output_texture(shaderDef, "Color")
+    add_output_float(shaderDef, "Alpha")
+
+    # next init ppg
+    ppg_layout = shaderDef.PPGLayout
+    ppg_layout.AddGroup("Parameters")
+    ppg_layout.AddItem("file", "File")
+    ppg_layout.EndGroup()
+
+    # Renderer definition
+    rendererDef = shaderDef.AddRendererDef("LuxCore")
+    rendererDef.SymbolName = "TextureImage"
+
+    return True
+
+#---------------------constfloat1----------------------------------
+def LUXShadersPlugin_TextureFloat_1_0_DefineInfo(in_ctxt):
+    in_ctxt.SetAttribute("Category", "LuxCore/Shader/Texture/Utils")
+    in_ctxt.SetAttribute("DisplayName", "luxFloat")
+    return True
+
+
+def LUXShadersPlugin_TextureFloat_1_0_Define(in_ctxt):
+    shaderDef = in_ctxt.GetAttribute("Definition")
+    shaderDef.AddShaderFamily(c.siShaderFamilyTexture)
+
+    # Input Parameter: input
+    params = shaderDef.InputParamDefs
+
+    # parameters
+    add_input_float(nonport_pram_options(), params, 1.0, "value")
+
+    # Output Parameter
+    add_output_float(shaderDef, "Value")
+
+    # next init ppg
+    ppg_layout = shaderDef.PPGLayout
+    ppg_layout.AddGroup("Parameters")
+    ppg_layout.AddItem("value", "Value")
+    ppg_layout.EndGroup()
+
+    # Renderer definition
+    rendererDef = shaderDef.AddRendererDef("LuxCore")
+    rendererDef.SymbolName = "TextureFloat"
+
+    return True
+
+#---------------------constfloat3----------------------------------
+def LUXShadersPlugin_TextureColor_1_0_DefineInfo(in_ctxt):
+    in_ctxt.SetAttribute("Category", "LuxCore/Shader/Texture/Utils")
+    in_ctxt.SetAttribute("DisplayName", "luxColor")
+    return True
+
+
+def LUXShadersPlugin_TextureColor_1_0_Define(in_ctxt):
+    shaderDef = in_ctxt.GetAttribute("Definition")
+    shaderDef.AddShaderFamily(c.siShaderFamilyTexture)
+
+    # Input Parameter: input
+    params = shaderDef.InputParamDefs
+
+    # parameters
+    add_input_color(nonport_pram_options(), params, [1.0, 1.0, 1.0], "value")
+
+    # Output Parameter
+    add_output_texture(shaderDef, "Color")
+
+    # next init ppg
+    ppg_layout = shaderDef.PPGLayout
+    ppg_layout.AddGroup("Parameters")
+    ppg_layout.AddItem("value", "Value")
+    ppg_layout.EndGroup()
+
+    # Renderer definition
+    rendererDef = shaderDef.AddRendererDef("LuxCore")
+    rendererDef.SymbolName = "TextureColor"
 
     return True

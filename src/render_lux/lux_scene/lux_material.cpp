@@ -5,6 +5,36 @@
 
 #include "xsi_materiallibrary.h"
 
+bool add_material(luxrays::Properties &material_props, XSI::Shader &material_node)
+{
+	//get shader name
+	XSI::CString prog_id = material_node.GetProgID();
+	XSI::CStringArray parts = prog_id.Split(".");
+	if (parts.GetCount() >= 2 && parts[0] == "LUXShadersPlugin")
+	{
+		XSI::CString node_name = parts[1];
+		//get material node properties
+		//this array contains as input parameters, as output ports
+		//also the Name of the node
+		XSI::CParameterRefArray parameters = material_node.GetParameters();
+		if (node_name == "ShaderMatte")
+		{
+			for (ULONG i = 0; i < parameters.GetCount(); i++)
+			{
+				XSI::Parameter p(parameters[i]);
+				log_message(p.GetName() + ": " + XSI::CString(p.GetValue()));
+			}
+			return true;
+		}
+		else
+		{
+			//unknow material
+			return false;
+		}
+	}
+	return false;
+}
+
 void sync_material(luxcore::Scene* scene, XSI::Material &xsi_material, std::set<ULONG>& xsi_materials_in_lux, const XSI::CTime& eval_time)
 {
 	//we should set the name of material equal to UniqueID of the object
@@ -13,16 +43,33 @@ void sync_material(luxcore::Scene* scene, XSI::Material &xsi_material, std::set<
 
 	std::string material_name = xsi_object_id_string(xsi_material)[0];
 	luxrays::Properties material_props;
-	material_props.Set(luxrays::Property("scene.materials." + material_name + ".type")("matte"));
-	material_props.Set(luxrays::Property("scene.materials." + material_name + ".kd")(
-		int(material_name[material_name.size() - 1] - '0') / (float)10,
-		int(material_name[material_name.size() - 2] - '0') / (float)10,
-		int(material_name[material_name.size() - 3] - '0') / (float)10));
+
+	XSI::CRefArray first_level_shaders = xsi_material.GetShaders();
+	std::vector<XSI::ShaderParameter> surface_ports = get_root_shader_parameter(first_level_shaders, GRSPM_ParameterName, "surface");
+	if (surface_ports.size() == 0)
+	{//no connections to the surface port
+		//set material to null
+		material_props.Set(luxrays::Property("scene.materials." + material_name + ".type")("null"));
+	}
+	else
+	{
+		//get the material node
+		XSI::Shader material_node = get_input_node(surface_ports[0]);
+		//next we should add material from the selected node
+		bool is_add = add_material(material_props, material_node);
+		log_message("add material " + XSI::CString(is_add));
+
+		material_props.Set(luxrays::Property("scene.materials." + material_name + ".type")("matte"));
+		material_props.Set(luxrays::Property("scene.materials." + material_name + ".kd")(
+			int(material_name[material_name.size() - 1] - '0') / (float)10,
+			int(material_name[material_name.size() - 2] - '0') / (float)10,
+			int(material_name[material_name.size() - 3] - '0') / (float)10));
+	}
+
 	//set default id
-	material_props.Set(luxrays::Property("scene.materials." + material_name + ".id")(0));
+	material_props.Set(luxrays::Property("scene.materials." + material_name + ".id")((int)xsi_material.GetObjectID()));
 
 	scene->Parse(material_props);
-
 	xsi_materials_in_lux.insert(xsi_material.GetObjectID());
 }
 

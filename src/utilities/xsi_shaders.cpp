@@ -41,6 +41,55 @@ XSI::MATH::CColor4f get_color_parameter_value(const XSI::CParameterRefArray& all
 	return (XSI::MATH::CColor4f)param_final.GetValue(eval_time);
 }
 
+ShaderParameterType get_shader_parameter_type(XSI::Parameter &parameter)
+{
+	XSI::CValue::DataType xsi_type = parameter.GetValueType();
+	if (xsi_type == XSI::CValue::DataType::siEmpty)
+	{
+		XSI::CParameterRefArray paramster_params = parameter.GetParameters();
+		LONG count = paramster_params.GetCount();
+		if (count == 3)
+		{
+			//this is 3-values color
+			return ShaderParameterType::ParameterType_Color3;
+		}
+		else if (count == 4)
+		{
+			return ShaderParameterType::ParameterType_Color4;
+		}
+		else
+		{
+			return ShaderParameterType::ParameterType_Unknown;
+		}
+	}
+	else
+	{
+		if (xsi_type == XSI::CValue::DataType::siInt2 ||
+			xsi_type == XSI::CValue::DataType::siInt4 || 
+			xsi_type == XSI::CValue::DataType::siInt8)
+		{
+			return ShaderParameterType::ParameterType_Integer;
+		}
+		else if (xsi_type == XSI::CValue::DataType::siFloat ||
+			xsi_type == XSI::CValue::DataType::siDouble)
+		{
+			return ShaderParameterType::ParameterType_Float;
+		}
+		else if (xsi_type == XSI::CValue::DataType::siString)
+		{
+			return ShaderParameterType::ParameterType_String;
+		}
+		else if (xsi_type == XSI::CValue::DataType::siBool)
+		{
+			return ShaderParameterType::ParameterType_Boolean;
+		}
+		else
+		{
+			return ShaderParameterType::ParameterType_Unknown;
+		}
+	}
+}
+
 std::vector<XSI::ShaderParameter> get_root_shader_parameter(const XSI::CRefArray& first_level_shaders, 
 															GetRootShaderParameterMode mode, 
 															const XSI::CString& root_parameter_name, 
@@ -101,7 +150,7 @@ bool is_shader_compound(const XSI::Shader& shader)
 	return sub_shaders.GetCount() > 0;
 }
 
-XSI::Shader get_input_node(const XSI::ShaderParameter& parameter)
+XSI::Shader get_input_node(const XSI::ShaderParameter& parameter, bool ignore_converters)
 {
 	XSI::CRef source = parameter.GetSource();
 	if (source.IsValid())
@@ -114,12 +163,47 @@ XSI::Shader get_input_node(const XSI::ShaderParameter& parameter)
 		}
 		else
 		{
-			return source_shader;
+			if (!ignore_converters)
+			{
+				return source_shader;
+			}
+			else
+			{
+				XSI::CString prog_id = source_shader.GetProgID();
+				if (prog_id == "Softimage.sib_scalar_to_color.1.0" || prog_id == "Softimage.sib_color_to_scalar.1.0")
+				{
+					XSI::Parameter input_param = source_shader.GetParameter("input");
+					XSI::ShaderParameter shader_input_param(input_param);
+					return get_input_node(shader_input_param, ignore_converters);
+				}
+				else
+				{
+					//finish by this node
+					return source_shader;
+				}
+			}
 		}
 	}
 	else
 	{
-		return XSI::Shader();
+		if (!ignore_converters)
+		{
+			return XSI::Shader();
+		}
+		else
+		{
+			//get parent node
+			XSI::Shader parent_node = parameter.GetParent();
+			XSI::CString prog_id = parent_node.GetProgID();
+			if (prog_id == "Softimage.sib_scalar_to_color.1.0" || prog_id == "Softimage.sib_color_to_scalar.1.0")
+			{
+				return parent_node;
+			}
+			else
+			{
+				return XSI::Shader();
+			}
+		}
 	}
 }
 

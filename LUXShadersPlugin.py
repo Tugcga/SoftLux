@@ -120,6 +120,20 @@ glass_type_enum = [
     "Architectural", "architectural"
 ]
 
+metal_mode_enum = [
+    "Color", "color",
+    "Preset", "preset",
+    "Custom n, k Values", "custom"
+]
+
+metal_presets_enum = [
+    "Amorphous carbon", "amorphous_carbon",
+    "Copper", "copper",
+    "Gold", "gold",
+    "Silver", "silver",
+    "Aluminium", "aluminium"
+]
+
 cloth_preset_enum = [
     "Denim", "denim",
     "Silk Charmeuse", "silk_charmeuse",
@@ -139,6 +153,39 @@ carpaint_preset_enum = [
     "Opel Titan", "opel_titan",
     "Polaris Silber", "polaris_silber",
     "White", "white"
+]
+
+image_channels_enum = [
+    "Default Channels", "default",
+    "RGB", "rgb",
+    "Red", "red",
+    "Green", "green",
+    "Blue", "blue",
+    "Alpha", "alpha",
+    "Mean (Average)", "mean",
+    "Mean (Luminance)", "colored_mean"
+]
+
+image_filter_enum = [
+    "Linear", "linear",
+    "Nearest", "nearest"
+]
+
+image_wrap_enum = [
+    "Repeat", "repeat",
+    "Clamp", "clamp",
+    "Black", "black",
+    "White", "white"
+]
+
+image_projection_enum = [
+    "Flat", "flat",
+    "Box", "box"
+]
+
+image_normalmap_orientation_enum = [
+    "OpenGL", "opengl",
+    "DirectX", "directx"
 ]
 
 
@@ -286,7 +333,17 @@ def add_input_image(param_options, params, default_value="", name="image"):
     params.AddParamDef(name, c.siShaderDataTypeImage, param_options)
 
 
-def standart_pram_options():
+def add_input_2dmapping(param_options, params, default_value="", name="2d mapping"):
+    param_options.SetDefaultValue(default_value)
+    params.AddParamDef(name, c.siShaderDataTypeMatrix33, param_options)
+
+
+def add_input_3dmapping(param_options, params, default_value="", name="3d mapping"):
+    param_options.SetDefaultValue(default_value)
+    params.AddParamDef(name, c.siShaderDataTypeMatrix44, param_options)
+
+
+def standart_param_options():
     param_options = XSIFactory.CreateShaderParamDefOptions()
     param_options.SetAnimatable(True)
     param_options.SetTexturable(True)
@@ -294,7 +351,7 @@ def standart_pram_options():
     param_options.SetInspectable(True)
     return param_options
 
-def nonport_pram_options():
+def nonport_param_options():
     param_options = XSIFactory.CreateShaderParamDefOptions()
     param_options.SetAnimatable(True)
     param_options.SetTexturable(False)
@@ -321,8 +378,8 @@ def LUXShadersPlugin_LensePanoramic_1_0_Define(in_ctxt):
     params = shaderDef.InputParamDefs
 
     # parameters
-    add_input_boolean(nonport_pram_options(), params, True, "enable")
-    add_input_float(nonport_pram_options(), params, 360.0, "degrees", 0.0, 360.0)
+    add_input_boolean(nonport_param_options(), params, True, "enable")
+    add_input_float(nonport_param_options(), params, 360.0, "degrees", 0.0, 360.0)
 
     # Output Parameter: out
     add_output_closure(shaderDef, "out")
@@ -364,13 +421,13 @@ def LUXShadersPlugin_LenseBokeh_1_0_Define(in_ctxt):
     params = shaderDef.InputParamDefs
 
     # parameters
-    add_input_boolean(nonport_pram_options(), params, True, "enable")
-    add_input_float(nonport_pram_options(), params, 0.0, "lensradius", 0.0, 12.0)
-    add_input_integer(nonport_pram_options(), params, 0, "blades", 0, 6)
-    add_input_integer(nonport_pram_options(), params, 3, "power", 1, 12)
-    add_input_float(nonport_pram_options(), params, 1.0, "scale_x", 0.1, 4.0)
-    add_input_float(nonport_pram_options(), params, 1.0, "scale_y", 0.1, 4.0)
-    add_input_string(nonport_pram_options(), params, "NONE", "distribution_type")
+    add_input_boolean(nonport_param_options(), params, True, "enable")
+    add_input_float(nonport_param_options(), params, 0.0, "lensradius", 0.0, 12.0)
+    add_input_integer(nonport_param_options(), params, 0, "blades", 0, 6)
+    add_input_integer(nonport_param_options(), params, 3, "power", 1, 12)
+    add_input_float(nonport_param_options(), params, 1.0, "scale_x", 0.1, 4.0)
+    add_input_float(nonport_param_options(), params, 1.0, "scale_y", 0.1, 4.0)
+    add_input_string(nonport_param_options(), params, "NONE", "distribution_type")
 
     # Output Parameter: out
     add_output_closure(shaderDef, "out")
@@ -427,8 +484,8 @@ def LUXShadersPlugin_PassTonemapLinear_1_0_Define(in_ctxt):
     params = shaderDef.InputParamDefs
     
     # parameters
-    add_input_boolean(nonport_pram_options(), params, True, "enable")
-    add_input_float(nonport_pram_options(), params, 1.0, "scale", 0.0, 2.0)
+    add_input_boolean(nonport_param_options(), params, True, "enable")
+    add_input_float(nonport_param_options(), params, 1.0, "scale", 0.0, 2.0)
     
     # Output Parameter: out
     add_output_closure(shaderDef, "out")
@@ -470,10 +527,10 @@ def LUXShadersPlugin_PassTonemapReinhard_1_0_Define(in_ctxt):
     params = shaderDef.InputParamDefs
     
     # parameters
-    add_input_boolean(nonport_pram_options(), params, True, "enable")
-    add_input_float(nonport_pram_options(), params, 1.0, "prescale", 0.0, 2.0)
-    add_input_float(nonport_pram_options(), params, 1.2, "postscale", 0.0, 2.0)
-    add_input_float(nonport_pram_options(), params, 3.75, "burn", 1.0, 8.0)
+    add_input_boolean(nonport_param_options(), params, True, "enable")
+    add_input_float(nonport_param_options(), params, 1.0, "prescale", 0.0, 2.0)
+    add_input_float(nonport_param_options(), params, 1.2, "postscale", 0.0, 2.0)
+    add_input_float(nonport_param_options(), params, 3.75, "burn", 1.0, 8.0)
     
     # Output Parameter: out
     add_output_closure(shaderDef, "out")
@@ -519,7 +576,7 @@ def LUXShadersPlugin_PassTonemapAutoLinear_1_0_Define(in_ctxt):
     params = shaderDef.InputParamDefs
 
     # parameters
-    add_input_boolean(nonport_pram_options(), params, True, "enable")
+    add_input_boolean(nonport_param_options(), params, True, "enable")
     
     # Output Parameter: out
     add_output_closure(shaderDef, "out")
@@ -552,10 +609,10 @@ def LUXShadersPlugin_PassTonemapLuxLinear_1_0_Define(in_ctxt):
     params = shaderDef.InputParamDefs
     
     # parameters
-    add_input_boolean(nonport_pram_options(), params, True, "enable")
-    add_input_float(nonport_pram_options(), params, 100.0, "sensitivity", 1.0, 1024.0)
-    add_input_float(nonport_pram_options(), params, 1.0 / 1000.0, "exposure", 0.0, 1.0)
-    add_input_float(nonport_pram_options(), params, 2.8, "fstop", 1.0, 4.0)
+    add_input_boolean(nonport_param_options(), params, True, "enable")
+    add_input_float(nonport_param_options(), params, 100.0, "sensitivity", 1.0, 1024.0)
+    add_input_float(nonport_param_options(), params, 1.0 / 1000.0, "exposure", 0.0, 1.0)
+    add_input_float(nonport_param_options(), params, 2.8, "fstop", 1.0, 4.0)
     
     # Output Parameter: out
     add_output_closure(shaderDef, "out")
@@ -601,9 +658,9 @@ def LUXShadersPlugin_PassGammaCorrection_1_0_Define(in_ctxt):
     params = shaderDef.InputParamDefs
     
     # parameters
-    add_input_boolean(nonport_pram_options(), params, True, "enable")
-    add_input_float(nonport_pram_options(), params, 2.2, "value", 1.0, 4.0)
-    add_input_integer(nonport_pram_options(), params, 4096, "table_size", 2048, 8192)
+    add_input_boolean(nonport_param_options(), params, True, "enable")
+    add_input_float(nonport_param_options(), params, 2.2, "value", 1.0, 4.0)
+    add_input_integer(nonport_param_options(), params, 4096, "table_size", 2048, 8192)
     
     # Output Parameter: out
     add_output_closure(shaderDef, "out")
@@ -638,7 +695,7 @@ def LUXShadersPlugin_PassNOP_1_0_Define(in_ctxt):
     params = shaderDef.InputParamDefs
     
     # parameters
-    add_input_boolean(nonport_pram_options(), params, True, "enable")
+    add_input_boolean(nonport_param_options(), params, True, "enable")
     
     # Output Parameter: out
     add_output_closure(shaderDef, "out")
@@ -671,9 +728,9 @@ def LUXShadersPlugin_PassOutputSwitcher_1_0_Define(in_ctxt):
     params = shaderDef.InputParamDefs
     
     # parameters
-    add_input_boolean(nonport_pram_options(), params, True, "enable")
-    add_input_string(nonport_pram_options(), params, "DEPTH", "channel")
-    add_input_integer(nonport_pram_options(), params, 0, "index", 0, 4)
+    add_input_boolean(nonport_param_options(), params, True, "enable")
+    add_input_string(nonport_param_options(), params, "DEPTH", "channel")
+    add_input_integer(nonport_param_options(), params, 0, "index", 0, 4)
     
     # Output Parameter: out
     add_output_closure(shaderDef, "out")
@@ -717,8 +774,8 @@ def LUXShadersPlugin_PassGaussianFilter_1_0_Define(in_ctxt):
     params = shaderDef.InputParamDefs
     
     # parameters
-    add_input_boolean(nonport_pram_options(), params, True, "enable")
-    add_input_float(nonport_pram_options(), params, 0.15, "weight", 0.0, 1.0)
+    add_input_boolean(nonport_param_options(), params, True, "enable")
+    add_input_float(nonport_param_options(), params, 0.15, "weight", 0.0, 1.0)
     
     # Output Parameter: out
     add_output_closure(shaderDef, "out")
@@ -760,8 +817,8 @@ def LUXShadersPlugin_PassCameraResponse_1_0_Define(in_ctxt):
     params = shaderDef.InputParamDefs
     
     # parameters
-    add_input_boolean(nonport_pram_options(), params, True, "enable")
-    add_input_string(nonport_pram_options(), params, "Advantix_100CD", "camera_name")  # parameter name is different from corresponding parameter in luxcore
+    add_input_boolean(nonport_param_options(), params, True, "enable")
+    add_input_string(nonport_param_options(), params, "Advantix_100CD", "camera_name")  # parameter name is different from corresponding parameter in luxcore
     
     # Output Parameter: out
     add_output_closure(shaderDef, "out")
@@ -804,11 +861,11 @@ def LUXShadersPlugin_PassContourLines_1_0_Define(in_ctxt):
     params = shaderDef.InputParamDefs
     
     # parameters
-    add_input_boolean(nonport_pram_options(), params, True, "enable")
-    add_input_float(nonport_pram_options(), params, 179.0, "scale", 1.0, 512.0)
-    add_input_float(nonport_pram_options(), params, 100.0, "range", 1.0, 512.0)
-    add_input_integer(nonport_pram_options(), params, 8, "steps", 1, 16)
-    add_input_integer(nonport_pram_options(), params, 8, "zerogridsize", 1, 16)
+    add_input_boolean(nonport_param_options(), params, True, "enable")
+    add_input_float(nonport_param_options(), params, 179.0, "scale", 1.0, 512.0)
+    add_input_float(nonport_param_options(), params, 100.0, "range", 1.0, 512.0)
+    add_input_integer(nonport_param_options(), params, 8, "steps", 1, 16)
+    add_input_integer(nonport_param_options(), params, 8, "zerogridsize", 1, 16)
     
     # Output Parameter: out
     add_output_closure(shaderDef, "out")
@@ -856,9 +913,9 @@ def LUXShadersPlugin_PassBackgroundImage_1_0_Define(in_ctxt):
     params = shaderDef.InputParamDefs
     
     # parameters
-    add_input_boolean(nonport_pram_options(), params, True, "enable")
-    add_input_image(standart_pram_options(), params, "", "file")
-    add_input_float(nonport_pram_options(), params, 2.2, "gamma", 1.0, 4.0)
+    add_input_boolean(nonport_param_options(), params, True, "enable")
+    add_input_image(standart_param_options(), params, "", "file")
+    add_input_float(nonport_param_options(), params, 2.2, "gamma", 1.0, 4.0)
     
     # Output Parameter: out
     add_output_closure(shaderDef, "out")
@@ -902,9 +959,9 @@ def LUXShadersPlugin_PassBloom_1_0_Define(in_ctxt):
     params = shaderDef.InputParamDefs
     
     # parameters
-    add_input_boolean(nonport_pram_options(), params, True, "enable")
-    add_input_float(nonport_pram_options(), params, 0.07, "radius", 0.0, 1.0)
-    add_input_float(nonport_pram_options(), params, 0.25, "weight", 0.0, 1.0)
+    add_input_boolean(nonport_param_options(), params, True, "enable")
+    add_input_float(nonport_param_options(), params, 0.07, "radius", 0.0, 1.0)
+    add_input_float(nonport_param_options(), params, 0.25, "weight", 0.0, 1.0)
     
     # Output Parameter: out
     add_output_closure(shaderDef, "out")
@@ -948,8 +1005,8 @@ def LUXShadersPlugin_PassObjectIDMask_1_0_Define(in_ctxt):
     params = shaderDef.InputParamDefs
     
     # parameters
-    add_input_boolean(nonport_pram_options(), params, True, "enable")
-    add_input_integer(nonport_pram_options(), params, 0, "id", 0, 12)
+    add_input_boolean(nonport_param_options(), params, True, "enable")
+    add_input_integer(nonport_param_options(), params, 0, "id", 0, 12)
     
     # Output Parameter: out
     add_output_closure(shaderDef, "out")
@@ -991,8 +1048,8 @@ def LUXShadersPlugin_PassVignetting_1_0_Define(in_ctxt):
     params = shaderDef.InputParamDefs
     
     # parameters
-    add_input_boolean(nonport_pram_options(), params, True, "enable")
-    add_input_float(nonport_pram_options(), params, 0.4, "scale", 0.0, 1.0)
+    add_input_boolean(nonport_param_options(), params, True, "enable")
+    add_input_float(nonport_param_options(), params, 0.4, "scale", 0.0, 1.0)
     
     # Output Parameter: out
     add_output_closure(shaderDef, "out")
@@ -1034,8 +1091,8 @@ def LUXShadersPlugin_PassColorAberration_1_0_Define(in_ctxt):
     params = shaderDef.InputParamDefs
     
     # parameters
-    add_input_boolean(nonport_pram_options(), params, True, "enable")
-    add_input_float(nonport_pram_options(), params, 0.005, "amount", 0.001, 0.01)
+    add_input_boolean(nonport_param_options(), params, True, "enable")
+    add_input_float(nonport_param_options(), params, 0.005, "amount", 0.001, 0.01)
     
     # Output Parameter: out
     add_output_closure(shaderDef, "out")
@@ -1077,7 +1134,7 @@ def LUXShadersPlugin_PassPremultiplyAlpha_1_0_Define(in_ctxt):
     params = shaderDef.InputParamDefs
     
     # parameters
-    add_input_boolean(nonport_pram_options(), params, True, "enable")
+    add_input_boolean(nonport_param_options(), params, True, "enable")
     
     # Output Parameter: out
     add_output_closure(shaderDef, "out")
@@ -1110,12 +1167,12 @@ def LUXShadersPlugin_PassMist_1_0_Define(in_ctxt):
     params = shaderDef.InputParamDefs
     
     # parameters
-    add_input_boolean(nonport_pram_options(), params, True, "enable")
-    add_input_color(nonport_pram_options(), params, [1.0, 1.0, 1.0], "color")
-    add_input_float(nonport_pram_options(), params, 0.005, "amount", 0.0, 1.0)
-    add_input_float(nonport_pram_options(), params, 0.0, "startdistance", 0.0, 12.0)
-    add_input_float(nonport_pram_options(), params, 10000.0, "enddistance", 10000.0, 60000.0)
-    add_input_boolean(nonport_pram_options(), params, False, "excludebackground")
+    add_input_boolean(nonport_param_options(), params, True, "enable")
+    add_input_color(nonport_param_options(), params, [1.0, 1.0, 1.0], "color")
+    add_input_float(nonport_param_options(), params, 0.005, "amount", 0.0, 1.0)
+    add_input_float(nonport_param_options(), params, 0.0, "startdistance", 0.0, 12.0)
+    add_input_float(nonport_param_options(), params, 10000.0, "enddistance", 10000.0, 60000.0)
+    add_input_boolean(nonport_param_options(), params, False, "excludebackground")
     
     # Output Parameter: out
     add_output_closure(shaderDef, "out")
@@ -1165,19 +1222,19 @@ def LUXShadersPlugin_PassBCDDenoiser_1_0_Define(in_ctxt):
     params = shaderDef.InputParamDefs
     
     # parameters
-    add_input_boolean(nonport_pram_options(), params, True, "enable")
-    add_input_float(nonport_pram_options(), params, 2.0, "warmupspp", 0.0, 4.0)
-    add_input_float(nonport_pram_options(), params, 1.0, "histdistthresh", 0.0, 4.0)
-    add_input_integer(nonport_pram_options(), params, 1, "patchradius", 1, 8)
-    add_input_integer(nonport_pram_options(), params, 6, "searchwindowradius", 1, 12)
-    add_input_float(nonport_pram_options(), params, 0.00000001, "mineigenvalue")
-    add_input_boolean(nonport_pram_options(), params, True, "userandompixelorder")
-    add_input_float(nonport_pram_options(), params, 1.0, "markedpixelsskippingprobability", 0.0, 1.0)
-    add_input_integer(nonport_pram_options(), params, 0, "threadcount", 0, 12)
-    add_input_integer(nonport_pram_options(), params, 3, "scales", 1, 6)
-    add_input_boolean(nonport_pram_options(), params, False, "filterspikes")
-    add_input_boolean(nonport_pram_options(), params, True, "applydenoise")
-    add_input_float(nonport_pram_options(), params, 2.0, "spikestddev", 0.0, 4.0)
+    add_input_boolean(nonport_param_options(), params, True, "enable")
+    add_input_float(nonport_param_options(), params, 2.0, "warmupspp", 0.0, 4.0)
+    add_input_float(nonport_param_options(), params, 1.0, "histdistthresh", 0.0, 4.0)
+    add_input_integer(nonport_param_options(), params, 1, "patchradius", 1, 8)
+    add_input_integer(nonport_param_options(), params, 6, "searchwindowradius", 1, 12)
+    add_input_float(nonport_param_options(), params, 0.00000001, "mineigenvalue")
+    add_input_boolean(nonport_param_options(), params, True, "userandompixelorder")
+    add_input_float(nonport_param_options(), params, 1.0, "markedpixelsskippingprobability", 0.0, 1.0)
+    add_input_integer(nonport_param_options(), params, 0, "threadcount", 0, 12)
+    add_input_integer(nonport_param_options(), params, 3, "scales", 1, 6)
+    add_input_boolean(nonport_param_options(), params, False, "filterspikes")
+    add_input_boolean(nonport_param_options(), params, True, "applydenoise")
+    add_input_float(nonport_param_options(), params, 2.0, "spikestddev", 0.0, 4.0)
     
     # Output Parameter: out
     add_output_closure(shaderDef, "out")
@@ -1241,8 +1298,8 @@ def LUXShadersPlugin_PassPatterns_1_0_Define(in_ctxt):
     params = shaderDef.InputParamDefs
     
     # parameters
-    add_input_boolean(nonport_pram_options(), params, True, "enable")
-    add_input_integer(nonport_pram_options(), params, 0, "index")
+    add_input_boolean(nonport_param_options(), params, True, "enable")
+    add_input_integer(nonport_param_options(), params, 0, "index")
     
     # Output Parameter: out
     add_output_closure(shaderDef, "out")
@@ -1288,10 +1345,10 @@ def LUXShadersPlugin_PassIntelOIDN_1_0_Define(in_ctxt):
     params = shaderDef.InputParamDefs
     
     # parameters
-    add_input_boolean(nonport_pram_options(), params, True, "enable")
-    add_input_string(nonport_pram_options(), params, "RT", "filter_type")
-    add_input_integer(nonport_pram_options(), params, 6000, "oidnmemory", 512, 8192)
-    add_input_float(nonport_pram_options(), params, 1.0, "sharpness", 0.0, 1.0)
+    add_input_boolean(nonport_param_options(), params, True, "enable")
+    add_input_string(nonport_param_options(), params, "RT", "filter_type")
+    add_input_integer(nonport_param_options(), params, 6000, "oidnmemory", 512, 8192)
+    add_input_float(nonport_param_options(), params, 1.0, "sharpness", 0.0, 1.0)
     
     # Output Parameter: out
     add_output_closure(shaderDef, "out")
@@ -1340,10 +1397,10 @@ def LUXShadersPlugin_PassWhiteBalance_1_0_Define(in_ctxt):
     params = shaderDef.InputParamDefs
     
     # parameters
-    add_input_boolean(nonport_pram_options(), params, True, "enable")
-    add_input_float(nonport_pram_options(), params, 6500.0, "temperature", 1000.0, 40000.0)
-    add_input_boolean(nonport_pram_options(), params, True, "reverse")
-    add_input_boolean(nonport_pram_options(), params, True, "normalize")
+    add_input_boolean(nonport_param_options(), params, True, "enable")
+    add_input_float(nonport_param_options(), params, 6500.0, "temperature", 1000.0, 40000.0)
+    add_input_boolean(nonport_param_options(), params, True, "reverse")
+    add_input_boolean(nonport_param_options(), params, True, "normalize")
     
     # Output Parameter: out
     add_output_closure(shaderDef, "out")
@@ -1389,9 +1446,9 @@ def LUXShadersPlugin_PassBakeMapMargin_1_0_Define(in_ctxt):
     params = shaderDef.InputParamDefs
     
     # parameters
-    add_input_boolean(nonport_pram_options(), params, True, "enable")
-    add_input_integer(nonport_pram_options(), params, 2, "margin", 1, 8)
-    add_input_float(nonport_pram_options(), params, 0.0, "samplesthreshold", 0.0, 1.0)
+    add_input_boolean(nonport_param_options(), params, True, "enable")
+    add_input_integer(nonport_param_options(), params, 2, "margin", 1, 8)
+    add_input_float(nonport_param_options(), params, 0.0, "samplesthreshold", 0.0, 1.0)
     
     # Output Parameter: out
     add_output_closure(shaderDef, "out")
@@ -1435,9 +1492,9 @@ def LUXShadersPlugin_PassColorLUT_1_0_Define(in_ctxt):
     params = shaderDef.InputParamDefs
     
     # parameters
-    add_input_boolean(nonport_pram_options(), params, True, "enable")
-    add_input_string(nonport_pram_options(),params, "", "file")
-    add_input_float(nonport_pram_options(), params, 1.0, "strength", 0.0, 1.0)
+    add_input_boolean(nonport_param_options(), params, True, "enable")
+    add_input_string(nonport_param_options(),params, "", "file")
+    add_input_float(nonport_param_options(), params, 1.0, "strength", 0.0, 1.0)
     
     # Output Parameter: out
     add_output_closure(shaderDef, "out")
@@ -1484,9 +1541,9 @@ def LUXShadersPlugin_PassOptixDenoiser_1_0_Define(in_ctxt):
     params = shaderDef.InputParamDefs
     
     # parameters
-    add_input_boolean(nonport_pram_options(), params, True, "enable")
-    add_input_float(nonport_pram_options(), params, 0.1, "sharpness", 0.0, 1.0)
-    add_input_integer(nonport_pram_options(), params, 0, "minspp", 0, 12)
+    add_input_boolean(nonport_param_options(), params, True, "enable")
+    add_input_float(nonport_param_options(), params, 0.1, "sharpness", 0.0, 1.0)
+    add_input_integer(nonport_param_options(), params, 0, "minspp", 0, 12)
     
     # Output Parameter: out
     add_output_closure(shaderDef, "out")
@@ -1530,7 +1587,7 @@ def LUXShadersPlugin_PassTonemapOpenColorIO_1_0_Define(in_ctxt):
     params = shaderDef.InputParamDefs
     
     # parameters
-    add_input_boolean(nonport_pram_options(), params, True, "enable")
+    add_input_boolean(nonport_param_options(), params, True, "enable")
     
     # Output Parameter: out
     add_output_closure(shaderDef, "out")
@@ -1566,17 +1623,17 @@ def LUXShadersPlugin_PassInfinite_1_0_Define(in_ctxt):
     params = shaderDef.InputParamDefs
     
     # parameters
-    add_input_boolean(nonport_pram_options(), params, True, "enable")
-    add_input_color(nonport_pram_options(), params, [1.0, 1.0, 1.0], "gain")
-    add_input_image(standart_pram_options(), params, "", "file")
-    add_input_float(nonport_pram_options(), params, 2.2, "gamma", 1.0, 3.0)
-    add_input_float(nonport_pram_options(), params, 0.0, "rotation_x", 0.0, 360.0)
-    add_input_float(nonport_pram_options(), params, 0.0, "rotation_y", 0.0, 360.0)
-    add_input_float(nonport_pram_options(), params, 0.0, "rotation_z", 0.0, 360.0)
-    add_input_boolean(nonport_pram_options(), params, True, "visibility_indirect_diffuse_enable")
-    add_input_boolean(nonport_pram_options(), params, True, "visibility_indirect_glossy_enable")
-    add_input_boolean(nonport_pram_options(), params, True, "visibility_indirect_specular_enable")
-    add_input_boolean(nonport_pram_options(), params, False, "sampleupperhemisphereonly")
+    add_input_boolean(nonport_param_options(), params, True, "enable")
+    add_input_color(nonport_param_options(), params, [1.0, 1.0, 1.0], "gain")
+    add_input_image(standart_param_options(), params, "", "file")
+    add_input_float(nonport_param_options(), params, 2.2, "gamma", 1.0, 3.0)
+    add_input_float(nonport_param_options(), params, 0.0, "rotation_x", 0.0, 360.0)
+    add_input_float(nonport_param_options(), params, 0.0, "rotation_y", 0.0, 360.0)
+    add_input_float(nonport_param_options(), params, 0.0, "rotation_z", 0.0, 360.0)
+    add_input_boolean(nonport_param_options(), params, True, "visibility_indirect_diffuse_enable")
+    add_input_boolean(nonport_param_options(), params, True, "visibility_indirect_glossy_enable")
+    add_input_boolean(nonport_param_options(), params, True, "visibility_indirect_specular_enable")
+    add_input_boolean(nonport_param_options(), params, False, "sampleupperhemisphereonly")
     
     # Output Parameter: out
     add_output_closure(shaderDef, "out")
@@ -1642,24 +1699,24 @@ def LUXShadersPlugin_PassSky_1_0_Define(in_ctxt):
     params = shaderDef.InputParamDefs
     
     # parameters
-    add_input_boolean(nonport_pram_options(), params, True, "enable")
-    add_input_color(nonport_pram_options(), params, [0.5, 0.5, 0.5], "gain")
-    add_input_float(nonport_pram_options(), params, 2.2, "turbidity", 1.0, 12.0)
-    add_input_color(nonport_pram_options(), params, [0.5, 0.5, 0.5], "groundalbedo")
-    add_input_boolean(nonport_pram_options(), params, False, "ground_enable")
-    add_input_boolean(nonport_pram_options(), params, True, "ground_autoscale")
-    add_input_color(nonport_pram_options(), params, [0.75, 0.75, 0.75], "ground_color")
-    add_input_float(nonport_pram_options(), params, 0.0, "dir_x", -1.0, 1.0)
-    add_input_float(nonport_pram_options(), params, 1.0, "dir_y", -1.0, 1.0)
-    add_input_float(nonport_pram_options(), params, 0.0, "dir_z", -1.0, 1.0)
-    add_input_boolean(nonport_pram_options(), params, True, "visibility_indirect_diffuse_enable")
-    add_input_boolean(nonport_pram_options(), params, True, "visibility_indirect_glossy_enable")
-    add_input_boolean(nonport_pram_options(), params, True, "visibility_indirect_specular_enable")
-    add_input_integer(nonport_pram_options(), params, 512, "distribution_width", 256, 1024)
-    add_input_integer(nonport_pram_options(), params, 256, "distribution_height", 128, 512)
-    add_input_float(nonport_pram_options(), params, 0.0, "rotation_x", 0.0, 360.0)
-    add_input_float(nonport_pram_options(), params, 0.0, "rotation_y", 0.0, 360.0)
-    add_input_float(nonport_pram_options(), params, 0.0, "rotation_z", 0.0, 360.0)
+    add_input_boolean(nonport_param_options(), params, True, "enable")
+    add_input_color(nonport_param_options(), params, [0.5, 0.5, 0.5], "gain")
+    add_input_float(nonport_param_options(), params, 2.2, "turbidity", 1.0, 12.0)
+    add_input_color(nonport_param_options(), params, [0.5, 0.5, 0.5], "groundalbedo")
+    add_input_boolean(nonport_param_options(), params, False, "ground_enable")
+    add_input_boolean(nonport_param_options(), params, True, "ground_autoscale")
+    add_input_color(nonport_param_options(), params, [0.75, 0.75, 0.75], "ground_color")
+    add_input_float(nonport_param_options(), params, 0.0, "dir_x", -1.0, 1.0)
+    add_input_float(nonport_param_options(), params, 1.0, "dir_y", -1.0, 1.0)
+    add_input_float(nonport_param_options(), params, 0.0, "dir_z", -1.0, 1.0)
+    add_input_boolean(nonport_param_options(), params, True, "visibility_indirect_diffuse_enable")
+    add_input_boolean(nonport_param_options(), params, True, "visibility_indirect_glossy_enable")
+    add_input_boolean(nonport_param_options(), params, True, "visibility_indirect_specular_enable")
+    add_input_integer(nonport_param_options(), params, 512, "distribution_width", 256, 1024)
+    add_input_integer(nonport_param_options(), params, 256, "distribution_height", 128, 512)
+    add_input_float(nonport_param_options(), params, 0.0, "rotation_x", 0.0, 360.0)
+    add_input_float(nonport_param_options(), params, 0.0, "rotation_y", 0.0, 360.0)
+    add_input_float(nonport_param_options(), params, 0.0, "rotation_z", 0.0, 360.0)
     
     # Output Parameter: out
     add_output_closure(shaderDef, "out")
@@ -1752,19 +1809,19 @@ def LUXShadersPlugin_PassSun_1_0_Define(in_ctxt):
     params = shaderDef.InputParamDefs
     
     # parameters
-    add_input_boolean(nonport_pram_options(), params, True, "enable")
-    add_input_color(nonport_pram_options(), params, [0.5, 0.5, 0.5], "gain")
-    add_input_float(nonport_pram_options(), params, 2.2, "turbidity", 1.0, 12.0)
-    add_input_float(nonport_pram_options(), params, 1.0, "relsize", 0.1, 2.0)
-    add_input_float(nonport_pram_options(), params, 0.0, "dir_x", -1.0, 1.0)
-    add_input_float(nonport_pram_options(), params, 1.0, "dir_y", -1.0, 1.0)
-    add_input_float(nonport_pram_options(), params, 0.0, "dir_z", -1.0, 1.0)
-    add_input_boolean(nonport_pram_options(), params, True, "visibility_indirect_diffuse_enable")
-    add_input_boolean(nonport_pram_options(), params, True, "visibility_indirect_glossy_enable")
-    add_input_boolean(nonport_pram_options(), params, True, "visibility_indirect_specular_enable")
-    add_input_float(nonport_pram_options(), params, 0.0, "rotation_x", 0.0, 360.0)
-    add_input_float(nonport_pram_options(), params, 0.0, "rotation_y", 0.0, 360.0)
-    add_input_float(nonport_pram_options(), params, 0.0, "rotation_z", 0.0, 360.0)
+    add_input_boolean(nonport_param_options(), params, True, "enable")
+    add_input_color(nonport_param_options(), params, [0.5, 0.5, 0.5], "gain")
+    add_input_float(nonport_param_options(), params, 2.2, "turbidity", 1.0, 12.0)
+    add_input_float(nonport_param_options(), params, 1.0, "relsize", 0.1, 2.0)
+    add_input_float(nonport_param_options(), params, 0.0, "dir_x", -1.0, 1.0)
+    add_input_float(nonport_param_options(), params, 1.0, "dir_y", -1.0, 1.0)
+    add_input_float(nonport_param_options(), params, 0.0, "dir_z", -1.0, 1.0)
+    add_input_boolean(nonport_param_options(), params, True, "visibility_indirect_diffuse_enable")
+    add_input_boolean(nonport_param_options(), params, True, "visibility_indirect_glossy_enable")
+    add_input_boolean(nonport_param_options(), params, True, "visibility_indirect_specular_enable")
+    add_input_float(nonport_param_options(), params, 0.0, "rotation_x", 0.0, 360.0)
+    add_input_float(nonport_param_options(), params, 0.0, "rotation_y", 0.0, 360.0)
+    add_input_float(nonport_param_options(), params, 0.0, "rotation_z", 0.0, 360.0)
     
     # Output Parameter: out
     add_output_closure(shaderDef, "out")
@@ -1825,6 +1882,42 @@ def enable_OnChanged():
 #------------------------------------------------------------
 #--------------------RT Shader nodes-------------------------
 
+def setup_defaul_material_parameters(params):
+    add_input_float(standart_param_options(), params, 1.0, "transparency", 0.0, 1.0)
+    add_input_color(nonport_param_options(), params, [0.0, 0.0, 0.0], "transparency_shadow")
+    add_input_boolean(nonport_param_options(), params, True, "visibility_indirect_diffuse_enable")
+    add_input_boolean(nonport_param_options(), params, True, "visibility_indirect_glossy_enable")
+    add_input_boolean(nonport_param_options(), params, True, "visibility_indirect_specular_enable")
+    add_input_boolean(nonport_param_options(), params, False, "shadowcatcher_enable")
+    add_input_boolean(nonport_param_options(), params, False, "shadowcatcher_onlyinfinitelights")
+    add_input_boolean(nonport_param_options(), params, True, "photongi_enable")
+    add_input_boolean(nonport_param_options(), params, False, "holdout_enable")
+
+    # for these three parameters we use only ports
+    add_input_color(standart_param_options(), params, [0.0, 0.0, 0.0], "bump")
+    add_input_color(standart_param_options(), params, [0.0, 0.0, 0.0], "normal")
+    add_input_color(standart_param_options(), params, [0.0, 0.0, 0.0], "emission")
+
+def setup_default_material_ppg(ppg_layout):
+    ppg_layout.AddTab("Visibility")
+    ppg_layout.AddGroup("Transparency")
+    ppg_layout.AddItem("transparency", "Opacity")
+    ppg_layout.AddItem("transparency_shadow", "Shadow")
+    ppg_layout.EndGroup()
+    ppg_layout.AddGroup("Indirect")
+    ppg_layout.AddItem("visibility_indirect_diffuse_enable", "Indirect Diffuse")
+    ppg_layout.AddItem("visibility_indirect_glossy_enable", "Indirect Glossy")
+    ppg_layout.AddItem("visibility_indirect_specular_enable", "Indirect Specular")
+    ppg_layout.EndGroup()
+    ppg_layout.AddGroup("Shadow Catcher")
+    ppg_layout.AddItem("shadowcatcher_enable", "Enable Shadow Catcher")
+    ppg_layout.AddItem("shadowcatcher_onlyinfinitelights", "Only Finite Lights")
+    ppg_layout.EndGroup()
+    ppg_layout.AddGroup("Parameters")
+    ppg_layout.AddItem("photongi_enable", "Photon GI")
+    ppg_layout.AddItem("holdout_enable", "Holdout")
+    ppg_layout.EndGroup()
+
 #---------------------matte, roughmatte----------------------------------
 def LUXShadersPlugin_ShaderMatte_1_0_DefineInfo(in_ctxt):
     in_ctxt.SetAttribute("Category", "LuxCore/Shader/Material")
@@ -1840,26 +1933,23 @@ def LUXShadersPlugin_ShaderMatte_1_0_Define(in_ctxt):
     params = shaderDef.InputParamDefs
 
     # parameters
-    add_input_color(standart_pram_options(), params, 0.8, "kd")
-    add_input_float(standart_pram_options(), params, 0.0, "sigma")
+    add_input_color(standart_param_options(), params, 0.8, "kd")
+    add_input_float(standart_param_options(), params, 0.0, "sigma", 0.0, 1.0)
     # default parameters
-    add_input_float(standart_pram_options(), params, 1.0, "opacity", 0.0, 1.0)
-    # for these three parameters we use only ports
-    add_input_color(standart_pram_options(), params, [0.0, 0.0, 0.0], "bump")
-    add_input_color(standart_pram_options(), params, [0.0, 0.0, 0.0], "normal")
-    add_input_color(standart_pram_options(), params, [0.0, 0.0, 0.0], "emission")
+    setup_defaul_material_parameters(params)
 
     # Output Parameter
     add_output_closure(shaderDef, "Material")
 
     # next init ppg
     ppg_layout = shaderDef.PPGLayout
+    ppg_layout.AddTab("Shader")
     ppg_layout.AddGroup("Parameters")
     ppg_layout.AddItem("kd", "Diffuse Color")
     ppg_layout.AddItem("sigma", "Sigma")
-    # default parameters
-    ppg_layout.AddItem("opacity", "Opacity")
     ppg_layout.EndGroup()
+    # default parameters
+    setup_default_material_ppg(ppg_layout)
 
     ppg_layout.Language = "Python"
     ppg_layout.Logic = '''
@@ -1891,24 +1981,20 @@ def LUXShadersPlugin_ShaderMirror_1_0_Define(in_ctxt):
     params = shaderDef.InputParamDefs
 
     # parameters
-    add_input_color(standart_pram_options(), params, [1.0, 1.0, 1.0], "kr")
+    add_input_color(standart_param_options(), params, [1.0, 1.0, 1.0], "kr")
     # default parameters
-    add_input_float(standart_pram_options(), params, 1.0, "opacity", 0.0, 1.0)
-    # for these three parameters we use only ports
-    add_input_color(standart_pram_options(), params, [0.0, 0.0, 0.0], "bump")
-    add_input_color(standart_pram_options(), params, [0.0, 0.0, 0.0], "normal")
-    add_input_color(standart_pram_options(), params, [0.0, 0.0, 0.0], "emission")
+    setup_defaul_material_parameters(params)
 
     # Output Parameter
     add_output_closure(shaderDef, "Material")
 
     # next init ppg
     ppg_layout = shaderDef.PPGLayout
+    ppg_layout.AddTab("Shader")
     ppg_layout.AddGroup("Parameters")
     ppg_layout.AddItem("kr", "Reflection Color")
-    # default parameters
-    ppg_layout.AddItem("opacity", "Opacity")
     ppg_layout.EndGroup()
+    setup_default_material_ppg(ppg_layout)
 
     ppg_layout.Language = "Python"
     ppg_layout.Logic = '''
@@ -1940,30 +2026,27 @@ def LUXShadersPlugin_ShaderGlass_1_0_Define(in_ctxt):
     params = shaderDef.InputParamDefs
 
     # parameters
-    add_input_string(nonport_pram_options(), params, "default", "glass_mode");
-    add_input_boolean(nonport_pram_options(), params, False, "is_film")
-    add_input_boolean(nonport_pram_options(), params, False, "is_anisotropic")
-    add_input_color(standart_pram_options(), params, [1.0, 1.0, 1.0], "kr")
-    add_input_color(standart_pram_options(), params, [1.0, 1.0, 1.0], "kt")
-    add_input_float(standart_pram_options(), params, 1.0, "exteriorior", 0.5, 2.0)
-    add_input_float(standart_pram_options(), params, 1.5, "interiorior", 0.5, 2.0)
-    add_input_float(standart_pram_options(), params, 0.0, "filmthickness", 0.0, 1.0)
-    add_input_float(standart_pram_options(), params, 1.5, "filmior", 0.5, 2.0)
-    add_input_float(standart_pram_options(), params, 0.0, "cauchyb", 0.0, 0.05)
-    add_input_float(standart_pram_options(), params, 0.1, "uroughness", 0.0, 1.0)
-    add_input_float(standart_pram_options(), params, 0.1, "vroughness", 0.0, 1.0)
+    add_input_string(nonport_param_options(), params, "default", "glass_mode");
+    add_input_boolean(nonport_param_options(), params, False, "is_film")
+    add_input_boolean(nonport_param_options(), params, False, "is_anisotropic")
+    add_input_color(standart_param_options(), params, [1.0, 1.0, 1.0], "kr")
+    add_input_color(standart_param_options(), params, [1.0, 1.0, 1.0], "kt")
+    add_input_float(standart_param_options(), params, 1.0, "exteriorior", 0.5, 2.0)
+    add_input_float(standart_param_options(), params, 1.5, "interiorior", 0.5, 2.0)
+    add_input_float(standart_param_options(), params, 0.0, "filmthickness", 0.0, 1.0)
+    add_input_float(standart_param_options(), params, 1.5, "filmior", 0.5, 2.0)
+    add_input_float(standart_param_options(), params, 0.0, "cauchyb", 0.0, 0.05)
+    add_input_float(standart_param_options(), params, 0.1, "uroughness", 0.0, 1.0)
+    add_input_float(standart_param_options(), params, 0.1, "vroughness", 0.0, 1.0)
     # default parameters
-    add_input_float(standart_pram_options(), params, 1.0, "opacity", 0.0, 1.0)
-    # for these three parameters we use only ports
-    add_input_color(standart_pram_options(), params, [0.0, 0.0, 0.0], "bump")
-    add_input_color(standart_pram_options(), params, [0.0, 0.0, 0.0], "normal")
-    add_input_color(standart_pram_options(), params, [0.0, 0.0, 0.0], "emission")
+    setup_defaul_material_parameters(params)
 
     # Output Parameter
     add_output_closure(shaderDef, "Material")
 
     # next init ppg
     ppg_layout = shaderDef.PPGLayout
+    ppg_layout.AddTab("Shader")
     ppg_layout.AddGroup("Parameters")
     ppg_layout.AddItem("is_film", "This Film Coating")
     ppg_layout.AddItem("is_anisotropic", "Anisotropic Roughness")
@@ -1977,9 +2060,8 @@ def LUXShadersPlugin_ShaderGlass_1_0_Define(in_ctxt):
     ppg_layout.AddItem("filmior", "Film IOR")
     ppg_layout.AddItem("uroughness", "U Roughness")
     ppg_layout.AddItem("vroughness", "V Roughness")
-    # default parameters
-    ppg_layout.AddItem("opacity", "Opacity")
     ppg_layout.EndGroup()
+    setup_default_material_ppg(ppg_layout)
 
     ppg_layout.Language = "Python"
     ppg_layout.Logic = '''
@@ -2073,26 +2155,22 @@ def LUXShadersPlugin_ShaderMix_1_0_Define(in_ctxt):
     params = shaderDef.InputParamDefs
 
     # parameters
-    add_input_material(standart_pram_options(), params, [0.0, 0.0, 0.0], "material1")
-    add_input_material(standart_pram_options(), params, [0.0, 0.0, 0.0], "material2")
-    add_input_float(standart_pram_options(), params, 0.5, "amount", 0.0, 1.0)
+    add_input_material(standart_param_options(), params, [0.0, 0.0, 0.0], "material1")
+    add_input_material(standart_param_options(), params, [0.0, 0.0, 0.0], "material2")
+    add_input_float(standart_param_options(), params, 0.5, "amount", 0.0, 1.0)
     # default parameters
-    add_input_float(standart_pram_options(), params, 1.0, "opacity", 0.0, 1.0)
-    # for these three parameters we use only ports
-    add_input_color(standart_pram_options(), params, [0.0, 0.0, 0.0], "bump")
-    add_input_color(standart_pram_options(), params, [0.0, 0.0, 0.0], "normal")
-    add_input_color(standart_pram_options(), params, [0.0, 0.0, 0.0], "emission")
+    setup_defaul_material_parameters(params)
 
     # Output Parameter
     add_output_closure(shaderDef, "Material")
 
     # next init ppg
     ppg_layout = shaderDef.PPGLayout
+    ppg_layout.AddTab("Shader")
     ppg_layout.AddGroup("Parameters")
     ppg_layout.AddItem("amount", "Amount")
-    # default parameters
-    ppg_layout.AddItem("opacity", "Opacity")
     ppg_layout.EndGroup()
+    setup_default_material_ppg(ppg_layout)
 
     ppg_layout.Language = "Python"
     ppg_layout.Logic = '''
@@ -2155,28 +2233,24 @@ def LUXShadersPlugin_ShaderMatteTranslucent_1_0_Define(in_ctxt):
     params = shaderDef.InputParamDefs
 
     # parameters
-    add_input_color(standart_pram_options(), params, [0.5, 0.5, 0.5], "kr")
-    add_input_color(standart_pram_options(), params, [0.5, 0.5, 0.5], "kt")
-    add_input_float(standart_pram_options(), params, 0.0, "sigma", 0.0, 1.0)
+    add_input_color(standart_param_options(), params, [0.5, 0.5, 0.5], "kr")
+    add_input_color(standart_param_options(), params, [0.5, 0.5, 0.5], "kt")
+    add_input_float(standart_param_options(), params, 0.0, "sigma", 0.0, 1.0)
     # default parameters
-    add_input_float(standart_pram_options(), params, 1.0, "opacity", 0.0, 1.0)
-    # for these three parameters we use only ports
-    add_input_color(standart_pram_options(), params, [0.0, 0.0, 0.0], "bump")
-    add_input_color(standart_pram_options(), params, [0.0, 0.0, 0.0], "normal")
-    add_input_color(standart_pram_options(), params, [0.0, 0.0, 0.0], "emission")
+    setup_defaul_material_parameters(params)
 
     # Output Parameter
     add_output_closure(shaderDef, "Material")
 
     # next init ppg
     ppg_layout = shaderDef.PPGLayout
+    ppg_layout.AddTab("Shader")
     ppg_layout.AddGroup("Parameters")
     ppg_layout.AddItem("kr", "Reflection Color")
     ppg_layout.AddItem("kt", "Transmission Color")
     ppg_layout.AddItem("sigma", "Sigma")
-    # default parameters
-    ppg_layout.AddItem("opacity", "Opacity")
     ppg_layout.EndGroup()
+    setup_default_material_ppg(ppg_layout)
 
     ppg_layout.Language = "Python"
     ppg_layout.Logic = '''
@@ -2208,27 +2282,24 @@ def LUXShadersPlugin_ShaderGlossy_1_0_Define(in_ctxt):
     params = shaderDef.InputParamDefs
 
     # parameters
-    add_input_boolean(nonport_pram_options(), params, False, "is_anisotropic")
-    add_input_color(standart_pram_options(), params, [0.8, 0.8, 0.8], "kd")
-    add_input_color(standart_pram_options(), params, [0.1, 0.1, 0.1], "ks")
-    add_input_float(standart_pram_options(), params, 0.1, "uroughness", 0.0, 1.0)
-    add_input_float(standart_pram_options(), params, 0.1, "vroughness", 0.0, 1.0)
-    add_input_color(standart_pram_options(), params, [0.0, 0.0, 0.0], "ka")
-    add_input_float(standart_pram_options(), params, 0.0, "d", 0.0, 1.0)
-    add_input_color(standart_pram_options(), params, [0.0, 0.0, 0.0], "index")
-    add_input_boolean(nonport_pram_options(), params, False, "multibounce")
+    add_input_boolean(nonport_param_options(), params, False, "is_anisotropic")
+    add_input_boolean(nonport_param_options(), params, False, "multibounce")
+    add_input_color(standart_param_options(), params, [0.8, 0.8, 0.8], "kd")
+    add_input_color(standart_param_options(), params, [0.1, 0.1, 0.1], "ks")
+    add_input_float(standart_param_options(), params, 0.1, "uroughness", 0.0, 1.0)
+    add_input_float(standart_param_options(), params, 0.1, "vroughness", 0.0, 1.0)
+    add_input_color(standart_param_options(), params, [0.0, 0.0, 0.0], "ka")
+    add_input_float(standart_param_options(), params, 0.0, "d", 0.0, 1.0)
+    add_input_color(standart_param_options(), params, [0.0, 0.0, 0.0], "index")
     # default parameters
-    add_input_float(standart_pram_options(), params, 1.0, "opacity", 0.0, 1.0)
-    # for these three parameters we use only ports
-    add_input_color(standart_pram_options(), params, [0.0, 0.0, 0.0], "bump")
-    add_input_color(standart_pram_options(), params, [0.0, 0.0, 0.0], "normal")
-    add_input_color(standart_pram_options(), params, [0.0, 0.0, 0.0], "emission")
+    setup_defaul_material_parameters(params)
 
     # Output Parameter
     add_output_closure(shaderDef, "Material")
 
     # next init ppg
     ppg_layout = shaderDef.PPGLayout
+    ppg_layout.AddTab("Shader")
     ppg_layout.AddGroup("Parameters")
     ppg_layout.AddItem("multibounce", "Multibounce")
     ppg_layout.AddItem("is_anisotropic", "Anisotropic Roughness")
@@ -2239,9 +2310,8 @@ def LUXShadersPlugin_ShaderGlossy_1_0_Define(in_ctxt):
     ppg_layout.AddItem("uroughness", "U Roughness")
     ppg_layout.AddItem("vroughness", "V Roughness")
     ppg_layout.AddItem("index", "Index")
-    # default parameters
-    ppg_layout.AddItem("opacity", "Opacity")
     ppg_layout.EndGroup()
+    setup_default_material_ppg(ppg_layout)
 
     ppg_layout.Language = "Python"
     ppg_layout.Logic = '''
@@ -2286,30 +2356,34 @@ def LUXShadersPlugin_ShaderMetal_1_0_Define(in_ctxt):
     params = shaderDef.InputParamDefs
 
     # parameters
-    add_input_color(standart_pram_options(), params, [0.8, 0.8, 0.8], "kr")  # create implicit fresnel texture with this color at the export
-    add_input_float(standart_pram_options(), params, 0.1, "uroughness", 0.0, 1.0)
-    add_input_float(standart_pram_options(), params, 0.1, "vroughness", 0.0, 1.0)
-    add_input_boolean(nonport_pram_options(), params, False, "is_anisotropic")
+    add_input_boolean(nonport_param_options(), params, False, "is_anisotropic")
+    add_input_string(nonport_param_options(), params, "color", "metal_mode")
+    add_input_string(nonport_param_options(), params, "aluminium", "metal_preset")
+    add_input_color(standart_param_options(), params, [0.8, 0.8, 0.8], "kr")  # create implicit fresnel texture with this color at the export
+    add_input_color(standart_param_options(), params, [0.0, 0.0, 0.0], "n")
+    add_input_color(standart_param_options(), params, [0.0, 0.0, 0.0], "k")
+    add_input_float(standart_param_options(), params, 0.1, "uroughness", 0.0, 1.0)
+    add_input_float(standart_param_options(), params, 0.1, "vroughness", 0.0, 1.0)
     # default parameters
-    add_input_float(standart_pram_options(), params, 1.0, "opacity", 0.0, 1.0)
-    # for these three parameters we use only ports
-    add_input_color(standart_pram_options(), params, [0.0, 0.0, 0.0], "bump")
-    add_input_color(standart_pram_options(), params, [0.0, 0.0, 0.0], "normal")
-    add_input_color(standart_pram_options(), params, [0.0, 0.0, 0.0], "emission")
+    setup_defaul_material_parameters(params)
 
     # Output Parameter
     add_output_closure(shaderDef, "Material")
 
     # next init ppg
     ppg_layout = shaderDef.PPGLayout
+    ppg_layout.AddTab("Shader")
     ppg_layout.AddGroup("Parameters")
+    ppg_layout.AddEnumControl("metal_mode", metal_mode_enum, "Mode")
+    ppg_layout.AddEnumControl("metal_preset", metal_presets_enum, "Preset")
     ppg_layout.AddItem("is_anisotropic", "Anisotropic Roughness")
     ppg_layout.AddItem("kr", "Color")
+    ppg_layout.AddItem("n", "N")
+    ppg_layout.AddItem("k", "K")
     ppg_layout.AddItem("uroughness", "U Roughness")
     ppg_layout.AddItem("vroughness", "U Roughness")
-    # default parameters
-    ppg_layout.AddItem("opacity", "Opacity")
     ppg_layout.EndGroup()
+    setup_default_material_ppg(ppg_layout)
 
     ppg_layout.Language = "Python"
     ppg_layout.Logic = '''
@@ -2323,6 +2397,41 @@ def OnInit():
         prop.Parameters("vroughness").ReadOnly = False
     else:
         prop.Parameters("vroughness").ReadOnly = True
+    metal_mode = prop.Parameters("metal_mode").Value
+    if metal_mode == "color":
+        prop.Parameters("metal_preset").ReadOnly = True
+        prop.Parameters("n").ReadOnly = True
+        prop.Parameters("k").ReadOnly = True
+        prop.Parameters("kr").ReadOnly = False
+    elif metal_mode == "preset":
+        prop.Parameters("metal_preset").ReadOnly = False
+        prop.Parameters("n").ReadOnly = True
+        prop.Parameters("k").ReadOnly = True
+        prop.Parameters("kr").ReadOnly = True
+    elif metal_mode == "custom":
+        prop.Parameters("metal_preset").ReadOnly = True
+        prop.Parameters("n").ReadOnly = False
+        prop.Parameters("k").ReadOnly = False
+        prop.Parameters("kr").ReadOnly = True
+
+def metal_mode_OnChanged():
+    prop = PPG.Inspected(0)
+    metal_mode = prop.Parameters("metal_mode").Value
+    if metal_mode == "color":
+        prop.Parameters("metal_preset").ReadOnly = True
+        prop.Parameters("n").ReadOnly = True
+        prop.Parameters("k").ReadOnly = True
+        prop.Parameters("kr").ReadOnly = False
+    elif metal_mode == "preset":
+        prop.Parameters("metal_preset").ReadOnly = False
+        prop.Parameters("n").ReadOnly = True
+        prop.Parameters("k").ReadOnly = True
+        prop.Parameters("kr").ReadOnly = True
+    elif metal_mode == "custom":
+        prop.Parameters("metal_preset").ReadOnly = True
+        prop.Parameters("n").ReadOnly = False
+        prop.Parameters("k").ReadOnly = False
+        prop.Parameters("kr").ReadOnly = True
 
 def is_anisotropic_OnChanged():
     prop = PPG.Inspected(0)
@@ -2354,24 +2463,21 @@ def LUXShadersPlugin_ShaderVelvet_1_0_Define(in_ctxt):
     params = shaderDef.InputParamDefs
 
     # parameters
-    add_input_boolean(nonport_pram_options(), params, False, "advanced")
-    add_input_color(standart_pram_options(), params, [0.8, 0.8, 0.8], "kd")
-    add_input_float(standart_pram_options(), params, -2.0, "p1", -5.0, 5.0)
-    add_input_float(standart_pram_options(), params, 20.0, "p2", 0.0, 40.0)
-    add_input_float(standart_pram_options(), params, 2.0, "p3", 0.0, 4.0)
-    add_input_float(standart_pram_options(), params, 0.1, "thickness", 0.0, 1.0)
+    add_input_boolean(nonport_param_options(), params, False, "advanced")
+    add_input_color(standart_param_options(), params, [0.8, 0.8, 0.8], "kd")
+    add_input_float(standart_param_options(), params, -2.0, "p1", -5.0, 5.0)
+    add_input_float(standart_param_options(), params, 20.0, "p2", 0.0, 40.0)
+    add_input_float(standart_param_options(), params, 2.0, "p3", 0.0, 4.0)
+    add_input_float(standart_param_options(), params, 0.1, "thickness", 0.0, 1.0)
     # default parameters
-    add_input_float(standart_pram_options(), params, 1.0, "opacity", 0.0, 1.0)
-    # for these three parameters we use only ports
-    add_input_color(standart_pram_options(), params, [0.0, 0.0, 0.0], "bump")
-    add_input_color(standart_pram_options(), params, [0.0, 0.0, 0.0], "normal")
-    add_input_color(standart_pram_options(), params, [0.0, 0.0, 0.0], "emission")
+    setup_defaul_material_parameters(params)
 
     # Output Parameter
     add_output_closure(shaderDef, "Material")
 
     # next init ppg
     ppg_layout = shaderDef.PPGLayout
+    ppg_layout.AddTab("Shader")
     ppg_layout.AddGroup("Parameters")
     ppg_layout.AddItem("advanced", "Advanced Options")
     ppg_layout.AddItem("kd", "Diffuse Color")
@@ -2379,9 +2485,8 @@ def LUXShadersPlugin_ShaderVelvet_1_0_Define(in_ctxt):
     ppg_layout.AddItem("p2", "P2")
     ppg_layout.AddItem("p3", "P3")
     ppg_layout.AddItem("thickness", "Thickness")
-    # default parameters
-    ppg_layout.AddItem("opacity", "Opacity")
     ppg_layout.EndGroup()
+    setup_default_material_ppg(ppg_layout)
 
     ppg_layout.Language = "Python"
     ppg_layout.Logic = '''
@@ -2434,25 +2539,22 @@ def LUXShadersPlugin_ShaderCloth_1_0_Define(in_ctxt):
     params = shaderDef.InputParamDefs
 
     # parameters
-    add_input_float(nonport_pram_options(), params, 100.0, "repeat_u", 1.0, 256.0)
-    add_input_float(nonport_pram_options(), params, 100.0, "repeat_v", 1.0, 256.0)
-    add_input_string(nonport_pram_options(), params, "preset", "denim")
-    add_input_color(standart_pram_options(), params, [0.8, 0.8, 0.8], "weft_kd")
-    add_input_color(standart_pram_options(), params, [0.1, 0.1, 0.1], "weft_ks")
-    add_input_color(standart_pram_options(), params, [0.7, 0.1, 0.1], "warp_kd")
-    add_input_color(standart_pram_options(), params, [0.1, 0.1, 0.1], "warp_ks")
+    add_input_float(nonport_param_options(), params, 100.0, "repeat_u", 1.0, 256.0)
+    add_input_float(nonport_param_options(), params, 100.0, "repeat_v", 1.0, 256.0)
+    add_input_string(nonport_param_options(), params, "denim", "preset")
+    add_input_color(standart_param_options(), params, [0.8, 0.8, 0.8], "weft_kd")
+    add_input_color(standart_param_options(), params, [0.1, 0.1, 0.1], "weft_ks")
+    add_input_color(standart_param_options(), params, [0.7, 0.1, 0.1], "warp_kd")
+    add_input_color(standart_param_options(), params, [0.1, 0.1, 0.1], "warp_ks")
     # default parameters
-    add_input_float(standart_pram_options(), params, 1.0, "opacity", 0.0, 1.0)
-    # for these three parameters we use only ports
-    add_input_color(standart_pram_options(), params, [0.0, 0.0, 0.0], "bump")
-    add_input_color(standart_pram_options(), params, [0.0, 0.0, 0.0], "normal")
-    add_input_color(standart_pram_options(), params, [0.0, 0.0, 0.0], "emission")
+    setup_defaul_material_parameters(params)
 
     # Output Parameter
     add_output_closure(shaderDef, "Material")
 
     # next init ppg
     ppg_layout = shaderDef.PPGLayout
+    ppg_layout.AddTab("Shader")
     ppg_layout.AddGroup("Parameters")
     ppg_layout.AddItem("repeat_u", "Repeat U")
     ppg_layout.AddItem("repeat_v", "Repeat V")
@@ -2461,9 +2563,8 @@ def LUXShadersPlugin_ShaderCloth_1_0_Define(in_ctxt):
     ppg_layout.AddItem("warp_ks", "Warp Specular Color")
     ppg_layout.AddItem("weft_kd", "Waft Diffuse Color")
     ppg_layout.AddItem("weft_ks", "Waft Specular Color")
-    # default parameters
-    ppg_layout.AddItem("opacity", "Opacity")
     ppg_layout.EndGroup()
+    setup_default_material_ppg(ppg_layout)
 
     ppg_layout.Language = "Python"
     ppg_layout.Logic = '''
@@ -2495,34 +2596,31 @@ def LUXShadersPlugin_ShaderCarpaint_1_0_Define(in_ctxt):
     params = shaderDef.InputParamDefs
 
     # parameters
-    add_input_string(nonport_pram_options(), params, "manual", "preset")
-    add_input_color(standart_pram_options(), params, [0.0, 0.0, 0.0], "ka")
-    add_input_float(standart_pram_options(), params, 0.0, "d", 0.0, 1.0)
+    add_input_string(nonport_param_options(), params, "manual", "preset")
+    add_input_color(standart_param_options(), params, [0.0, 0.0, 0.0], "ka")
+    add_input_float(standart_param_options(), params, 0.0, "d", 0.0, 1.0)
 
-    add_input_color(standart_pram_options(), params, [0.5, 0.5, 0.5], "kd")
-    add_input_color(standart_pram_options(), params, [1.0, 1.0, 1.0], "ks1")
-    add_input_color(standart_pram_options(), params, [1.0, 1.0, 1.0], "ks2")
-    add_input_color(standart_pram_options(), params, [1.0, 1.0, 1.0], "ks3")
+    add_input_color(standart_param_options(), params, [0.5, 0.5, 0.5], "kd")
+    add_input_color(standart_param_options(), params, [1.0, 1.0, 1.0], "ks1")
+    add_input_color(standart_param_options(), params, [1.0, 1.0, 1.0], "ks2")
+    add_input_color(standart_param_options(), params, [1.0, 1.0, 1.0], "ks3")
 
-    add_input_float(standart_pram_options(), params, 0.95, "r1", 0.0, 1.0)
-    add_input_float(standart_pram_options(), params, 0.9, "r2", 0.0, 1.0)
-    add_input_float(standart_pram_options(), params, 0.7, "r3", 0.0, 1.0)
+    add_input_float(standart_param_options(), params, 0.95, "r1", 0.0, 1.0)
+    add_input_float(standart_param_options(), params, 0.9, "r2", 0.0, 1.0)
+    add_input_float(standart_param_options(), params, 0.7, "r3", 0.0, 1.0)
 
-    add_input_float(standart_pram_options(), params, 0.25, "m1", 0.0, 1.0)
-    add_input_float(standart_pram_options(), params, 0.1, "m2", 0.0, 1.0)
-    add_input_float(standart_pram_options(), params, 0.015, "m3", 0.0, 1.0)
+    add_input_float(standart_param_options(), params, 0.25, "m1", 0.0, 1.0)
+    add_input_float(standart_param_options(), params, 0.1, "m2", 0.0, 1.0)
+    add_input_float(standart_param_options(), params, 0.015, "m3", 0.0, 1.0)
     # default parameters
-    add_input_float(standart_pram_options(), params, 1.0, "opacity", 0.0, 1.0)
-    # for these three parameters we use only ports
-    add_input_color(standart_pram_options(), params, [0.0, 0.0, 0.0], "bump")
-    add_input_color(standart_pram_options(), params, [0.0, 0.0, 0.0], "normal")
-    add_input_color(standart_pram_options(), params, [0.0, 0.0, 0.0], "emission")
+    setup_defaul_material_parameters(params)
 
     # Output Parameter
     add_output_closure(shaderDef, "Material")
 
     # next init ppg
     ppg_layout = shaderDef.PPGLayout
+    ppg_layout.AddTab("Shader")
     ppg_layout.AddGroup("Parameters")
     ppg_layout.AddEnumControl("preset", carpaint_preset_enum, "Preset")
     ppg_layout.AddItem("kd", "Diffuse Color")
@@ -2537,9 +2635,8 @@ def LUXShadersPlugin_ShaderCarpaint_1_0_Define(in_ctxt):
     ppg_layout.AddItem("m3", "M3")
     ppg_layout.AddItem("ka", "Absorption Color")
     ppg_layout.AddItem("d", "Absorption Depth")
-    # default parameters
-    ppg_layout.AddItem("opacity", "Opacity")
     ppg_layout.EndGroup()
+    setup_default_material_ppg(ppg_layout)
 
     ppg_layout.Language = "Python"
     ppg_layout.Logic = '''
@@ -2620,35 +2717,32 @@ def LUXShadersPlugin_ShaderGlossyTranslucent_1_0_Define(in_ctxt):
     params = shaderDef.InputParamDefs
 
     # parameters
-    add_input_boolean(nonport_pram_options(), params, False, "multibounce")
-    add_input_boolean(nonport_pram_options(), params, False, "is_anisotropic")
-    add_input_boolean(nonport_pram_options(), params, False, "is_double")
-    add_input_color(standart_pram_options(), params, [0.5, 0.5, 0.5], "kd")
-    add_input_color(standart_pram_options(), params, [0.5, 0.5, 0.5], "kt")
-    add_input_color(standart_pram_options(), params, [0.1, 0.1, 0.1], "ks")
-    add_input_color(standart_pram_options(), params, [0.1, 0.1, 0.1], "ks_bf")
-    add_input_color(standart_pram_options(), params, [0.0, 0.0, 0.0], "ka")
-    add_input_color(standart_pram_options(), params, [0.0, 0.0, 0.0], "ka_bf")
-    add_input_float(standart_pram_options(), params, 0.0, "d", 0.0, 1.0)
-    add_input_float(standart_pram_options(), params, 0.0, "d_bf", 0.0, 1.0)
-    add_input_float(standart_pram_options(), params, 0.1, "uroughness", 0.0, 1.0)
-    add_input_float(standart_pram_options(), params, 0.1, "vroughness", 0.0, 1.0)
-    add_input_float(standart_pram_options(), params, 0.1, "uroughness_bf", 0.0, 1.0)
-    add_input_float(standart_pram_options(), params, 0.1, "vroughness_bf", 0.0, 1.0)
-    add_input_color(standart_pram_options(), params, [0.0, 0.0, 0.0], "index")
-    add_input_color(standart_pram_options(), params, [0.0, 0.0, 0.0], "index_bf")
+    add_input_boolean(nonport_param_options(), params, False, "multibounce")
+    add_input_boolean(nonport_param_options(), params, False, "is_anisotropic")
+    add_input_boolean(nonport_param_options(), params, False, "is_double")
+    add_input_color(standart_param_options(), params, [0.5, 0.5, 0.5], "kd")
+    add_input_color(standart_param_options(), params, [0.5, 0.5, 0.5], "kt")
+    add_input_color(standart_param_options(), params, [0.1, 0.1, 0.1], "ks")
+    add_input_color(standart_param_options(), params, [0.1, 0.1, 0.1], "ks_bf")
+    add_input_color(standart_param_options(), params, [0.0, 0.0, 0.0], "ka")
+    add_input_color(standart_param_options(), params, [0.0, 0.0, 0.0], "ka_bf")
+    add_input_float(standart_param_options(), params, 0.0, "d", 0.0, 1.0)
+    add_input_float(standart_param_options(), params, 0.0, "d_bf", 0.0, 1.0)
+    add_input_float(standart_param_options(), params, 0.1, "uroughness", 0.0, 1.0)
+    add_input_float(standart_param_options(), params, 0.1, "vroughness", 0.0, 1.0)
+    add_input_float(standart_param_options(), params, 0.1, "uroughness_bf", 0.0, 1.0)
+    add_input_float(standart_param_options(), params, 0.1, "vroughness_bf", 0.0, 1.0)
+    add_input_color(standart_param_options(), params, [0.0, 0.0, 0.0], "index")
+    add_input_color(standart_param_options(), params, [0.0, 0.0, 0.0], "index_bf")
     # default parameters
-    add_input_float(standart_pram_options(), params, 1.0, "opacity", 0.0, 1.0)
-    # for these three parameters we use only ports
-    add_input_color(standart_pram_options(), params, [0.0, 0.0, 0.0], "bump")
-    add_input_color(standart_pram_options(), params, [0.0, 0.0, 0.0], "normal")
-    add_input_color(standart_pram_options(), params, [0.0, 0.0, 0.0], "emission")
+    setup_defaul_material_parameters(params)
 
     # Output Parameter
     add_output_closure(shaderDef, "Material")
 
     # next init ppg
     ppg_layout = shaderDef.PPGLayout
+    ppg_layout.AddTab("Shader")
     ppg_layout.AddGroup("Parameters")
     ppg_layout.AddItem("multibounce", "Multibounce")
     ppg_layout.AddItem("is_anisotropic", "Anisotropic Roughness")
@@ -2667,9 +2761,8 @@ def LUXShadersPlugin_ShaderGlossyTranslucent_1_0_Define(in_ctxt):
     ppg_layout.AddItem("uroughness_bf", "BF U Roughness")
     ppg_layout.AddItem("vroughness_bf", "BF V Roughness")
     ppg_layout.AddItem("index_bf", "BF Index")
-    # default parameters
-    ppg_layout.AddItem("opacity", "Opacity")
     ppg_layout.EndGroup()
+    setup_default_material_ppg(ppg_layout)
 
     ppg_layout.Language = "Python"
     ppg_layout.Logic = '''
@@ -2757,27 +2850,24 @@ def LUXShadersPlugin_ShaderGlossyCoating_1_0_Define(in_ctxt):
     params = shaderDef.InputParamDefs
 
     # parameters
-    add_input_boolean(nonport_pram_options(), params, False, "multibounce")
-    add_input_boolean(nonport_pram_options(), params, False, "is_anisotropic")
-    add_input_material(standart_pram_options(), params, [0.0, 0.0, 0.0], "base")
-    add_input_color(standart_pram_options(), params, [0.1, 0.1, 0.1], "ks")
-    add_input_color(standart_pram_options(), params, [0.0, 0.0, 0.0], "ka")
-    add_input_float(standart_pram_options(), params, 0.0, "d", 0.0, 1.0)
-    add_input_float(standart_pram_options(), params, 0.1, "uroughness", 0.0, 1.0)
-    add_input_float(standart_pram_options(), params, 0.1, "vroughness", 0.0, 1.0)
-    add_input_color(standart_pram_options(), params, [0.0, 0.0, 0.0], "index")
+    add_input_boolean(nonport_param_options(), params, False, "multibounce")
+    add_input_boolean(nonport_param_options(), params, False, "is_anisotropic")
+    add_input_material(standart_param_options(), params, [0.0, 0.0, 0.0], "base")
+    add_input_color(standart_param_options(), params, [0.1, 0.1, 0.1], "ks")
+    add_input_color(standart_param_options(), params, [0.0, 0.0, 0.0], "ka")
+    add_input_float(standart_param_options(), params, 0.0, "d", 0.0, 1.0)
+    add_input_float(standart_param_options(), params, 0.1, "uroughness", 0.0, 1.0)
+    add_input_float(standart_param_options(), params, 0.1, "vroughness", 0.0, 1.0)
+    add_input_color(standart_param_options(), params, [0.0, 0.0, 0.0], "index")
     # default parameters
-    add_input_float(standart_pram_options(), params, 1.0, "opacity", 0.0, 1.0)
-    # for these three parameters we use only ports
-    add_input_color(standart_pram_options(), params, [0.0, 0.0, 0.0], "bump")
-    add_input_color(standart_pram_options(), params, [0.0, 0.0, 0.0], "normal")
-    add_input_color(standart_pram_options(), params, [0.0, 0.0, 0.0], "emission")
+    setup_defaul_material_parameters(params)
 
     # Output Parameter
     add_output_closure(shaderDef, "Material")
 
     # next init ppg
     ppg_layout = shaderDef.PPGLayout
+    ppg_layout.AddTab("Shader")
     ppg_layout.AddGroup("Parameters")
     ppg_layout.AddItem("multibounce", "Multibounce")
     ppg_layout.AddItem("is_anisotropic", "Anisotropic Roughness")
@@ -2787,9 +2877,8 @@ def LUXShadersPlugin_ShaderGlossyCoating_1_0_Define(in_ctxt):
     ppg_layout.AddItem("uroughness", "U Roughness")
     ppg_layout.AddItem("vroughness", "V Roughness")
     ppg_layout.AddItem("index", "Index")
-    # default parameters
-    ppg_layout.AddItem("opacity", "Opacity")
     ppg_layout.EndGroup()
+    setup_default_material_ppg(ppg_layout)
 
     ppg_layout.Language = "Python"
     ppg_layout.Logic = '''
@@ -2834,33 +2923,30 @@ def LUXShadersPlugin_ShaderDisney_1_0_Define(in_ctxt):
     params = shaderDef.InputParamDefs
 
     # parameters
-    add_input_boolean(nonport_pram_options(), params, False, "is_film")
-    add_input_color(standart_pram_options(), params, [0.8, 0.8, 0.8], "basecolor")
-    add_input_float(standart_pram_options(), params, 0.0, "subsurface", 0.0, 1.0)
-    add_input_float(standart_pram_options(), params, 0.0, "metallic", 0.0, 1.0)
-    add_input_float(standart_pram_options(), params, 0.5, "specular", 0.0, 1.0)
-    add_input_float(standart_pram_options(), params, 0.0, "speculartint", 0.0, 1.0)
-    add_input_float(standart_pram_options(), params, 0.2, "roughness", 0.0, 1.0)
-    add_input_float(standart_pram_options(), params, 0.0, "anisotropic", 0.0, 1.0)
-    add_input_float(standart_pram_options(), params, 0.0, "sheen", 0.0, 1.0)
-    add_input_float(standart_pram_options(), params, 0.0, "sheentint", 0.0, 1.0)
-    add_input_float(standart_pram_options(), params, 0.0, "clearcoat", 0.0, 1.0)
-    add_input_float(standart_pram_options(), params, 1.0, "clearcoatgloss", 0.0, 1.0)
-    add_input_float(standart_pram_options(), params, 1.0, "filmamount", 0.0, 1.0)
-    add_input_float(standart_pram_options(), params, 300.0, "filmthickness", 0.0, 600.0)
-    add_input_float(standart_pram_options(), params, 1.5, "filmior", 0.0, 1.0)
+    add_input_boolean(nonport_param_options(), params, False, "is_film")
+    add_input_color(standart_param_options(), params, [0.8, 0.8, 0.8], "basecolor")
+    add_input_float(standart_param_options(), params, 0.0, "subsurface", 0.0, 1.0)
+    add_input_float(standart_param_options(), params, 0.0, "metallic", 0.0, 1.0)
+    add_input_float(standart_param_options(), params, 0.5, "specular", 0.0, 1.0)
+    add_input_float(standart_param_options(), params, 0.0, "speculartint", 0.0, 1.0)
+    add_input_float(standart_param_options(), params, 0.2, "roughness", 0.0, 1.0)
+    add_input_float(standart_param_options(), params, 0.0, "anisotropic", 0.0, 1.0)
+    add_input_float(standart_param_options(), params, 0.0, "sheen", 0.0, 1.0)
+    add_input_float(standart_param_options(), params, 0.0, "sheentint", 0.0, 1.0)
+    add_input_float(standart_param_options(), params, 0.0, "clearcoat", 0.0, 1.0)
+    add_input_float(standart_param_options(), params, 1.0, "clearcoatgloss", 0.0, 1.0)
+    add_input_float(standart_param_options(), params, 1.0, "filmamount", 0.0, 1.0)
+    add_input_float(standart_param_options(), params, 300.0, "filmthickness", 0.0, 600.0)
+    add_input_float(standart_param_options(), params, 1.5, "filmior", 0.0, 1.0)
     # default parameters
-    add_input_float(standart_pram_options(), params, 1.0, "opacity", 0.0, 1.0)
-    # for these three parameters we use only ports
-    add_input_color(standart_pram_options(), params, [0.0, 0.0, 0.0], "bump")
-    add_input_color(standart_pram_options(), params, [0.0, 0.0, 0.0], "normal")
-    add_input_color(standart_pram_options(), params, [0.0, 0.0, 0.0], "emission")
+    setup_defaul_material_parameters(params)
 
     # Output Parameter
     add_output_closure(shaderDef, "Material")
 
     # next init ppg
     ppg_layout = shaderDef.PPGLayout
+    ppg_layout.AddTab("Shader")
     ppg_layout.AddGroup("Parameters")
     ppg_layout.AddItem("is_film", "Thin Film Coating")
     ppg_layout.AddItem("basecolor", "Base Color")
@@ -2878,9 +2964,8 @@ def LUXShadersPlugin_ShaderDisney_1_0_Define(in_ctxt):
     ppg_layout.AddItem("filmamount", "Film Amount")
     ppg_layout.AddItem("filmthickness", "Film Thickness")
     ppg_layout.AddItem("filmior", "Film IOR")
-    # default parameters
-    ppg_layout.AddItem("opacity", "Opacity")
     ppg_layout.EndGroup()
+    setup_default_material_ppg(ppg_layout)
 
     ppg_layout.Language = "Python"
     ppg_layout.Logic = '''
@@ -2933,24 +3018,17 @@ def LUXShadersPlugin_ShaderTwoSided_1_0_Define(in_ctxt):
     params = shaderDef.InputParamDefs
 
     # parameters
-    add_input_material(standart_pram_options(), params, [0.0, 0.0, 0.0], "frontmaterial")
-    add_input_material(standart_pram_options(), params, [0.0, 0.0, 0.0], "backmaterial")
+    add_input_material(standart_param_options(), params, [0.0, 0.0, 0.0], "frontmaterial")
+    add_input_material(standart_param_options(), params, [0.0, 0.0, 0.0], "backmaterial")
     # default parameters
-    add_input_float(standart_pram_options(), params, 1.0, "opacity", 0.0, 1.0)
-    # for these three parameters we use only ports
-    add_input_color(standart_pram_options(), params, [0.0, 0.0, 0.0], "bump")
-    add_input_color(standart_pram_options(), params, [0.0, 0.0, 0.0], "normal")
-    add_input_color(standart_pram_options(), params, [0.0, 0.0, 0.0], "emission")
+    setup_defaul_material_parameters(params)
 
     # Output Parameter
     add_output_closure(shaderDef, "Material")
 
     # next init ppg
     ppg_layout = shaderDef.PPGLayout
-    ppg_layout.AddGroup("Parameters")
-    # default parameters
-    ppg_layout.AddItem("opacity", "Opacity")
-    ppg_layout.EndGroup()
+    setup_default_material_ppg(ppg_layout)
 
     ppg_layout.Language = "Python"
     ppg_layout.Logic = '''
@@ -2985,17 +3063,63 @@ def LUXShadersPlugin_TextureImage_1_0_Define(in_ctxt):
     params = shaderDef.InputParamDefs
 
     # parameters
-    add_input_image(nonport_pram_options(), params, "", "file")
+    add_input_image(nonport_param_options(), params, "", "file")
+    add_input_boolean(nonport_param_options(), params, False, "is_normal_map")
+    add_input_float(nonport_param_options(), params, 2.2, "gamma", 1.0, 3.0)
+    add_input_float(nonport_param_options(), params, 1.0, "brightness", 0.0, 4.0)
+    add_input_float(nonport_param_options(), params, 1.0, "height", 0.0, 4.0)
+    add_input_string(nonport_param_options(), params, "default", "channels")
+    add_input_string(nonport_param_options(), params, "opengl", "normalmap_orientation")
+    add_input_string(nonport_param_options(), params, "linear", "filter")
+    add_input_string(nonport_param_options(), params, "flat", "projection")
+    add_input_string(nonport_param_options(), params, "repeat", "wrap")
+    add_input_boolean(nonport_param_options(), params, False, "randomizedtiling_enable")
+    add_input_2dmapping(standart_param_options(), params, None, "mapping_2d")
 
     # Output Parameter
-    add_output_texture(shaderDef, "Color")
-    add_output_float(shaderDef, "Alpha")
+    add_output_texture(shaderDef, "Texture")
 
     # next init ppg
     ppg_layout = shaderDef.PPGLayout
     ppg_layout.AddGroup("Parameters")
     ppg_layout.AddItem("file", "File")
+    ppg_layout.AddItem("is_normal_map", "Normal Map")
+    ppg_layout.AddItem("gamma", "Gammap")
+    ppg_layout.AddItem("brightness", "Brightness")
+    ppg_layout.AddItem("height", "Height")
+    ppg_layout.AddEnumControl("channels", image_channels_enum, "Channels")
+    ppg_layout.AddEnumControl("normalmap_orientation", image_normalmap_orientation_enum, "Orientation")
+    ppg_layout.AddEnumControl("filter", image_filter_enum, "Filter")
+    ppg_layout.AddEnumControl("projection", image_projection_enum, "Projection")
+    ppg_layout.AddEnumControl("wrap", image_wrap_enum, "Wrap")
+    ppg_layout.AddItem("randomizedtiling_enable", "Randomized Tiling")
     ppg_layout.EndGroup()
+
+    ppg_layout.Language = "Python"
+    ppg_layout.Logic = '''
+def update(prop):
+    is_normal_map = prop.Parameters("is_normal_map").Value
+    if is_normal_map:
+        prop.Parameters("channels").ReadOnly = True
+        prop.Parameters("gamma").ReadOnly = True
+        prop.Parameters("brightness").ReadOnly = True
+        prop.Parameters("normalmap_orientation").ReadOnly = False
+        prop.Parameters("height").ReadOnly = False
+    else:
+        prop.Parameters("channels").ReadOnly = False
+        prop.Parameters("gamma").ReadOnly = False
+        prop.Parameters("brightness").ReadOnly = False
+        prop.Parameters("normalmap_orientation").ReadOnly = True
+        prop.Parameters("height").ReadOnly = True
+
+def OnInit():
+    prop = PPG.Inspected(0)
+    update(prop)
+
+def is_normal_map_OnChanged():
+    prop = PPG.Inspected(0)
+    update(prop)
+'''
 
     # Renderer definition
     rendererDef = shaderDef.AddRendererDef("LuxCore")
@@ -3018,7 +3142,7 @@ def LUXShadersPlugin_TextureFloat_1_0_Define(in_ctxt):
     params = shaderDef.InputParamDefs
 
     # parameters
-    add_input_float(nonport_pram_options(), params, 1.0, "value")
+    add_input_float(nonport_param_options(), params, 1.0, "value")
 
     # Output Parameter
     add_output_float(shaderDef, "Value")
@@ -3050,7 +3174,7 @@ def LUXShadersPlugin_TextureColor_1_0_Define(in_ctxt):
     params = shaderDef.InputParamDefs
 
     # parameters
-    add_input_color(nonport_pram_options(), params, [1.0, 1.0, 1.0], "value")
+    add_input_color(nonport_param_options(), params, [1.0, 1.0, 1.0], "value")
 
     # Output Parameter
     add_output_texture(shaderDef, "Color")

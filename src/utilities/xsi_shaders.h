@@ -5,6 +5,17 @@
 
 #include <vector>
 
+enum ShaderParameterType
+{
+	ParameterType_Unknown,
+	ParameterType_Float,
+	ParameterType_Integer,
+	ParameterType_Boolean,
+	ParameterType_String,
+	ParameterType_Color3,
+	ParameterType_Color4
+};
+
 enum GetRootShaderParameterMode
 {
 	GRSPM_ParameterName,  // find by the name of the root parameter
@@ -17,6 +28,9 @@ bool get_bool_parameter_value(const XSI::CParameterRefArray& all_parameters, con
 XSI::CString get_string_parameter_value(const XSI::CParameterRefArray& all_parameters, const XSI::CString& parameter_name, const XSI::CTime& eval_time);
 XSI::MATH::CColor4f get_color_parameter_value(const XSI::CParameterRefArray& all_parameters, const XSI::CString& parameter_name, const XSI::CTime& eval_time);
 
+//return type of the shader parameter
+ShaderParameterType get_shader_parameter_type(XSI::Parameter& parameter);
+
 //return shader parameter of the material root node, which has root_parameter_name name and connected to first-level node in the tree
 //if there is no port with the name, return empty array
 std::vector<XSI::ShaderParameter> get_root_shader_parameter(const XSI::CRefArray& first_level_shaders, GetRootShaderParameterMode mode, const XSI::CString& root_parameter_name = "", bool check_substring = false, const XSI::CString& plugin_name = "", const XSI::CString& node_name = "");
@@ -27,7 +41,8 @@ bool is_shader_compound(const XSI::Shader& shader);
 //return shader node (may be inside compound), connected to the parameter
 //parameter is a right port, shader node at the left
 //*node*------>*parameter*
-XSI::Shader get_input_node(const XSI::ShaderParameter& parameter);
+//if ignore_converters is true, then we should goes through color_to_sceler and scalar_to_color
+XSI::Shader get_input_node(const XSI::ShaderParameter& parameter, bool ignore_converters = false);
 
 //return parameter, connected to the input parameter of the shader node
 //if it connect to the primitive node, then return the last parameter before this connection

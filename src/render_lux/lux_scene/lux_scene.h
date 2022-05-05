@@ -27,6 +27,19 @@ void sync_scene_objects(luxcore::Scene* scene, XSI::RendererContext& xsi_render_
 void sync_shaderball_back_material(luxcore::Scene* scene);
 void sync_default_material(luxcore::Scene* scene);
 void override_material(luxcore::Scene* scene, XSI::X3DObject& xsi_object, const std::string material_name);
+
+void set_material_value(luxcore::Scene* scene, 
+	luxrays::Properties& material_props, 
+	const XSI::CString& xsi_param_name, 
+	const std::string& lux_param_name, 
+	XSI::CParameterRefArray& parameters, 
+	const XSI::CTime& eval_time);
+
+std::string add_material(luxcore::Scene* scene, 
+	XSI::Shader& material_node, 
+	const XSI::CTime& eval_time, 
+	std::string override_name = "");
+
 void sync_material(luxcore::Scene* scene, XSI::Material& xsi_material, std::set<ULONG>& xsi_materials_in_lux, const XSI::CTime& eval_time);
 void sync_materials(luxcore::Scene* scene, const XSI::Scene& xsi_scene, std::set<ULONG>& xsi_materials_in_lux, const XSI::CTime& eval_time);
 void reassign_all_materials(luxcore::Scene* scene, const XSI::Scene& xsi_scene, std::set<ULONG>& xsi_materials_in_lux, std::unordered_map<ULONG, std::vector<std::string>>& xsi_id_to_lux_names_map, const XSI::CTime& eval_time);

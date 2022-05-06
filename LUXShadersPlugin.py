@@ -188,6 +188,16 @@ image_normalmap_orientation_enum = [
     "DirectX", "directx"
 ]
 
+mapping2d_type_enum = [
+    "UV", "uvmapping2d",
+    "Randomized UV", "uvrandommapping2d"
+]
+
+mapping2d_seed_enum = [
+    "Object ID", "object_id",
+    "Mesh Islands", "mesh_islands"
+]
+
 
 def XSILoadPlugin(in_reg):
     in_reg.Author = "Shekn Itrch"
@@ -216,6 +226,8 @@ def XSILoadPlugin(in_reg):
     in_reg.RegisterShader("TextureImage", 1, 0)
     in_reg.RegisterShader("TextureFloat", 1, 0)
     in_reg.RegisterShader("TextureColor", 1, 0)
+    in_reg.RegisterShader("Emission", 1, 0)
+    in_reg.RegisterShader("Mapping2D", 1, 0)
     # camera lense shader nodes
     in_reg.RegisterShader("LensePanoramic", 1, 0)
     in_reg.RegisterShader("LenseBokeh", 1, 0)
@@ -287,6 +299,31 @@ def add_output_float(shader_def, name="float"):
     param_def.MainPort = False
 
 
+def add_output_2dmapping(shader_def, name="mapping_2d"):
+    param_options = XSIFactory.CreateShaderParamDefOptions()
+    param_options.SetLongName(name)
+    params = shader_def.OutputParamDefs
+    param_def = params.AddParamDef2(name, c.siShaderDataTypeMatrix33, param_options)
+    param_def.MainPort = False
+
+
+def add_output_3dmapping(shader_def, name="mapping_3d"):
+    param_options = XSIFactory.CreateShaderParamDefOptions()
+    param_options.SetLongName(name)
+    params = shader_def.OutputParamDefs
+    param_def = params.AddParamDef2(name, c.siShaderDataTypeMatrix44, param_options)
+    param_def.MainPort = False
+
+
+def add_output_emission(shader_def, name="emission"):
+    param_options = XSIFactory.CreateShaderParamDefOptions()
+    param_options.SetLongName(name)
+    param_options.SetAttribute(c.siCustomTypeNameAttribute, "emission")
+    params = shader_def.OutputParamDefs
+    param_def = params.AddParamDef2(name, c.siShaderDataTypeCustom, param_options)
+    param_def.MainPort = False
+
+
 def add_input_material(param_options, params, default_value=1, name="material"):
     param_options.SetDefaultValue(default_value)
     params.AddParamDef(name, c.siShaderDataTypeColor4, param_options)
@@ -331,6 +368,12 @@ def add_input_string(param_options, params, default_value=0, name="string"):
 def add_input_image(param_options, params, default_value="", name="image"):
     param_options.SetDefaultValue(default_value)
     params.AddParamDef(name, c.siShaderDataTypeImage, param_options)
+
+
+def add_input_emission(param_options, params, default_value="", name="emission"):
+    param_options.SetDefaultValue(default_value)
+    param_options.SetAttribute(c.siCustomTypeNameAttribute, "emission")
+    params.AddParamDef(name, c.siShaderDataTypeCustom, param_options)
 
 
 def add_input_2dmapping(param_options, params, default_value="", name="2d mapping"):
@@ -1896,7 +1939,7 @@ def setup_defaul_material_parameters(params):
     # for these three parameters we use only ports
     add_input_color(standart_param_options(), params, [0.0, 0.0, 0.0], "bump")
     add_input_color(standart_param_options(), params, [0.0, 0.0, 0.0], "normal")
-    add_input_color(standart_param_options(), params, [0.0, 0.0, 0.0], "emission")
+    add_input_emission(standart_param_options(), params, [0.0, 0.0, 0.0], "emission")
 
 def setup_default_material_ppg(ppg_layout):
     ppg_layout.AddTab("Visibility")
@@ -3188,5 +3231,217 @@ def LUXShadersPlugin_TextureColor_1_0_Define(in_ctxt):
     # Renderer definition
     rendererDef = shaderDef.AddRendererDef("LuxCore")
     rendererDef.SymbolName = "TextureColor"
+
+    return True
+
+#---------------------emission----------------------------------
+def LUXShadersPlugin_Emission_1_0_DefineInfo(in_ctxt):
+    in_ctxt.SetAttribute("Category", "LuxCore/Shader/Light")
+    in_ctxt.SetAttribute("DisplayName", "luxEmission")
+    return True
+
+
+def LUXShadersPlugin_Emission_1_0_Define(in_ctxt):
+    shaderDef = in_ctxt.GetAttribute("Definition")
+    shaderDef.AddShaderFamily(c.siShaderFamilyTexture)
+
+    # Input Parameter: input
+    params = shaderDef.InputParamDefs
+
+    # parameters
+    add_input_float(nonport_param_options(), params, 1.0, "gain", 0.0, 4.0)
+    add_input_float(nonport_param_options(), params, 0.0, "exposure", -5.0, 5.0)
+    add_input_float(nonport_param_options(), params, 1.0, "importance", 0.0, 2.0)
+    add_input_float(nonport_param_options(), params, 90.0, "theta", 0.0, 180.0)
+    add_input_color(standart_param_options(), params, [1.0, 1.0, 1.0], "emission")
+
+    # Output Parameter
+    add_output_emission(shaderDef, "Light")
+
+    # next init ppg
+    ppg_layout = shaderDef.PPGLayout
+    ppg_layout.AddGroup("Parameters")
+    ppg_layout.AddItem("gain", "Gain")
+    ppg_layout.AddItem("importance", "Importance")
+    ppg_layout.AddItem("exposure", "Exposure")
+    ppg_layout.AddItem("theta", "Spread Angle")
+    ppg_layout.AddItem("emission", "Color")
+    ppg_layout.EndGroup()
+
+    # Renderer definition
+    rendererDef = shaderDef.AddRendererDef("LuxCore")
+    rendererDef.SymbolName = "Emission"
+
+    return True
+
+#---------------------uvmapping2d, uvrandommapping2d----------------------------------
+def LUXShadersPlugin_Mapping2D_1_0_DefineInfo(in_ctxt):
+    in_ctxt.SetAttribute("Category", "LuxCore/Shader/Mapping")
+    in_ctxt.SetAttribute("DisplayName", "luxMapping2d")
+    return True
+
+
+def LUXShadersPlugin_Mapping2D_1_0_Define(in_ctxt):
+    shaderDef = in_ctxt.GetAttribute("Definition")
+    shaderDef.AddShaderFamily(c.siShaderFamilyTexture)
+
+    # Input Parameter: input
+    params = shaderDef.InputParamDefs
+
+    # parameters
+    add_input_string(nonport_param_options(), params, "uvmapping2d", "mapping_type")
+    add_input_string(nonport_param_options(), params, "object_id", "seed_type")
+    add_input_integer(nonport_param_options(), params, 0, "uvindex", 0, 2)
+    add_input_integer(nonport_param_options(), params, 0, "id_offset", 0, 12)
+    add_input_boolean(nonport_param_options(), params, False, "is_center_map")
+    add_input_boolean(nonport_param_options(), params, True, "is_uniform")
+    add_input_float(nonport_param_options(), params, 1.0, "u_scale", 0.0, 2.0)
+    add_input_float(nonport_param_options(), params, 1.0, "u_scale_min", 0.0, 2.0)
+    add_input_float(nonport_param_options(), params, 1.0, "u_scale_max", 0.0, 2.0)
+    add_input_float(nonport_param_options(), params, 1.0, "v_scale", 0.0, 2.0)
+    add_input_float(nonport_param_options(), params, 1.0, "v_scale_min", 0.0, 2.0)
+    add_input_float(nonport_param_options(), params, 1.0, "v_scale_max", 0.0, 2.0)
+    add_input_float(nonport_param_options(), params, 0.0, "rotation", 0.0, 360.0)
+    add_input_float(nonport_param_options(), params, 0.0, "rotation_min", 0.0, 360.0)
+    add_input_float(nonport_param_options(), params, 0.0, "rotation_max", 0.0, 360.0)
+    add_input_float(nonport_param_options(), params, 0.0, "u_offset", 0.0, 1.0)
+    add_input_float(nonport_param_options(), params, 0.0, "u_offset_min", 0.0, 1.0)
+    add_input_float(nonport_param_options(), params, 0.0, "u_offset_max", 0.0, 1.0)
+    add_input_float(nonport_param_options(), params, 0.0, "v_offset", 0.0, 1.0)
+    add_input_float(nonport_param_options(), params, 0.0, "v_offset_min", 0.0, 1.0)
+    add_input_float(nonport_param_options(), params, 0.0, "v_offset_max", 0.0, 1.0)
+
+    # Output Parameter
+    add_output_2dmapping(shaderDef, "Mapping")
+
+    # next init ppg
+    ppg_layout = shaderDef.PPGLayout
+    ppg_layout.AddGroup("Parameters")
+    ppg_layout.AddItem("uvindex", "UV Index")
+    ppg_layout.AddEnumControl("mapping_type", mapping2d_type_enum, "Type")
+    ppg_layout.AddEnumControl("seed_type", mapping2d_seed_enum, "Seed")
+    ppg_layout.AddItem("id_offset", "Object ID Offset")
+    ppg_layout.AddItem("is_center_map", "Center Map")
+    ppg_layout.AddItem("is_uniform", "Uniform Scale")
+    ppg_layout.AddGroup("Scale")
+    ppg_layout.AddRow()
+    ppg_layout.AddItem("u_scale", "U")
+    ppg_layout.AddItem("v_scale", "V")
+    ppg_layout.EndRow()
+    ppg_layout.EndGroup()
+    ppg_layout.AddGroup("U Scale")
+    ppg_layout.AddRow()
+    ppg_layout.AddItem("u_scale_min", "Min")
+    ppg_layout.AddItem("u_scale_max", "Max")
+    ppg_layout.EndRow()
+    ppg_layout.EndGroup()
+    ppg_layout.AddGroup("V Scale")
+    ppg_layout.AddRow()
+    ppg_layout.AddItem("v_scale_min", "Min")
+    ppg_layout.AddItem("v_scale_max", "Max")
+    ppg_layout.EndRow()
+    ppg_layout.EndGroup()
+    ppg_layout.AddItem("rotation", "Rotation")
+    ppg_layout.AddGroup("Rotation")
+    ppg_layout.AddRow()
+    ppg_layout.AddItem("rotation_min", "Min")
+    ppg_layout.AddItem("rotation_max", "Max")
+    ppg_layout.EndRow()
+    ppg_layout.EndGroup()
+    ppg_layout.AddGroup("Offset")
+    ppg_layout.AddRow()
+    ppg_layout.AddItem("u_offset", "U")
+    ppg_layout.AddItem("v_offset", "V")
+    ppg_layout.EndRow()
+    ppg_layout.EndGroup()
+    ppg_layout.AddGroup("Offset U")
+    ppg_layout.AddRow()
+    ppg_layout.AddItem("u_offset_min", "Min")
+    ppg_layout.AddItem("u_offset_max", "Max")
+    ppg_layout.EndRow()
+    ppg_layout.EndGroup()
+    ppg_layout.AddGroup("Offset V")
+    ppg_layout.AddRow()
+    ppg_layout.AddItem("v_offset_min", "Min")
+    ppg_layout.AddItem("v_offset_max", "Max")
+    ppg_layout.EndRow()
+    ppg_layout.EndGroup()
+    ppg_layout.EndGroup()
+
+    ppg_layout.Language = "Python"
+    ppg_layout.Logic = '''
+def update(prop):
+    is_uniform = prop.Parameters("is_uniform").Value
+    mapping_type = prop.Parameters("mapping_type").Value
+    seed_type = prop.Parameters("seed_type").Value
+    if mapping_type == "uvmapping2d":
+        prop.Parameters("seed_type").ReadOnly = True
+        prop.Parameters("id_offset").ReadOnly = True
+        prop.Parameters("rotation_min").ReadOnly = True
+        prop.Parameters("rotation_max").ReadOnly = True
+        prop.Parameters("u_offset_min").ReadOnly = True
+        prop.Parameters("u_offset_max").ReadOnly = True
+        prop.Parameters("v_offset_min").ReadOnly = True
+        prop.Parameters("v_offset_max").ReadOnly = True
+        prop.Parameters("u_scale_min").ReadOnly = True
+        prop.Parameters("u_scale_max").ReadOnly = True
+        prop.Parameters("v_scale_min").ReadOnly = True
+        prop.Parameters("v_scale_max").ReadOnly = True
+        prop.Parameters("is_center_map").ReadOnly = False
+        prop.Parameters("u_scale").ReadOnly = False
+        prop.Parameters("rotation").ReadOnly = False
+        prop.Parameters("u_offset").ReadOnly = False
+        prop.Parameters("v_offset").ReadOnly = False
+        if is_uniform:
+            prop.Parameters("v_scale").ReadOnly = True
+        else:
+            prop.Parameters("v_scale").ReadOnly = False
+    else:
+        prop.Parameters("seed_type").ReadOnly = False
+        if seed_type == "object_id":
+            prop.Parameters("id_offset").ReadOnly = False
+        else:
+            prop.Parameters("id_offset").ReadOnly = True
+        prop.Parameters("rotation_min").ReadOnly = False
+        prop.Parameters("rotation_max").ReadOnly = False
+        prop.Parameters("u_offset_min").ReadOnly = False
+        prop.Parameters("u_offset_max").ReadOnly = False
+        prop.Parameters("v_offset_min").ReadOnly = False
+        prop.Parameters("v_offset_max").ReadOnly = False
+        prop.Parameters("u_scale_min").ReadOnly = False
+        prop.Parameters("u_scale_max").ReadOnly = False
+        if is_uniform:
+            prop.Parameters("v_scale_min").ReadOnly = True
+            prop.Parameters("v_scale_max").ReadOnly = True
+        else:
+            prop.Parameters("v_scale_min").ReadOnly = False
+            prop.Parameters("v_scale_max").ReadOnly = False
+        prop.Parameters("is_center_map").ReadOnly = True
+        prop.Parameters("u_scale").ReadOnly = True
+        prop.Parameters("v_scale").ReadOnly = True
+        prop.Parameters("rotation").ReadOnly = True
+        prop.Parameters("u_offset").ReadOnly = True
+        prop.Parameters("v_offset").ReadOnly = True
+
+def OnInit():
+    prop = PPG.Inspected(0)
+    update(prop)
+
+def is_uniform_OnChanged():
+    prop = PPG.Inspected(0)
+    update(prop)
+
+def mapping_type_OnChanged():
+    prop = PPG.Inspected(0)
+    update(prop)
+
+def seed_type_OnChanged():
+    prop = PPG.Inspected(0)
+    update(prop)
+'''
+
+    # Renderer definition
+    rendererDef = shaderDef.AddRendererDef("LuxCore")
+    rendererDef.SymbolName = "Mapping2D"
 
     return True

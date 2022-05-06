@@ -6,6 +6,100 @@
 #include "xsi_materiallibrary.h"
 #include "xsi_imageclip2.h"
 
+void add_mapping(luxrays::Properties &texture_props, const std::string &prefix, XSI::CParameterRefArray &parameters, const XSI::CString &mapping_parameter_name, const XSI::CTime &eval_time)
+{
+	XSI::ShaderParameter mapping_parameter = parameters.GetItem(mapping_parameter_name);
+	if (mapping_parameter.IsValid())
+	{
+		XSI::Shader mapping_node = get_input_node(mapping_parameter);
+		if (mapping_node.IsValid())
+		{
+			//something connected to the mapping port
+			XSI::CString prog_id = mapping_node.GetProgID();
+			if (prog_id == "LUXShadersPlugin.Mapping2D.1.0")
+			{
+				//this is valid mapping node
+				XSI::CParameterRefArray map_params = mapping_node.GetParameters();
+				//in Blender the node can contains the child mapping node
+				//in this case it gets basic data from the child node and then multiply it to the values of the current node
+				//we will be use only one mapping node
+
+				//set parameters to the texture property
+				//get type of the 2d-mapping
+				XSI::CString mapping_type = get_string_parameter_value(map_params, "mapping_type", eval_time);
+				int uvindex = get_int_parameter_value(map_params, "uvindex", eval_time);
+				bool is_uniform = get_bool_parameter_value(map_params, "is_uniform", eval_time);
+
+				if (mapping_type == "uvmapping2d")
+				{
+					texture_props.Set(luxrays::Property(prefix + ".type")("uvmapping2d"));
+					texture_props.Set(luxrays::Property(prefix + ".uvindex")(uvindex));
+					float u_scale = get_float_parameter_value(map_params, "u_scale", eval_time);
+					float v_scale = get_float_parameter_value(map_params, "v_scale", eval_time);
+					if (is_uniform)
+					{
+						v_scale = u_scale;
+					}
+					texture_props.Set(luxrays::Property(prefix + ".uvscale")(u_scale, -v_scale));
+
+					float rotation = get_float_parameter_value(map_params, "rotation", eval_time);
+					texture_props.Set(luxrays::Property(prefix + ".rotation")(rotation));
+
+					float u_offset = get_float_parameter_value(map_params, "u_offset", eval_time);
+					float v_offset = get_float_parameter_value(map_params, "v_offset", eval_time);
+					bool is_center_map = get_bool_parameter_value(map_params, "is_center_map", eval_time);
+					if (is_center_map)
+					{
+						u_offset = u_offset + 0.5f * (1.0f - u_scale);
+						v_offset = v_offset * -1.0f + 1.0f - (0.5f * (1.0f - v_scale));
+					}
+					else
+					{
+						v_offset = v_offset + 1.0f;
+					}
+					texture_props.Set(luxrays::Property(prefix + ".uvdelta")(u_offset, v_offset));
+				}
+				else
+				{
+					texture_props.Set(luxrays::Property(prefix + ".type")("uvrandommapping2d"));
+					texture_props.Set(luxrays::Property(prefix + ".uvindex")(uvindex));
+					texture_props.Set(luxrays::Property(prefix + ".rotation")(get_float_parameter_value(map_params, "rotation_min", eval_time), 
+																			  get_float_parameter_value(map_params, "rotation_max", eval_time)));
+					texture_props.Set(luxrays::Property(prefix + ".uvscale")(get_float_parameter_value(map_params, "u_scale_min", eval_time),
+																			 get_float_parameter_value(map_params, "u_scale_max", eval_time),
+																			 get_float_parameter_value(map_params, "v_scale_min", eval_time),
+																			 get_float_parameter_value(map_params, "v_scale_max", eval_time)));
+					texture_props.Set(luxrays::Property(prefix + ".uvscale.uniform")(is_uniform));
+					texture_props.Set(luxrays::Property(prefix + ".uvdelta")(get_float_parameter_value(map_params, "u_offset_min", eval_time),
+																			 get_float_parameter_value(map_params, "u_offset_max", eval_time),
+																			 get_float_parameter_value(map_params, "v_offset_min", eval_time),
+																			 get_float_parameter_value(map_params, "v_offset_max", eval_time)));
+					XSI::CString seed_type = get_string_parameter_value(map_params, "seed_type", eval_time);
+					if (seed_type == "object_id")
+					{
+						texture_props.Set(luxrays::Property(prefix + ".seed.type")("object_id_offset"));
+						texture_props.Set(luxrays::Property(prefix + ".objectidoffset.value")(get_int_parameter_value(map_params, "id_offset", eval_time)));
+					}
+					else
+					{
+						texture_props.Set(luxrays::Property(prefix + ".seed.type")("triangle_aov"));
+						texture_props.Set(luxrays::Property(prefix + ".triangleaov.index")(0));
+					}
+				}
+			}
+		}
+		else
+		{
+			//mapping port is not connected to something, nothing to do
+		}
+	}
+	else
+	{
+		//the node does not contains mapping parameter with input name
+		//so, nothing to do
+	}
+}
+
 std::string add_texture(luxcore::Scene* scene, XSI::Shader &texture_node, const XSI::CTime &eval_time)
 {
 	std::string output_name = xsi_object_id_string(texture_node)[0];
@@ -101,11 +195,24 @@ std::string add_texture(luxcore::Scene* scene, XSI::Shader &texture_node, const 
 						texture_props.Set(luxrays::Property(prefix + ".gamma")(gamma));
 						texture_props.Set(luxrays::Property(prefix + ".gain")(brightness));
 					}
+					add_mapping(texture_props, prefix + ".mapping", parameters, "mapping_2d", eval_time);
 
 					XSI::CString projection = get_string_parameter_value(parameters, "projection", eval_time);
 					if (projection == "box")
 					{
+						//here we should add triplanar mapping
+						//parse property in the scene, finish created texture
+						scene->Parse(texture_props);
 
+						std::string triplanar_prefix = "scene.textures." + output_name + "_triplanar";
+						luxrays::Properties triplanar_props;
+						triplanar_props.Set(luxrays::Property(triplanar_prefix + ".type")("triplanar"));
+						triplanar_props.Set(luxrays::Property(triplanar_prefix + ".texture1")(output_name));
+						triplanar_props.Set(luxrays::Property(triplanar_prefix + ".texture2")(output_name));
+						triplanar_props.Set(luxrays::Property(triplanar_prefix + ".texture3")(output_name));
+						triplanar_props.Set(luxrays::Property(triplanar_prefix + ".mapping.type")("localmapping3d"));
+						texture_props = triplanar_props;
+						output_name = output_name + "_triplanar";
 					}
 
 					if (is_normal_map)

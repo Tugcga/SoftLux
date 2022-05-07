@@ -100,6 +100,45 @@ void add_mapping(luxrays::Properties &texture_props, const std::string &prefix, 
 	}
 }
 
+void add_emission(luxcore::Scene* scene, XSI::CParameterRefArray &parameters, luxrays::Properties &lux_props, const std::string &prefix, const XSI::CTime &eval_time)
+{
+	XSI::ShaderParameter emission_param = parameters.GetItem("emission");
+	if (emission_param.IsValid())
+	{
+		//get connected node
+		XSI::Shader emission_node = get_input_node(emission_param);
+		if (emission_node.IsValid())
+		{
+			XSI::CString prog_id = emission_node.GetProgID();
+			if (prog_id == "LUXShadersPlugin.Emission.1.0")
+			{
+				XSI::CParameterRefArray emission_params = emission_node.GetParameters();
+				set_material_value(scene, lux_props, "color", prefix, emission_params, eval_time);
+				lux_props.Set(luxrays::Property(prefix + ".power")(0));
+				lux_props.Set(luxrays::Property(prefix + ".efficency")(0));
+				float gain = get_float_parameter_value(emission_params, "gain", eval_time);
+				float exposure = get_float_parameter_value(emission_params, "exposure", eval_time);
+				gain = gain * pow(2.0f, exposure);
+				lux_props.Set(luxrays::Property(prefix + ".gain")(gain, gain, gain));
+				lux_props.Set(luxrays::Property(prefix + ".normalizebycolor")(false));
+				lux_props.Set(luxrays::Property(prefix + ".gain.normalizebycolor")(false));
+				lux_props.Set(luxrays::Property(prefix + ".importance")(get_float_parameter_value(emission_params, "importance", eval_time)));
+				lux_props.Set(luxrays::Property(prefix + ".theta")(get_float_parameter_value(emission_params, "theta", eval_time)));
+				lux_props.Set(luxrays::Property(prefix + ".id")(get_int_parameter_value(emission_params, "lightgroup_id", eval_time)));
+				lux_props.Set(luxrays::Property(prefix + ".directlightsampling.type")(get_string_parameter_value(emission_params, "dls_type", eval_time).GetAsciiString()));
+			}
+		}
+		else
+		{
+			//there are no connections with emission parameter
+		}
+	}
+	else
+	{
+		//there are no emission parameter in the node
+	}
+}
+
 std::string add_texture(luxcore::Scene* scene, XSI::Shader &texture_node, const XSI::CTime &eval_time)
 {
 	std::string output_name = xsi_object_id_string(texture_node)[0];
@@ -263,7 +302,13 @@ std::string add_texture(luxcore::Scene* scene, XSI::Shader &texture_node, const 
 	return output_name;
 }
 
-void set_material_value(luxcore::Scene *scene, luxrays::Properties& material_props, const XSI::CString &xsi_param_name, const std::string &lux_param_name, XSI::CParameterRefArray &parameters, const XSI::CTime &eval_time)
+void set_material_value(luxcore::Scene *scene, 
+	luxrays::Properties& material_props, 
+	const XSI::CString &xsi_param_name, 
+	const std::string &lux_param_name, 
+	XSI::CParameterRefArray &parameters, 
+	const XSI::CTime &eval_time,
+	bool ignore_set_branch)
 {
 	XSI::Parameter xsi_param = parameters.GetItem(xsi_param_name);
 	XSI::Parameter xsi_finall_parameter = get_source_parameter(xsi_param);
@@ -272,7 +317,6 @@ void set_material_value(luxcore::Scene *scene, luxrays::Properties& material_pro
 	//check is this parameter has connections or not
 	XSI::CRef param_source = xsi_finall_parameter.GetSource();
 	bool has_connection = param_source.IsValid();
-
 	if (has_connection)
 	{
 		//get source node
@@ -316,7 +360,7 @@ void set_material_value(luxcore::Scene *scene, luxrays::Properties& material_pro
 		}
 	}
 
-	if (!has_connection)
+	if (!has_connection && !ignore_set_branch)
 	{
 		//no connections, set numeric values
 		if (parameter_type == ShaderParameterType::ParameterType_Float)
@@ -364,7 +408,7 @@ void set_material_value(luxcore::Scene *scene, luxrays::Properties& material_pro
 }
 
 //return name of the added material
-//if thin method is called recursivly, then return name from id of the material node
+//if this method is called recursivly, then return name from id of the material node
 //if this method is called from sync_material, then returned name should be overrided by the input one
 //return empty string if material node is invalid
 //in thie case replace this materia by null material or default material
@@ -709,6 +753,13 @@ std::string add_material(luxcore::Scene* scene, XSI::Shader &material_node, cons
 			material_props.Set(luxrays::Property(prefix + ".shadowcatcher.onlyinfinitelights")(shadowcatcher_onlyinfinitelights));
 			material_props.Set(luxrays::Property(prefix + ".photongi.enable")(photongi_enable));
 			material_props.Set(luxrays::Property(prefix + ".holdout.enable")(holdout_enable));
+
+			//try to add emission
+			add_emission(scene, parameters, material_props, prefix + ".emission", eval_time);
+			//next bump
+			set_material_value(scene, material_props, "bump", prefix + ".bumptex", parameters, eval_time, true);
+			//and normal
+			set_material_value(scene, material_props, "normal", prefix + ".normaltex", parameters, eval_time, true);
 		}
 	}
 	else

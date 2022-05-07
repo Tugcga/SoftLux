@@ -28,12 +28,14 @@ void sync_shaderball_back_material(luxcore::Scene* scene);
 void sync_default_material(luxcore::Scene* scene);
 void override_material(luxcore::Scene* scene, XSI::X3DObject& xsi_object, const std::string material_name);
 
+//if ignore_set_branch is true, then only get connections, but does not set values for free ports
 void set_material_value(luxcore::Scene* scene, 
 	luxrays::Properties& material_props, 
 	const XSI::CString& xsi_param_name, 
 	const std::string& lux_param_name, 
 	XSI::CParameterRefArray& parameters, 
-	const XSI::CTime& eval_time);
+	const XSI::CTime& eval_time,
+	bool ignore_set_branch = false);
 
 std::string add_material(luxcore::Scene* scene, 
 	XSI::Shader& material_node, 

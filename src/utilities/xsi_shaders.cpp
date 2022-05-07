@@ -170,7 +170,7 @@ XSI::Shader get_input_node(const XSI::ShaderParameter& parameter, bool ignore_co
 			else
 			{
 				XSI::CString prog_id = source_shader.GetProgID();
-				if (prog_id == "Softimage.sib_scalar_to_color.1.0" || prog_id == "Softimage.sib_color_to_scalar.1.0")
+				if (prog_id == "Softimage.sib_scalar_to_color.1.0" || prog_id == "Softimage.sib_color_to_scalar.1.0" || prog_id == "Softimage.sib_color_to_vector.1.0")
 				{
 					XSI::Parameter input_param = source_shader.GetParameter("input");
 					XSI::ShaderParameter shader_input_param(input_param);
@@ -195,7 +195,7 @@ XSI::Shader get_input_node(const XSI::ShaderParameter& parameter, bool ignore_co
 			//get parent node
 			XSI::Shader parent_node = parameter.GetParent();
 			XSI::CString prog_id = parent_node.GetProgID();
-			if (prog_id == "Softimage.sib_scalar_to_color.1.0" || prog_id == "Softimage.sib_color_to_scalar.1.0")
+			if (prog_id == "Softimage.sib_scalar_to_color.1.0" || prog_id == "Softimage.sib_color_to_scalar.1.0" || prog_id == "Softimage.sib_color_to_vector.1.0")
 			{
 				return parent_node;
 			}

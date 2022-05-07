@@ -188,6 +188,12 @@ image_normalmap_orientation_enum = [
     "DirectX", "directx"
 ]
 
+emission_dlstypes_enum = [
+    "Auto", "AUTO",
+    "Enabled", "ENABLED",
+    "Disabled", "DISABLED"
+]
+
 mapping2d_type_enum = [
     "UV", "uvmapping2d",
     "Randomized UV", "uvrandommapping2d"
@@ -1937,8 +1943,8 @@ def setup_defaul_material_parameters(params):
     add_input_boolean(nonport_param_options(), params, False, "holdout_enable")
 
     # for these three parameters we use only ports
-    add_input_color(standart_param_options(), params, [0.0, 0.0, 0.0], "bump")
-    add_input_color(standart_param_options(), params, [0.0, 0.0, 0.0], "normal")
+    add_input_float(standart_param_options(), params, [0.0, 0.0, 0.0], "bump")
+    add_input_vector(standart_param_options(), params, [0.0, 0.0, 0.0], "normal")
     add_input_emission(standart_param_options(), params, [0.0, 0.0, 0.0], "emission")
 
 def setup_default_material_ppg(ppg_layout):
@@ -1982,7 +1988,7 @@ def LUXShadersPlugin_ShaderMatte_1_0_Define(in_ctxt):
     setup_defaul_material_parameters(params)
 
     # Output Parameter
-    add_output_closure(shaderDef, "Material")
+    add_output_closure(shaderDef, "material")
 
     # next init ppg
     ppg_layout = shaderDef.PPGLayout
@@ -2029,7 +2035,7 @@ def LUXShadersPlugin_ShaderMirror_1_0_Define(in_ctxt):
     setup_defaul_material_parameters(params)
 
     # Output Parameter
-    add_output_closure(shaderDef, "Material")
+    add_output_closure(shaderDef, "material")
 
     # next init ppg
     ppg_layout = shaderDef.PPGLayout
@@ -2085,7 +2091,7 @@ def LUXShadersPlugin_ShaderGlass_1_0_Define(in_ctxt):
     setup_defaul_material_parameters(params)
 
     # Output Parameter
-    add_output_closure(shaderDef, "Material")
+    add_output_closure(shaderDef, "material")
 
     # next init ppg
     ppg_layout = shaderDef.PPGLayout
@@ -2205,7 +2211,7 @@ def LUXShadersPlugin_ShaderMix_1_0_Define(in_ctxt):
     setup_defaul_material_parameters(params)
 
     # Output Parameter
-    add_output_closure(shaderDef, "Material")
+    add_output_closure(shaderDef, "material")
 
     # next init ppg
     ppg_layout = shaderDef.PPGLayout
@@ -2247,7 +2253,7 @@ def LUXShadersPlugin_ShaderNull_1_0_Define(in_ctxt):
     # parameters
 
     # Output Parameter
-    add_output_closure(shaderDef, "Material")
+    add_output_closure(shaderDef, "material")
 
     # next init ppg
     ppg_layout = shaderDef.PPGLayout
@@ -2283,7 +2289,7 @@ def LUXShadersPlugin_ShaderMatteTranslucent_1_0_Define(in_ctxt):
     setup_defaul_material_parameters(params)
 
     # Output Parameter
-    add_output_closure(shaderDef, "Material")
+    add_output_closure(shaderDef, "material")
 
     # next init ppg
     ppg_layout = shaderDef.PPGLayout
@@ -2338,7 +2344,7 @@ def LUXShadersPlugin_ShaderGlossy_1_0_Define(in_ctxt):
     setup_defaul_material_parameters(params)
 
     # Output Parameter
-    add_output_closure(shaderDef, "Material")
+    add_output_closure(shaderDef, "material")
 
     # next init ppg
     ppg_layout = shaderDef.PPGLayout
@@ -2411,7 +2417,7 @@ def LUXShadersPlugin_ShaderMetal_1_0_Define(in_ctxt):
     setup_defaul_material_parameters(params)
 
     # Output Parameter
-    add_output_closure(shaderDef, "Material")
+    add_output_closure(shaderDef, "material")
 
     # next init ppg
     ppg_layout = shaderDef.PPGLayout
@@ -2516,7 +2522,7 @@ def LUXShadersPlugin_ShaderVelvet_1_0_Define(in_ctxt):
     setup_defaul_material_parameters(params)
 
     # Output Parameter
-    add_output_closure(shaderDef, "Material")
+    add_output_closure(shaderDef, "material")
 
     # next init ppg
     ppg_layout = shaderDef.PPGLayout
@@ -2593,7 +2599,7 @@ def LUXShadersPlugin_ShaderCloth_1_0_Define(in_ctxt):
     setup_defaul_material_parameters(params)
 
     # Output Parameter
-    add_output_closure(shaderDef, "Material")
+    add_output_closure(shaderDef, "material")
 
     # next init ppg
     ppg_layout = shaderDef.PPGLayout
@@ -2659,7 +2665,7 @@ def LUXShadersPlugin_ShaderCarpaint_1_0_Define(in_ctxt):
     setup_defaul_material_parameters(params)
 
     # Output Parameter
-    add_output_closure(shaderDef, "Material")
+    add_output_closure(shaderDef, "material")
 
     # next init ppg
     ppg_layout = shaderDef.PPGLayout
@@ -2781,7 +2787,7 @@ def LUXShadersPlugin_ShaderGlossyTranslucent_1_0_Define(in_ctxt):
     setup_defaul_material_parameters(params)
 
     # Output Parameter
-    add_output_closure(shaderDef, "Material")
+    add_output_closure(shaderDef, "material")
 
     # next init ppg
     ppg_layout = shaderDef.PPGLayout
@@ -2906,7 +2912,7 @@ def LUXShadersPlugin_ShaderGlossyCoating_1_0_Define(in_ctxt):
     setup_defaul_material_parameters(params)
 
     # Output Parameter
-    add_output_closure(shaderDef, "Material")
+    add_output_closure(shaderDef, "material")
 
     # next init ppg
     ppg_layout = shaderDef.PPGLayout
@@ -2985,7 +2991,7 @@ def LUXShadersPlugin_ShaderDisney_1_0_Define(in_ctxt):
     setup_defaul_material_parameters(params)
 
     # Output Parameter
-    add_output_closure(shaderDef, "Material")
+    add_output_closure(shaderDef, "material")
 
     # next init ppg
     ppg_layout = shaderDef.PPGLayout
@@ -3067,7 +3073,7 @@ def LUXShadersPlugin_ShaderTwoSided_1_0_Define(in_ctxt):
     setup_defaul_material_parameters(params)
 
     # Output Parameter
-    add_output_closure(shaderDef, "Material")
+    add_output_closure(shaderDef, "material")
 
     # next init ppg
     ppg_layout = shaderDef.PPGLayout
@@ -3120,14 +3126,14 @@ def LUXShadersPlugin_TextureImage_1_0_Define(in_ctxt):
     add_input_2dmapping(standart_param_options(), params, None, "mapping_2d")
 
     # Output Parameter
-    add_output_texture(shaderDef, "Texture")
+    add_output_texture(shaderDef, "texture")
 
     # next init ppg
     ppg_layout = shaderDef.PPGLayout
     ppg_layout.AddGroup("Parameters")
     ppg_layout.AddItem("file", "File")
     ppg_layout.AddItem("is_normal_map", "Normal Map")
-    ppg_layout.AddItem("gamma", "Gammap")
+    ppg_layout.AddItem("gamma", "Gamma")
     ppg_layout.AddItem("brightness", "Brightness")
     ppg_layout.AddItem("height", "Height")
     ppg_layout.AddEnumControl("channels", image_channels_enum, "Channels")
@@ -3188,7 +3194,7 @@ def LUXShadersPlugin_TextureFloat_1_0_Define(in_ctxt):
     add_input_float(nonport_param_options(), params, 1.0, "value")
 
     # Output Parameter
-    add_output_float(shaderDef, "Value")
+    add_output_float(shaderDef, "value")
 
     # next init ppg
     ppg_layout = shaderDef.PPGLayout
@@ -3220,7 +3226,7 @@ def LUXShadersPlugin_TextureColor_1_0_Define(in_ctxt):
     add_input_color(nonport_param_options(), params, [1.0, 1.0, 1.0], "value")
 
     # Output Parameter
-    add_output_texture(shaderDef, "Color")
+    add_output_texture(shaderDef, "color")
 
     # next init ppg
     ppg_layout = shaderDef.PPGLayout
@@ -3249,14 +3255,16 @@ def LUXShadersPlugin_Emission_1_0_Define(in_ctxt):
     params = shaderDef.InputParamDefs
 
     # parameters
+    add_input_string(nonport_param_options(), params, "AUTO", "dls_type")
     add_input_float(nonport_param_options(), params, 1.0, "gain", 0.0, 4.0)
     add_input_float(nonport_param_options(), params, 0.0, "exposure", -5.0, 5.0)
     add_input_float(nonport_param_options(), params, 1.0, "importance", 0.0, 2.0)
     add_input_float(nonport_param_options(), params, 90.0, "theta", 0.0, 180.0)
-    add_input_color(standart_param_options(), params, [1.0, 1.0, 1.0], "emission")
+    add_input_integer(nonport_param_options(), params, 0, "lightgroup_id", 0, 7)
+    add_input_color(standart_param_options(), params, [1.0, 1.0, 1.0], "color")
 
     # Output Parameter
-    add_output_emission(shaderDef, "Light")
+    add_output_emission(shaderDef, "light")
 
     # next init ppg
     ppg_layout = shaderDef.PPGLayout
@@ -3265,7 +3273,9 @@ def LUXShadersPlugin_Emission_1_0_Define(in_ctxt):
     ppg_layout.AddItem("importance", "Importance")
     ppg_layout.AddItem("exposure", "Exposure")
     ppg_layout.AddItem("theta", "Spread Angle")
-    ppg_layout.AddItem("emission", "Color")
+    ppg_layout.AddItem("color", "Color")
+    ppg_layout.AddItem("lightgroup_id", "ID")
+    ppg_layout.AddEnumControl("dls_type", emission_dlstypes_enum, "DLS")
     ppg_layout.EndGroup()
 
     # Renderer definition
@@ -3312,7 +3322,7 @@ def LUXShadersPlugin_Mapping2D_1_0_Define(in_ctxt):
     add_input_float(nonport_param_options(), params, 0.0, "v_offset_max", 0.0, 1.0)
 
     # Output Parameter
-    add_output_2dmapping(shaderDef, "Mapping")
+    add_output_2dmapping(shaderDef, "mapping")
 
     # next init ppg
     ppg_layout = shaderDef.PPGLayout

@@ -5,6 +5,7 @@
 #include <xsi_vector3.h>
 #include <xsi_floatarray.h>
 #include <xsi_longarray.h>
+#include <xsi_doublearray.h>
 
 #include <vector>
 #include <string>
@@ -31,6 +32,22 @@ XSI::CString to_string(const XSI::CFloatArray& array)
 }
 
 XSI::CString to_string(const XSI::CLongArray& array)
+{
+	if (array.GetCount() == 0)
+	{
+		return "[]";
+	}
+
+	XSI::CString to_return = "[" + XSI::CString(array[0]);
+	for (ULONG i = 1; i < array.GetCount(); i++)
+	{
+		to_return += ", " + XSI::CString(array[i]);
+	}
+	to_return += "]";
+	return to_return;
+}
+
+XSI::CString to_string(const XSI::CDoubleArray& array)
 {
 	if (array.GetCount() == 0)
 	{

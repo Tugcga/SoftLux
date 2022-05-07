@@ -525,7 +525,7 @@ void RenderEngineLux::render()
 {
 	m_render_context.ProgressUpdate("Rendering...", "Rendering...", 0);
 
-	session->GetRenderConfig().Export("D:\\Graphic\\For Softimage\\_addons\\AddonDevelopWorkgroup\\Addons\\SoftLux\\Application\\Plugins\\bin\\nt-x86-64\\output\\");
+	//session->GetRenderConfig().Export("D:\\Graphic\\For Softimage\\_addons\\AddonDevelopWorkgroup\\Addons\\SoftLux\\Application\\Plugins\\bin\\nt-x86-64\\output\\");
 	//return;
 
 	session->Start();

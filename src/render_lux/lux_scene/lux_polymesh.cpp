@@ -145,13 +145,12 @@ bool sync_polymesh(luxcore::Scene* scene, XSI::X3DObject& xsi_object, std::set<U
 	xsi_acc.GetTriangleNodeIndices(triangle_nodes);
 	ULONG triangles_count = triangle_nodes.GetCount() / 3;  // the number of triangles in the mesh
 	ULONG vertex_count = xsi_acc.GetVertexCount();
-	XSI::CVertexRefArray vertices = mesh_polygonMesh.GetVertices();
-	XSI::CPolygonNodeRefArray nodes = mesh_polygonMesh.GetNodes();
-	XSI::CPolygonFaceRefArray polygons = mesh_polygonMesh.GetPolygons();
+	XSI::CDoubleArray vertex_positions;
+	xsi_acc.GetVertexPositions(vertex_positions);
 	XSI::CFloatArray node_normals;  // normal coordinates for each node
 	xsi_acc.GetNodeNormals(node_normals);
-	ULONG nodes_count = nodes.GetCount();  // the number of nodes in the mesh
-	ULONG polygons_count = polygons.GetCount();
+	ULONG nodes_count = xsi_acc.GetNodeCount();
+	ULONG polygons_count = xsi_acc.GetPolygonCount();
 	XSI::CLongArray polygon_sizes;
 	xsi_acc.GetPolygonVerticesCount(polygon_sizes);  //array contains sizes of all polygons
 
@@ -160,21 +159,25 @@ bool sync_polymesh(luxcore::Scene* scene, XSI::X3DObject& xsi_object, std::set<U
 	XSI::CFloatArray uv_values;
 	XSI::ClusterProperty uv_prop;
 
-	//get node positions and form node_to_vertex map
+	//at first we should generate node_to_vertex map, and then we can use it to find node positions
 	std::vector<Point> points(nodes_count);
 	std::vector<ULONG> node_to_vertex(nodes_count);
-	for (ULONG i = 0; i < vertex_count; i++)
+
+	//to find the map we use polygon indices (for vertices and nodes)
+	XSI::CLongArray vertex_indices;
+	xsi_acc.GetVertexIndices(vertex_indices);
+	XSI::CLongArray node_indices;
+	xsi_acc.GetNodeIndices(node_indices);
+	for (ULONG i = 0; i < vertex_indices.GetCount(); i++)
 	{
-		XSI::Vertex vertex = vertices[i];
-		XSI::MATH::CVector3 vertex_position = vertex.GetPosition();
-		XSI::CPolygonNodeRefArray vertex_nodes = vertex.GetNodes();
-		ULONG vertex_nodes_count = vertex_nodes.GetCount();
-		for (ULONG node_index = 0; node_index < vertex_nodes_count; node_index++)
-		{
-			XSI::PolygonNode node(vertex_nodes[node_index]);
-			points[node.GetIndex()] = Point(vertex_position.GetX(), vertex_position.GetY(), vertex_position.GetZ());
-			node_to_vertex[node.GetIndex()] = i;
-		}
+		node_to_vertex[node_indices[i]] = vertex_indices[i];
+	}
+
+	//now we can find node positions
+	for (ULONG i = 0; i < nodes_count; i++)
+	{
+		ULONG vertex_index = node_to_vertex[i];
+		points[i] = Point(vertex_positions[3* vertex_index], vertex_positions[3 * vertex_index + 1], vertex_positions[3 * vertex_index + 2]);
 	}
 
 	//reserve the array of uv-values
@@ -191,7 +194,7 @@ bool sync_polymesh(luxcore::Scene* scene, XSI::X3DObject& xsi_object, std::set<U
 			xsi_uvs[2 * nodes_count * i + 2 * j + 1] = uv_values[3 * j + 1];
 		}
 	}
-	
+
 	//read vertex colors
 	XSI::CRefArray vertex_colors_array = xsi_acc.GetVertexColors();
 	ULONG vertex_colors_array_count = vertex_colors_array.GetCount();
@@ -203,24 +206,15 @@ bool sync_polymesh(luxcore::Scene* scene, XSI::X3DObject& xsi_object, std::set<U
 		XSI::ClusterProperty vertex_color_prop(vertex_colors_array[vc_index]);
 		XSI::CFloatArray values;
 		vertex_color_prop.GetValues(values);
-
-		for (ULONG face_index = 0; face_index < polygons_count; face_index++)
+		for (ULONG node_index = 0; node_index < nodes_count; node_index++)
 		{
-			XSI::PolygonFace face(polygons[face_index]);
-			XSI::CPolygonNodeRefArray face_nodes = face.GetNodes();
-			ULONG face_nodes_count = face_nodes.GetCount();
-			for (ULONG node_index = 0; node_index < face_nodes_count; node_index++)
-			{
-				XSI::PolygonNode node(face_nodes[node_index]);
-				ULONG n = node.GetIndex();
-				xsi_colors[3 * nodes_count * vc_index + 3 * n] = values[4 * n];
-				xsi_colors[3 * nodes_count * vc_index + 3 * n + 1] = values[4 * n + 1];
-				xsi_colors[3 * nodes_count * vc_index + 3 * n + 2] = values[4 * n + 2];
-				xsi_alphas[nodes_count * vc_index + n] = values[4 * n + 3];
-			}
+			xsi_colors[3 * nodes_count * vc_index + 3 * node_index] = values[4 * node_index];
+			xsi_colors[3 * nodes_count * vc_index + 3 * node_index + 1] = values[4 * node_index + 1];
+			xsi_colors[3 * nodes_count * vc_index + 3 * node_index + 2] = values[4 * node_index + 2];
+			xsi_alphas[nodes_count * vc_index + node_index] = values[4 * node_index + 3];
 		}
 	}
-
+	
 	XSI::CLongArray polygon_material_indices;
 	xsi_acc.GetPolygonMaterialIndices(polygon_material_indices);
 	XSI::CRefArray xsi_materials = xsi_object.GetMaterials();
@@ -250,10 +244,10 @@ bool sync_polymesh(luxcore::Scene* scene, XSI::X3DObject& xsi_object, std::set<U
 			}
 		}
 	}
+
 	//the size of xsi_material_names array define how many meshes we should export as separate objects
 	//because in Luxcore each mesh can use only one material
 	//so, clusters with different materials are different objects
-
 	ULONG submeshes_count = xsi_material_names.size();
 	//for each submesh we should get the number of vertices (in fact nodes)  and triangles
 	std::vector<ULONG> submesh_vertices_count(submeshes_count, 0);
@@ -294,22 +288,22 @@ bool sync_polymesh(luxcore::Scene* scene, XSI::X3DObject& xsi_object, std::set<U
 			submesh_colors[i][j] = new Color[submesh_vertices_count[i]];
 			submesh_alphas[i][j] = new Alpha[submesh_vertices_count[i]];
 		}
+
 	}
 
 	//fill the data
 	std::vector<ULONG> submesh_point_index(submeshes_count, 0);  // store here actual submesh maximal point index
 	std::vector<ULONG> submesh_triangle_index(submeshes_count, 0);
+	ULONG node_index = 0;
 	for (ULONG i = 0; i < polygons_count; i++)
 	{
 		ULONG submesh_index = material_index_to_submesh[polygon_material_indices[i]];
-		XSI::PolygonFace polygon(polygons[i]);
-		XSI::CPolygonNodeRefArray polygon_nodes = polygon.GetNodes();
-		ULONG polygon_nodes_count = polygon_nodes.GetCount();
+		ULONG polygon_nodes_count = polygon_sizes[i];
 
 		for (ULONG j = 0; j < polygon_nodes_count; j++)
 		{
-			XSI::PolygonNode node(polygon_nodes[j]);
-			ULONG n = node.GetIndex();
+			ULONG n = node_indices[node_index];
+			node_index++;
 
 			ULONG point_pointer = submesh_point_index[submesh_index] + j;
 			//set positions
@@ -331,15 +325,20 @@ bool sync_polymesh(luxcore::Scene* scene, XSI::X3DObject& xsi_object, std::set<U
 				submesh_alphas[submesh_index][k][point_pointer] = Alpha(xsi_alphas[nodes_count * k + n]);
 			}
 		}
-		XSI::CLongArray polygon_trianglulation = polygon.GetTriangleSubIndexArray();
-		ULONG v = submesh_point_index[submesh_index];
-		ULONG polygon_triangles_count = polygon_trianglulation.GetCount() / 3;
-		for (ULONG t = 0; t < polygon_triangles_count; t++)
+		//use manual truiangulation of the polygon
+		//this works ok if all polygons are convex
+		//for concave polygons it can create wrong triangulation
+		//but it is to slow to find proper triangulation of each polygon
+		//GeometryAccessor does not allow to get triangulation of the selected polygon
+		//in fact we need local indices of nodes, which form triangulation of the selected polygon
+		ULONG v = submesh_point_index[submesh_index];  // get luxcore point index, created in the sumbesh
+		for (ULONG t = 0; t < polygon_sizes[i] - 2; t++)
 		{
-			submesh_triangles[submesh_index][submesh_triangle_index[submesh_index] + t] = Triangle(v + polygon_trianglulation[3*t], v + polygon_trianglulation[3 * t + 1], v + polygon_trianglulation[3 * t + 2]);
+			submesh_triangles[submesh_index][submesh_triangle_index[submesh_index] + t] = Triangle(v, v + t + 1, v + t + 2);
 		}
-		submesh_point_index[submesh_index] += polygon_nodes_count;
-		submesh_triangle_index[submesh_index] += polygon_triangles_count;
+
+		submesh_point_index[submesh_index] += polygon_nodes_count;  // increase the number of luxcore points in the submesh
+		submesh_triangle_index[submesh_index] += polygon_sizes[i] - 2;
 	}
 
 	//define Luxcore meshes

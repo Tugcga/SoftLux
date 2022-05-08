@@ -2,6 +2,7 @@
 #include "xsi_shaderparameter.h"
 #include "xsi_shader.h"
 #include "xsi_time.h"
+#include "xsi_vector3.h"
 
 #include <vector>
 
@@ -13,7 +14,8 @@ enum ShaderParameterType
 	ParameterType_Boolean,
 	ParameterType_String,
 	ParameterType_Color3,
-	ParameterType_Color4
+	ParameterType_Color4,
+	ParameterType_Vector3
 };
 
 enum GetRootShaderParameterMode
@@ -27,9 +29,10 @@ int get_int_parameter_value(const XSI::CParameterRefArray& all_parameters, const
 bool get_bool_parameter_value(const XSI::CParameterRefArray& all_parameters, const XSI::CString& parameter_name, const XSI::CTime& eval_time);
 XSI::CString get_string_parameter_value(const XSI::CParameterRefArray& all_parameters, const XSI::CString& parameter_name, const XSI::CTime& eval_time);
 XSI::MATH::CColor4f get_color_parameter_value(const XSI::CParameterRefArray& all_parameters, const XSI::CString& parameter_name, const XSI::CTime& eval_time);
+XSI::MATH::CVector3 get_vector_parameter_value(const XSI::CParameterRefArray& all_parameters, const XSI::CString& parameter_name, const XSI::CTime& eval_time);
 
 //return type of the shader parameter
-ShaderParameterType get_shader_parameter_type(XSI::Parameter& parameter);
+ShaderParameterType get_shader_parameter_type(XSI::ShaderParameter& parameter);
 
 //return shader parameter of the material root node, which has root_parameter_name name and connected to first-level node in the tree
 //if there is no port with the name, return empty array

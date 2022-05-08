@@ -16,16 +16,28 @@ std::array<float, 3> xsi_to_lux_vector(const XSI::MATH::CVector3 vector)
 	return lux_vector;
 }
 
-std::vector<double> xsi_to_lux_matrix(const XSI::MATH::CMatrix4& xsi_matrix)
+std::vector<double> xsi_to_lux_matrix(const XSI::MATH::CMatrix4& xsi_matrix, bool swap_axis)
 {
-	std::vector<double> to_return = {
+	if (swap_axis)
+	{
+		std::vector<double> to_return = {
 		xsi_matrix.GetValue(0, 2), xsi_matrix.GetValue(0, 0), xsi_matrix.GetValue(0, 1), xsi_matrix.GetValue(0, 3),
 		xsi_matrix.GetValue(1, 2), xsi_matrix.GetValue(1, 0), xsi_matrix.GetValue(1, 1), xsi_matrix.GetValue(1, 3),
 		xsi_matrix.GetValue(2, 2), xsi_matrix.GetValue(2, 0), xsi_matrix.GetValue(2, 1), xsi_matrix.GetValue(2, 3),
 		xsi_matrix.GetValue(3, 2), xsi_matrix.GetValue(3, 0), xsi_matrix.GetValue(3, 1), xsi_matrix.GetValue(3, 3)
-	};
-
-	return to_return;
+		};
+		return to_return;
+	}
+	else
+	{
+		std::vector<double> to_return = {
+		xsi_matrix.GetValue(0, 0), xsi_matrix.GetValue(0, 1), xsi_matrix.GetValue(0, 2), xsi_matrix.GetValue(0, 3),
+		xsi_matrix.GetValue(1, 0), xsi_matrix.GetValue(1, 1), xsi_matrix.GetValue(1, 2), xsi_matrix.GetValue(1, 3),
+		xsi_matrix.GetValue(2, 0), xsi_matrix.GetValue(2, 1), xsi_matrix.GetValue(2, 2), xsi_matrix.GetValue(2, 3),
+		xsi_matrix.GetValue(3, 0), xsi_matrix.GetValue(3, 1), xsi_matrix.GetValue(3, 2), xsi_matrix.GetValue(3, 3)
+		};
+		return to_return;
+	}
 }
 
 std::vector<float> xsi_to_lux_matrix_float(const XSI::MATH::CMatrix4& xsi_matrix)
@@ -54,4 +66,20 @@ float get_distant_light_normalization_factor(float theta)
 	float epsilon = 1e-9;
 	float cos_theta_max = std::min((float)cos(DEG2RADF(theta)), 1 - epsilon);
 	return 1.0f / (2.0f * M_PI * (1.0f - cos_theta_max));
+}
+
+std::vector<float> string_to_array(const XSI::CString& input)
+{
+	std::vector<float> to_return;
+	XSI::CStringArray parts = input.Split(",");
+	for (ULONG i = 0; i < parts.GetCount(); i++)
+	{
+		XSI::CString p(parts[i]);
+		p.TrimLeft();
+		p.TrimRight();
+		float f = strtof(p.GetAsciiString(), nullptr);
+		to_return.push_back(f);
+	}
+
+	return to_return;
 }

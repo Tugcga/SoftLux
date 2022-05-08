@@ -41,52 +41,53 @@ XSI::MATH::CColor4f get_color_parameter_value(const XSI::CParameterRefArray& all
 	return (XSI::MATH::CColor4f)param_final.GetValue(eval_time);
 }
 
-ShaderParameterType get_shader_parameter_type(XSI::Parameter &parameter)
+XSI::MATH::CVector3 get_vector_parameter_value(const XSI::CParameterRefArray& all_parameters, const XSI::CString& parameter_name, const XSI::CTime& eval_time)
 {
-	XSI::CValue::DataType xsi_type = parameter.GetValueType();
-	if (xsi_type == XSI::CValue::DataType::siEmpty)
+	XSI::Parameter param = all_parameters.GetItem(parameter_name);
+	XSI::Parameter param_final = get_source_parameter(param);
+	XSI::CParameterRefArray v_params = param_final.GetParameters();
+	XSI::Parameter p[3];
+	p[0] = XSI::Parameter(v_params[0]);
+	p[1] = XSI::Parameter(v_params[1]);
+	p[2] = XSI::Parameter(v_params[2]);
+
+	return XSI::MATH::CVector3(p[0].GetValue(eval_time), p[1].GetValue(eval_time), p[2].GetValue(eval_time));
+}
+
+ShaderParameterType get_shader_parameter_type(XSI::ShaderParameter &parameter)
+{
+	XSI::siShaderParameterDataType xsi_type = parameter.GetDataType();
+	if (xsi_type == XSI::siShaderDataTypeColor3)
 	{
-		XSI::CParameterRefArray paramster_params = parameter.GetParameters();
-		LONG count = paramster_params.GetCount();
-		if (count == 3)
-		{
-			//this is 3-values color
-			return ShaderParameterType::ParameterType_Color3;
-		}
-		else if (count == 4)
-		{
-			return ShaderParameterType::ParameterType_Color4;
-		}
-		else
-		{
-			return ShaderParameterType::ParameterType_Unknown;
-		}
+		return ShaderParameterType::ParameterType_Color3;
+	}
+	else if (xsi_type == XSI::siShaderDataTypeColor4)
+	{
+		return ShaderParameterType::ParameterType_Color4;
+	}
+	else if (xsi_type == XSI::siShaderDataTypeInteger)
+	{
+		return ShaderParameterType::ParameterType_Integer;
+	}
+	else if (xsi_type == XSI::siShaderDataTypeScalar)
+	{
+		return ShaderParameterType::ParameterType_Float;
+	}
+	else if (xsi_type == XSI::siShaderDataTypeString)
+	{
+		return ShaderParameterType::ParameterType_String;
+	}
+	else if (xsi_type == XSI::siShaderDataTypeBoolean)
+	{
+		return ShaderParameterType::ParameterType_Boolean;
+	}
+	else if (xsi_type == XSI::siShaderDataTypeVector3)
+	{
+		return ShaderParameterType::ParameterType_Vector3;
 	}
 	else
 	{
-		if (xsi_type == XSI::CValue::DataType::siInt2 ||
-			xsi_type == XSI::CValue::DataType::siInt4 || 
-			xsi_type == XSI::CValue::DataType::siInt8)
-		{
-			return ShaderParameterType::ParameterType_Integer;
-		}
-		else if (xsi_type == XSI::CValue::DataType::siFloat ||
-			xsi_type == XSI::CValue::DataType::siDouble)
-		{
-			return ShaderParameterType::ParameterType_Float;
-		}
-		else if (xsi_type == XSI::CValue::DataType::siString)
-		{
-			return ShaderParameterType::ParameterType_String;
-		}
-		else if (xsi_type == XSI::CValue::DataType::siBool)
-		{
-			return ShaderParameterType::ParameterType_Boolean;
-		}
-		else
-		{
-			return ShaderParameterType::ParameterType_Unknown;
-		}
+		return ShaderParameterType::ParameterType_Unknown;
 	}
 }
 
@@ -170,7 +171,7 @@ XSI::Shader get_input_node(const XSI::ShaderParameter& parameter, bool ignore_co
 			else
 			{
 				XSI::CString prog_id = source_shader.GetProgID();
-				if (prog_id == "Softimage.sib_scalar_to_color.1.0" || prog_id == "Softimage.sib_color_to_scalar.1.0" || prog_id == "Softimage.sib_color_to_vector.1.0")
+				if (prog_id == "Softimage.sib_scalar_to_color.1.0" || prog_id == "Softimage.sib_color_to_scalar.1.0" || prog_id == "Softimage.sib_color_to_vector.1.0" || prog_id == "Softimage.sib_vector_to_color.1.0")
 				{
 					XSI::Parameter input_param = source_shader.GetParameter("input");
 					XSI::ShaderParameter shader_input_param(input_param);
@@ -195,7 +196,7 @@ XSI::Shader get_input_node(const XSI::ShaderParameter& parameter, bool ignore_co
 			//get parent node
 			XSI::Shader parent_node = parameter.GetParent();
 			XSI::CString prog_id = parent_node.GetProgID();
-			if (prog_id == "Softimage.sib_scalar_to_color.1.0" || prog_id == "Softimage.sib_color_to_scalar.1.0" || prog_id == "Softimage.sib_color_to_vector.1.0")
+			if (prog_id == "Softimage.sib_scalar_to_color.1.0" || prog_id == "Softimage.sib_color_to_scalar.1.0" || prog_id == "Softimage.sib_color_to_vector.1.0" || prog_id == "Softimage.sib_vector_to_color.1.0")
 			{
 				return parent_node;
 			}

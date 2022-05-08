@@ -6,8 +6,10 @@
 #include "xsi_materiallibrary.h"
 #include "xsi_imageclip2.h"
 
-void add_mapping(luxrays::Properties &texture_props, const std::string &prefix, XSI::CParameterRefArray &parameters, const XSI::CString &mapping_parameter_name, const XSI::CTime &eval_time)
+//return true if we add some mapping to the texture
+bool add_mapping(luxrays::Properties &texture_props, const std::string &prefix, XSI::CParameterRefArray &parameters, const XSI::CString &mapping_parameter_name, const XSI::CTime &eval_time)
 {
+	bool to_return = false;
 	XSI::ShaderParameter mapping_parameter = parameters.GetItem(mapping_parameter_name);
 	if (mapping_parameter.IsValid())
 	{
@@ -18,6 +20,7 @@ void add_mapping(luxrays::Properties &texture_props, const std::string &prefix, 
 			XSI::CString prog_id = mapping_node.GetProgID();
 			if (prog_id == "LUXShadersPlugin.Mapping2D.1.0")
 			{
+				to_return = true;
 				//this is valid mapping node
 				XSI::CParameterRefArray map_params = mapping_node.GetParameters();
 				//in Blender the node can contains the child mapping node
@@ -40,7 +43,7 @@ void add_mapping(luxrays::Properties &texture_props, const std::string &prefix, 
 					{
 						v_scale = u_scale;
 					}
-					texture_props.Set(luxrays::Property(prefix + ".uvscale")(u_scale, -v_scale));
+					texture_props.Set(luxrays::Property(prefix + ".uvscale")(u_scale, v_scale));
 
 					float rotation = get_float_parameter_value(map_params, "rotation", eval_time);
 					texture_props.Set(luxrays::Property(prefix + ".rotation")(rotation));
@@ -87,6 +90,131 @@ void add_mapping(luxrays::Properties &texture_props, const std::string &prefix, 
 					}
 				}
 			}
+			else if (prog_id == "LUXShadersPlugin.Mapping3D.1.0")
+			{
+				to_return = true;
+				XSI::CParameterRefArray map_params = mapping_node.GetParameters();
+				XSI::CString mapping_type = get_string_parameter_value(map_params, "mapping_type", eval_time);
+				int uvindex = get_int_parameter_value(map_params, "uvindex", eval_time);
+				bool is_uniform = get_bool_parameter_value(map_params, "is_uniform", eval_time);
+				if (mapping_type == "globalmapping3d" || mapping_type == "localmapping3d" || mapping_type == "uvmapping3d")
+				{
+					//get SRT values
+					float scale_x = get_float_parameter_value(map_params, "scale_x", eval_time);
+					float scale_y = get_float_parameter_value(map_params, "scale_y", eval_time);
+					float scale_z = get_float_parameter_value(map_params, "scale_z", eval_time);
+					if (is_uniform)
+					{
+						scale_y = scale_x;
+						scale_z = scale_x;
+					}
+					if (abs(scale_x) < 0.000001f) { scale_x = 0.000001f; }
+					if (abs(scale_y) < 0.000001f) { scale_y = 0.000001f; }
+					if (abs(scale_z) < 0.000001f) { scale_z = 0.000001f; }
+					//we should convert rotation angles to radians
+					float rotate_x = DEG2RADF(get_float_parameter_value(map_params, "rotate_x", eval_time));
+					float rotate_y = DEG2RADF(get_float_parameter_value(map_params, "rotate_y", eval_time));
+					float rotate_z = DEG2RADF(get_float_parameter_value(map_params, "rotate_z", eval_time));
+					float translate_x = get_float_parameter_value(map_params, "translate_x", eval_time);
+					float translate_y = get_float_parameter_value(map_params, "translate_y", eval_time);
+					float translate_z = get_float_parameter_value(map_params, "translate_z", eval_time);
+
+					XSI::MATH::CTransformation tfm_translate;
+					tfm_translate.SetIdentity();
+					tfm_translate.SetTranslationFromValues(translate_x, translate_y, translate_z);
+					XSI::MATH::CTransformation tfm_rotate;
+					tfm_rotate.SetIdentity();
+					tfm_rotate.SetRotationFromXYZAnglesValues(rotate_x, rotate_y, rotate_z);
+					XSI::MATH::CTransformation tfm_scale;
+					tfm_scale.SetIdentity();
+					tfm_scale.SetScalingFromValues(scale_x, scale_y, scale_z);
+					XSI::MATH::CTransformation tfm;
+					tfm.SetIdentity();
+					tfm.MulInPlace(tfm_scale);
+					tfm.MulInPlace(tfm_rotate);
+					tfm.MulInPlace(tfm_translate);
+
+					texture_props.Set(luxrays::Property(prefix + ".type")(mapping_type.GetAsciiString()));
+					texture_props.Set(luxrays::Property(prefix + ".uvindex")(uvindex));
+					texture_props.Set(luxrays::Property(prefix + ".transformation")(xsi_to_lux_matrix(tfm.GetMatrix4(), false)));
+				}
+				else if(mapping_type == "localrandommapping3d")
+				{
+					//random mapping
+					texture_props.Set(luxrays::Property(prefix + ".type")("localrandommapping3d"));
+					texture_props.Set(luxrays::Property(prefix + ".uvindex")(uvindex));
+					float rotate_x = DEG2RADF(get_float_parameter_value(map_params, "rotate_x", eval_time));
+					float rotate_y = DEG2RADF(get_float_parameter_value(map_params, "rotate_y", eval_time));
+					float rotate_z = DEG2RADF(get_float_parameter_value(map_params, "rotate_z", eval_time));
+					float rotate_max_x = DEG2RADF(get_float_parameter_value(map_params, "rotate_max_x", eval_time));
+					float rotate_max_y = DEG2RADF(get_float_parameter_value(map_params, "rotate_max_y", eval_time));
+					float rotate_max_z = DEG2RADF(get_float_parameter_value(map_params, "rotate_max_z", eval_time));
+					bool is_random_rotation = get_bool_parameter_value(map_params, "is_random_rotation", eval_time);
+					if (!is_random_rotation)
+					{
+						rotate_max_x = rotate_x;
+						rotate_max_y = rotate_y;
+						rotate_max_z = rotate_z;
+					}
+					texture_props.Set(luxrays::Property(prefix + ".xrotation")(rotate_z, rotate_max_x));
+					texture_props.Set(luxrays::Property(prefix + ".yrotation")(rotate_y, rotate_max_y));
+					texture_props.Set(luxrays::Property(prefix + ".zrotation")(rotate_z, rotate_max_z));
+
+					float translate_x = get_float_parameter_value(map_params, "translate_x", eval_time);
+					float translate_y = get_float_parameter_value(map_params, "translate_y", eval_time);
+					float translate_z = get_float_parameter_value(map_params, "translate_z", eval_time);
+					float translate_max_x = get_float_parameter_value(map_params, "translate_max_x", eval_time);
+					float translate_max_y = get_float_parameter_value(map_params, "translate_max_y", eval_time);
+					float translate_max_z = get_float_parameter_value(map_params, "translate_max_z", eval_time);
+					bool is_random_translation = get_bool_parameter_value(map_params, "is_random_translation", eval_time);
+					if (!is_random_translation)
+					{
+						translate_max_x = translate_x;
+						translate_max_y = translate_y;
+						translate_max_z = translate_z;
+					}
+					texture_props.Set(luxrays::Property(prefix + ".xtranslate")(translate_x, translate_max_x));
+					texture_props.Set(luxrays::Property(prefix + ".ytranslate")(translate_y, translate_max_y));
+					texture_props.Set(luxrays::Property(prefix + ".ztranslate")(translate_z, translate_max_z));
+
+					texture_props.Set(luxrays::Property(prefix + ".xyzscale.uniform")(is_uniform));
+					float scale_x = get_float_parameter_value(map_params, "scale_x", eval_time);
+					float scale_y = get_float_parameter_value(map_params, "scale_y", eval_time);
+					float scale_z = get_float_parameter_value(map_params, "scale_z", eval_time);
+					float scale_max_x = get_float_parameter_value(map_params, "scale_max_x", eval_time);
+					float scale_max_y = get_float_parameter_value(map_params, "scale_max_x", eval_time);
+					float scale_max_z = get_float_parameter_value(map_params, "scale_max_z", eval_time);
+					bool is_random_scale = get_bool_parameter_value(map_params, "is_random_scale", eval_time);
+					if (!is_random_scale)
+					{
+						scale_max_x = scale_x;
+						scale_max_y = scale_y;
+						scale_max_z = scale_z;
+					}
+					if (is_uniform)
+					{
+						scale_y = scale_x;
+						scale_z = scale_x;
+						scale_max_y = scale_max_x;
+						scale_max_z = scale_max_x;
+					}
+					texture_props.Set(luxrays::Property(prefix + ".xscale")(scale_x, scale_max_x));
+					texture_props.Set(luxrays::Property(prefix + ".yscale")(scale_y, scale_max_y));
+					texture_props.Set(luxrays::Property(prefix + ".zscale")(scale_z, scale_max_z));
+
+					XSI::CString seed_type = get_string_parameter_value(map_params, "seed_type", eval_time);
+					if (seed_type == "object_id")
+					{
+						texture_props.Set(luxrays::Property(prefix + ".seed.type")("object_id_offset"));
+						texture_props.Set(luxrays::Property(prefix + ".objectidoffset.value")(get_int_parameter_value(map_params, "id_offset", eval_time)));
+					}
+					else
+					{
+						texture_props.Set(luxrays::Property(prefix + ".seed.type")("triangle_aov"));
+						texture_props.Set(luxrays::Property(prefix + ".triangleaov.index")(0));
+					}
+				}
+			}
 		}
 		else
 		{
@@ -98,6 +226,8 @@ void add_mapping(luxrays::Properties &texture_props, const std::string &prefix, 
 		//the node does not contains mapping parameter with input name
 		//so, nothing to do
 	}
+
+	return to_return;
 }
 
 void add_emission(luxcore::Scene* scene, XSI::CParameterRefArray &parameters, luxrays::Properties &lux_props, const std::string &prefix, const XSI::CTime &eval_time)
@@ -139,6 +269,16 @@ void add_emission(luxcore::Scene* scene, XSI::CParameterRefArray &parameters, lu
 	}
 }
 
+void add_inline_bump(luxcore::Scene *scene, std::string prefix, std::string suffix, XSI::CParameterRefArray &parameters, const XSI::CTime &eval_time)
+{
+	luxrays::Properties bump_props;
+	std::string bump_prefix = prefix + suffix;
+	bump_props.Set(luxrays::Property(bump_prefix + ".type")("scale"));
+	set_material_value(scene, bump_props, "value" + XSI::CString(suffix.c_str()), bump_prefix + ".texture1", parameters, eval_time);
+	set_material_value(scene, bump_props, "height" + XSI::CString(suffix.c_str()), bump_prefix + ".texture2", parameters, eval_time);
+	scene->Parse(bump_props);
+}
+
 std::string add_texture(luxcore::Scene* scene, XSI::Shader &texture_node, const XSI::CTime &eval_time)
 {
 	std::string output_name = xsi_object_id_string(texture_node)[0];
@@ -158,11 +298,18 @@ std::string add_texture(luxcore::Scene* scene, XSI::Shader &texture_node, const 
 			float input = get_float_parameter_value(parameters, "input", eval_time);
 			texture_props.Set(luxrays::Property(prefix + ".value")(input));
 		}
-		else if (node_name == "sib_color_to_scalar")
+		else if (node_name == "sib_color_to_scalar" || node_name == "sib_color_to_vector")
 		{
 			texture_props.Set(luxrays::Property(prefix + ".type")("constfloat3"));
 			XSI::MATH::CColor4f input = get_color_parameter_value(parameters, "input", eval_time);
 			texture_props.Set(luxrays::Property(prefix + ".value")(input.GetR(), input.GetG(), input.GetB()));
+		}
+		else if (node_name == "sib_vector_to_color")
+		{
+			texture_props.Set(luxrays::Property(prefix + ".type")("constfloat3"));
+			XSI::ShaderParameter p(parameters.GetItem("input"));
+			XSI::MATH::CVector3 input = get_vector_parameter_value(parameters, "input", eval_time);
+			texture_props.Set(luxrays::Property(prefix + ".value")(input.GetX(), input.GetY(), input.GetZ()));
 		}
 		else
 		{
@@ -284,6 +431,431 @@ std::string add_texture(luxcore::Scene* scene, XSI::Shader &texture_node, const 
 			}
 
 		}
+		else if (node_name == "TextureMath")
+		{
+			XSI::CString mode = get_string_parameter_value(parameters, "type", eval_time);
+			texture_props.Set(luxrays::Property(prefix + ".type")(mode.GetAsciiString()));
+
+			if (mode == "abs")
+			{
+				set_material_value(scene, texture_props, "value_1", prefix + ".texture", parameters, eval_time);
+			}
+			else if (mode == "clamp")
+			{
+				set_material_value(scene, texture_props, "value_1", prefix + ".texture", parameters, eval_time);
+				texture_props.Set(luxrays::Property(prefix + ".min")(get_float_parameter_value(parameters, "clamp_min", eval_time)));
+				texture_props.Set(luxrays::Property(prefix + ".max")(get_float_parameter_value(parameters, "clamp_max", eval_time)));
+			}
+			else if (mode == "mix")
+			{
+				set_material_value(scene, texture_props, "value_1", prefix + ".texture1", parameters, eval_time);
+				set_material_value(scene, texture_props, "value_2", prefix + ".texture2", parameters, eval_time);
+				set_material_value(scene, texture_props, "fac", prefix + ".amount", parameters, eval_time);
+			}
+			else if (mode == "power")
+			{
+				set_material_value(scene, texture_props, "value_1", prefix + ".base", parameters, eval_time);
+				set_material_value(scene, texture_props, "value_2", prefix + ".exponent", parameters, eval_time);
+			}
+			else if (mode == "rounding")
+			{
+				set_material_value(scene, texture_props, "value_1", prefix + ".texture", parameters, eval_time);
+				set_material_value(scene, texture_props, "value_2", prefix + ".increment", parameters, eval_time);
+			}
+			else if (mode == "modulo")
+			{
+				set_material_value(scene, texture_props, "value_1", prefix + ".texture", parameters, eval_time);
+				set_material_value(scene, texture_props, "value_2", prefix + ".modulo", parameters, eval_time);
+			}
+			else
+			{
+				set_material_value(scene, texture_props, "value_1", prefix + ".texture1", parameters, eval_time);
+				set_material_value(scene, texture_props, "value_2", prefix + ".texture2", parameters, eval_time);
+			}
+
+			bool is_clamp = get_bool_parameter_value(parameters, "is_clamp", eval_time);
+			if (is_clamp && mode != "clamp")
+			{
+				scene->Parse(texture_props);
+				std::string clamp_prefix = "scene.textures." + output_name + "_clamp";
+				luxrays::Properties clamp_props;
+				clamp_props.Set(luxrays::Property(clamp_prefix + ".type")("clamp"));
+				clamp_props.Set(luxrays::Property(clamp_prefix + ".texture")(output_name));
+				float clamp_min = get_float_parameter_value(parameters, "clamp_min", eval_time);
+				float clamp_max = get_float_parameter_value(parameters, "clamp_max", eval_time);
+				clamp_props.Set(luxrays::Property(clamp_prefix + ".min")(0.0f));
+				clamp_props.Set(luxrays::Property(clamp_prefix + ".max")(1.0f));
+
+				//at the end we will finish this texture
+				texture_props = clamp_props;
+				//and return new name
+				output_name = output_name + "_clamp";
+			}
+		}
+		else if (node_name == "TextureColorMath")
+		{
+			XSI::CString mode = get_string_parameter_value(parameters, "type", eval_time);
+			texture_props.Set(luxrays::Property(prefix + ".type")(mode.GetAsciiString()));
+			if (mode == "abs")
+			{
+				set_material_value(scene, texture_props, "color_1", prefix + ".texture", parameters, eval_time);
+			}
+			else if (mode == "clamp")
+			{
+				set_material_value(scene, texture_props, "color_1", prefix + ".texture", parameters, eval_time);
+				texture_props.Set(luxrays::Property(prefix + ".min")(get_float_parameter_value(parameters, "clamp_min", eval_time)));
+				texture_props.Set(luxrays::Property(prefix + ".max")(get_float_parameter_value(parameters, "clamp_max", eval_time)));
+			}
+			else
+			{
+				set_material_value(scene, texture_props, "color_1", prefix + ".texture1", parameters, eval_time);
+				set_material_value(scene, texture_props, "color_2", prefix + ".texture2", parameters, eval_time);
+				if (mode == "mix")
+				{
+					set_material_value(scene, texture_props, "fac", prefix + ".amount", parameters, eval_time);
+				}
+			}
+			bool is_clamp = get_bool_parameter_value(parameters, "is_clamp", eval_time);
+			if (is_clamp && mode != "clamp")
+			{
+				scene->Parse(texture_props);
+				std::string clamp_prefix = "scene.textures." + output_name + "_clamp";
+				luxrays::Properties clamp_props;
+				clamp_props.Set(luxrays::Property(clamp_prefix + ".type")("clamp"));
+				clamp_props.Set(luxrays::Property(clamp_prefix + ".texture")(output_name));
+				float clamp_min = get_float_parameter_value(parameters, "clamp_min", eval_time);
+				float clamp_max = get_float_parameter_value(parameters, "clamp_max", eval_time);
+				clamp_props.Set(luxrays::Property(clamp_prefix + ".min")(0.0f));
+				clamp_props.Set(luxrays::Property(clamp_prefix + ".max")(1.0f));
+
+				//at the end we will finish this texture
+				texture_props = clamp_props;
+				//and return new name
+				output_name = output_name + "_clamp";
+			}
+		}
+		else if (node_name == "TextureCheckerboard2D")
+		{
+			texture_props.Set(luxrays::Property(prefix + ".type")("checkerboard2d"));
+			set_material_value(scene, texture_props, "color_1", prefix + ".texture1", parameters, eval_time);
+			set_material_value(scene, texture_props, "color_2", prefix + ".texture2", parameters, eval_time);
+			add_mapping(texture_props, prefix + ".mapping", parameters, "mapping_2d", eval_time);
+		}
+		else if (node_name == "TextureCheckerboard3D")
+		{
+			texture_props.Set(luxrays::Property(prefix + ".type")("checkerboard3d"));
+			set_material_value(scene, texture_props, "color_1", prefix + ".texture1", parameters, eval_time);
+			set_material_value(scene, texture_props, "color_2", prefix + ".texture2", parameters, eval_time);
+			add_mapping(texture_props, prefix + ".mapping", parameters, "mapping_3d", eval_time);
+		}
+		else if (node_name == "TriplanarMapping")
+		{
+			texture_props.Set(luxrays::Property(prefix + ".type")("triplanar"));
+			bool multiple_textures = get_bool_parameter_value(parameters, "multiple_textures", eval_time);
+			if (multiple_textures)
+			{
+				set_material_value(scene, texture_props, "color_x", prefix + ".texture1", parameters, eval_time);
+				set_material_value(scene, texture_props, "color_y", prefix + ".texture2", parameters, eval_time);
+				set_material_value(scene, texture_props, "color_z", prefix + ".texture3", parameters, eval_time);
+			}
+			else
+			{
+				set_material_value(scene, texture_props, "color_x", prefix + ".texture1", parameters, eval_time);
+				set_material_value(scene, texture_props, "color_x", prefix + ".texture2", parameters, eval_time);
+				set_material_value(scene, texture_props, "color_x", prefix + ".texture3", parameters, eval_time);
+			}
+			bool is_add = add_mapping(texture_props, prefix + ".mapping", parameters, "mapping_3d", eval_time);
+			if (!is_add)
+			{
+				texture_props.Set(luxrays::Property(prefix + ".mapping.type")("localmapping3d"));
+			}
+		}
+		else if (node_name == "TriplanarBumpMapping")
+		{
+			texture_props.Set(luxrays::Property(prefix + ".type")("triplanar"));
+			bool multiple_textures = get_bool_parameter_value(parameters, "multiple_textures", eval_time);
+			//create inline bump texture
+			add_inline_bump(scene, prefix, "_x", parameters, eval_time);
+			texture_props.Set(luxrays::Property(prefix + ".texture1")(output_name + "_x"));
+			if (multiple_textures)
+			{
+				add_inline_bump(scene, prefix, "_y", parameters, eval_time);
+				texture_props.Set(luxrays::Property(prefix + ".texture2")(output_name + "_y"));
+				add_inline_bump(scene, prefix, "_z", parameters, eval_time);
+				texture_props.Set(luxrays::Property(prefix + ".texture3")(output_name + "_z"));
+			}
+			else
+			{
+				texture_props.Set(luxrays::Property(prefix + ".texture2")(output_name + "_x"));
+				texture_props.Set(luxrays::Property(prefix + ".texture3")(output_name + "_x"));
+			}
+			bool is_add = add_mapping(texture_props, prefix + ".mapping", parameters, "mapping_3d", eval_time);
+			if (!is_add)
+			{
+				texture_props.Set(luxrays::Property(prefix + ".mapping.type")("localmapping3d"));
+			}
+		}
+		else if (node_name == "TriplanarNormalMapping")
+		{
+			texture_props.Set(luxrays::Property(prefix + ".type")("triplanar"));
+			bool multiple_textures = get_bool_parameter_value(parameters, "multiple_textures", eval_time);
+			if (multiple_textures)
+			{
+				set_material_value(scene, texture_props, "color_x", prefix + ".texture1", parameters, eval_time);
+				set_material_value(scene, texture_props, "color_y", prefix + ".texture2", parameters, eval_time);
+				set_material_value(scene, texture_props, "color_z", prefix + ".texture3", parameters, eval_time);
+			}
+			else
+			{
+				set_material_value(scene, texture_props, "color_x", prefix + ".texture1", parameters, eval_time);
+				set_material_value(scene, texture_props, "color_x", prefix + ".texture2", parameters, eval_time);
+				set_material_value(scene, texture_props, "color_x", prefix + ".texture3", parameters, eval_time);
+			}
+
+			bool is_add = add_mapping(texture_props, prefix + ".mapping", parameters, "mapping_3d", eval_time);
+			if (!is_add)
+			{
+				texture_props.Set(luxrays::Property(prefix + ".mapping.type")("localmapping3d"));
+			}
+
+			//instert normalmap
+			scene->Parse(texture_props);
+			std::string normal_prefix = "scene.textures." + output_name + "_normalmap";
+			luxrays::Properties normal_props;
+			normal_props.Set(luxrays::Property(normal_prefix + ".type")("normalmap"));
+			normal_props.Set(luxrays::Property(normal_prefix + ".texture")(output_name));
+			normal_props.Set(luxrays::Property(normal_prefix + ".scale")(get_float_parameter_value(parameters, "height", eval_time)));
+			texture_props = normal_props;
+			//and return new name
+			output_name = output_name + "_normalmap";
+		}
+		else if (node_name == "TextureBlackbody")
+		{
+			texture_props.Set(luxrays::Property(prefix + ".type")("blackbody"));
+			texture_props.Set(luxrays::Property(prefix + ".temperature")(get_float_parameter_value(parameters, "temperature", eval_time)));
+			texture_props.Set(luxrays::Property(prefix + ".normalize")(get_bool_parameter_value(parameters, "normalize", eval_time)));
+		}
+		else if (node_name == "TextureIrregularData")
+		{
+			//before create property, check that data is correct
+			//each string field should contains the same number of float values, the number of values >= 2
+			XSI::CString wavelengths = get_string_parameter_value(parameters, "wavelengths", eval_time);
+			XSI::CString data = get_string_parameter_value(parameters, "data", eval_time);
+			std::vector wavelengths_vector = string_to_array(wavelengths);
+			std::vector data_vector = string_to_array(data);
+			if (wavelengths_vector.size() > 1 && data_vector.size() > 1 && wavelengths_vector.size() == data_vector.size())
+			{
+				texture_props.Set(luxrays::Property(prefix + ".type")("irregulardata"));
+				texture_props.Set(luxrays::Property(prefix + ".wavelengths")(wavelengths_vector));
+				texture_props.Set(luxrays::Property(prefix + ".data")(data_vector));
+			}
+			else
+			{
+				output_name = "";
+			}
+		}
+		else if (node_name == "TextureLampSpectrum")
+		{
+			texture_props.Set(luxrays::Property(prefix + ".type")("lampspectrum"));
+			XSI::CString lamp_category = get_string_parameter_value(parameters, "lamp_category", eval_time);
+			if (lamp_category == "Natural") { texture_props.Set(luxrays::Property(prefix + ".name")(get_string_parameter_value(parameters, "lamp_natural", eval_time).GetAsciiString())); }
+			if (lamp_category == "Incandescent") { texture_props.Set(luxrays::Property(prefix + ".name")(get_string_parameter_value(parameters, "lamp_incandescent", eval_time).GetAsciiString())); }
+			if (lamp_category == "Fluorescent") { texture_props.Set(luxrays::Property(prefix + ".name")(get_string_parameter_value(parameters, "lamp_flourescent", eval_time).GetAsciiString())); }
+			if (lamp_category == "High_Pressure_Mercury") { texture_props.Set(luxrays::Property(prefix + ".name")(get_string_parameter_value(parameters, "lamp_high_pressure", eval_time).GetAsciiString())); }
+			if (lamp_category == "Sodium_Discharge") { texture_props.Set(luxrays::Property(prefix + ".name")(get_string_parameter_value(parameters, "lamp_sodium_discharge", eval_time).GetAsciiString())); }
+			if (lamp_category == "Metal_Halide") { texture_props.Set(luxrays::Property(prefix + ".name")(get_string_parameter_value(parameters, "lamp_metal_halide", eval_time).GetAsciiString())); }
+			if (lamp_category == "Diode") { texture_props.Set(luxrays::Property(prefix + ".name")(get_string_parameter_value(parameters, "lamp_diode", eval_time).GetAsciiString())); }
+			if (lamp_category == "Spectral") { texture_props.Set(luxrays::Property(prefix + ".name")(get_string_parameter_value(parameters, "lamp_spectral", eval_time).GetAsciiString())); }
+			if (lamp_category == "Glow_Discharge") { texture_props.Set(luxrays::Property(prefix + ".name")(get_string_parameter_value(parameters, "lamp_glow_discharge", eval_time).GetAsciiString())); }
+			if (lamp_category == "Molecular") { texture_props.Set(luxrays::Property(prefix + ".name")(get_string_parameter_value(parameters, "lamp_molecular", eval_time).GetAsciiString())); }
+			if (lamp_category == "Fluorescence") { texture_props.Set(luxrays::Property(prefix + ".name")(get_string_parameter_value(parameters, "lamp_fluorescence", eval_time).GetAsciiString())); }
+			if (lamp_category == "Various") { texture_props.Set(luxrays::Property(prefix + ".name")(get_string_parameter_value(parameters, "lamp_various", eval_time).GetAsciiString())); }
+			if (lamp_category == "BlacklightUV") { texture_props.Set(luxrays::Property(prefix + ".name")(get_string_parameter_value(parameters, "lamp_blacklight", eval_time).GetAsciiString())); }
+			if (lamp_category == "Mercury_UV") { texture_props.Set(luxrays::Property(prefix + ".name")(get_string_parameter_value(parameters, "lamp_mercury_uv", eval_time).GetAsciiString())); }
+			if (lamp_category == "AbsorptionMixed") { texture_props.Set(luxrays::Property(prefix + ".name")(get_string_parameter_value(parameters, "lamp_absorption", eval_time).GetAsciiString())); }
+		}
+		else if (node_name == "TextureBump")
+		{
+			texture_props.Set(luxrays::Property(prefix + ".type")("scale"));
+			set_material_value(scene, texture_props, "value", prefix + ".texture1", parameters, eval_time);
+			set_material_value(scene, texture_props, "height", prefix + ".texture2", parameters, eval_time);
+		}
+		else if (node_name == "TextureColorRamp")
+		{
+			XSI::Parameter gp = parameters.GetItem("gradient");
+			XSI::Parameter gradient_param = get_source_parameter(gp);
+			if (gradient_param.IsValid())
+			{
+				texture_props.Set(luxrays::Property(prefix + ".type")("band"));
+				XSI::CParameterRefArray g_params = gradient_param.GetParameters();
+				XSI::Parameter markers_parameter = g_params.GetItem("markers");
+				int interpolation = get_int_parameter_value(g_params, "interpolation", eval_time);
+				texture_props.Set(luxrays::Property(prefix + ".interpolation")(interpolation == 0 ? "linear" : "cubic"));
+				XSI::CParameterRefArray m_params = markers_parameter.GetParameters();
+				//std::map<float, XSI::MATH::CVector3f> positions;
+				std::map<float, std::tuple<float, float, float>> positions;
+				for (ULONG i = 0; i < m_params.GetCount(); i++)
+				{
+					XSI::ShaderParameter p = m_params[i];
+					float pos = p.GetParameterValue("pos");
+					float mid = p.GetParameterValue("mid");
+					float r = p.GetParameterValue("red");
+					float g = p.GetParameterValue("green");
+					float b = p.GetParameterValue("blue");
+					float a = p.GetParameterValue("alpha");
+					if (pos > -1.0f)
+					{
+						positions.emplace(std::piecewise_construct, std::forward_as_tuple(pos),std::forward_as_tuple(r, g, b));
+						
+					}
+				}
+				set_material_value(scene, texture_props, "amount", prefix + ".amount", parameters, eval_time);
+				//next write positions to the texture
+				ULONG index = 0;
+				for (const auto& [key, value] : positions)
+				{
+					texture_props.Set(luxrays::Property(prefix + ".offset" + std::to_string(index))(key));
+					texture_props.Set(luxrays::Property(prefix + ".value" + std::to_string(index))(std::get<0>(value), std::get<1>(value), std::get<2>(value)));
+					index++;
+				}
+
+				positions.clear();
+			}
+		}
+		else if (node_name == "TextureDistort")
+		{
+			texture_props.Set(luxrays::Property(prefix + ".type")("distort"));
+			texture_props.Set(luxrays::Property(prefix + ".strength")(get_float_parameter_value(parameters, "strength", eval_time)));
+			set_material_value(scene, texture_props, "texture", prefix + ".texture", parameters, eval_time);
+			set_material_value(scene, texture_props, "offset", prefix + ".offset", parameters, eval_time);
+		}
+		else if (node_name == "TextureHSV")
+		{
+			texture_props.Set(luxrays::Property(prefix + ".type")("hsv"));
+			set_material_value(scene, texture_props, "texture", prefix + ".texture", parameters, eval_time);
+			set_material_value(scene, texture_props, "hue", prefix + ".hue", parameters, eval_time);
+			set_material_value(scene, texture_props, "saturation", prefix + ".saturation", parameters, eval_time);
+			set_material_value(scene, texture_props, "value", prefix + ".value", parameters, eval_time);
+		}
+		else if (node_name == "TextureBrightContrast")
+		{
+			texture_props.Set(luxrays::Property(prefix + ".type")("brightcontrast"));
+			set_material_value(scene, texture_props, "texture", prefix + ".texture", parameters, eval_time);
+			set_material_value(scene, texture_props, "brightness", prefix + ".brightness", parameters, eval_time);
+			set_material_value(scene, texture_props, "contrast", prefix + ".contrast", parameters, eval_time);
+		}
+		else if (node_name == "TextureInvert")
+		{
+			texture_props.Set(luxrays::Property(prefix + ".type")("subtract"));
+			set_material_value(scene, texture_props, "maximum", prefix + ".texture1", parameters, eval_time);
+			set_material_value(scene, texture_props, "value", prefix + ".texture2", parameters, eval_time);
+		}
+		else if (node_name == "TexturePointNormal")
+		{
+			texture_props.Set(luxrays::Property(prefix + ".type")("shadingnormal"));
+		}
+		else if (node_name == "TexturePointPosition")
+		{
+			texture_props.Set(luxrays::Property(prefix + ".type")("position"));
+		}
+		else if (node_name == "TexturePointness")
+		{
+			texture_props.Set(luxrays::Property(prefix + ".type")("hitpointalpha"));
+			XSI::CString mode = get_string_parameter_value(parameters, "mode", eval_time);
+
+			if (mode == "both")
+			{
+				scene->Parse(texture_props);
+				std::string abs_prefix = "scene.textures." + output_name + "_abs";
+				luxrays::Properties abs_props;
+				abs_props.Set(luxrays::Property(abs_prefix + ".type")("abs"));
+				abs_props.Set(luxrays::Property(abs_prefix + ".texture")(output_name));
+				texture_props = abs_props;
+				output_name = output_name + "_abs";
+			}
+			else if (mode == "concave")
+			{
+				scene->Parse(texture_props);
+				std::string clamp_prefix = "scene.textures." + output_name + "_clamp";
+				luxrays::Properties clamp_props;
+				clamp_props.Set(luxrays::Property(clamp_prefix + ".type")("clamp"));
+				clamp_props.Set(luxrays::Property(clamp_prefix + ".texture")(output_name));
+				clamp_props.Set(luxrays::Property(clamp_prefix + ".min")(0.0f));
+				clamp_props.Set(luxrays::Property(clamp_prefix + ".max")(1.0f));
+				texture_props = clamp_props;
+				output_name = output_name + "_clamp";
+			}
+			else if (mode == "convex")
+			{
+				scene->Parse(texture_props);
+				std::string flip_prefix = "scene.textures." + output_name + "_flip";
+				luxrays::Properties flip_props;
+				flip_props.Set(luxrays::Property(flip_prefix + ".type")("scale"));
+				flip_props.Set(luxrays::Property(flip_prefix + ".texture1")(output_name));
+				flip_props.Set(luxrays::Property(flip_prefix + ".texture2")(-1.0f));
+				texture_props = flip_props;
+				output_name = output_name + "_flip";
+
+				scene->Parse(texture_props);
+				std::string clamp_prefix = "scene.textures." + output_name + "_clamp";
+				luxrays::Properties clamp_props;
+				clamp_props.Set(luxrays::Property(clamp_prefix + ".type")("clamp"));
+				clamp_props.Set(luxrays::Property(clamp_prefix + ".texture")(output_name));
+				clamp_props.Set(luxrays::Property(clamp_prefix + ".min")(0.0f));
+				clamp_props.Set(luxrays::Property(clamp_prefix + ".max")(1.0f));
+				texture_props = clamp_props;
+				output_name = output_name + "_clamp";
+			}
+			
+			scene->Parse(texture_props);
+			std::string multiplier_prefix = "scene.textures." + output_name + "_multiplier";
+			luxrays::Properties multiplier_props;
+			multiplier_props.Set(luxrays::Property(multiplier_prefix + ".type")("scale"));
+			multiplier_props.Set(luxrays::Property(multiplier_prefix + ".texture1")(output_name));
+			set_material_value(scene, multiplier_props, "multiplier", multiplier_prefix + ".texture2", parameters, eval_time);
+			texture_props = multiplier_props;
+			output_name = output_name + "_multiplier";
+		}
+		else if (node_name == "TextureObjectID")
+		{
+			XSI::CString mode = get_string_parameter_value(parameters, "mode", eval_time);
+			texture_props.Set(luxrays::Property(prefix + ".type")(mode.GetAsciiString()));
+		}
+		else if (node_name == "TextureRandomPerIsland")
+		{
+			texture_props.Set(luxrays::Property(prefix + ".type")("hitpointtriangleaov"));
+			texture_props.Set(luxrays::Property(prefix + ".dataindex")(1));
+		}
+		else if (node_name == "TextureTimeInfo")
+		{
+			texture_props.Set(luxrays::Property(prefix + ".type")("constfloat1"));
+			texture_props.Set(luxrays::Property(prefix + ".value")(eval_time.GetTime()));
+		}
+		else if (node_name == "TextureUV")
+		{
+			texture_props.Set(luxrays::Property(prefix + ".type")("uv"));
+			add_mapping(texture_props, prefix + ".mapping", parameters, "mapping_2d", eval_time);
+		}
+		else if (node_name == "TextureRandom")
+		{
+			texture_props.Set(luxrays::Property(prefix + ".type")("random"));
+			texture_props.Set(luxrays::Property(prefix + ".seed")(get_int_parameter_value(parameters, "seed", eval_time)));
+			set_material_value(scene, texture_props, "value", prefix + ".texture", parameters, eval_time);
+		}
+		else if (node_name == "TextureBombing")
+		{
+			texture_props.Set(luxrays::Property(prefix + ".type")("bombing"));
+			float random_scale = get_float_parameter_value(parameters, "random_scale", eval_time);
+			bool use_random_rotation = get_bool_parameter_value(parameters, "use_random_rotation", eval_time);
+
+			texture_props.Set(luxrays::Property(prefix + ".bullet.randomscale.range")(random_scale * 5.0f));
+			texture_props.Set(luxrays::Property(prefix + ".bullet.randomrotation.enable")(use_random_rotation));
+			set_material_value(scene, texture_props, "background", prefix + ".background", parameters, eval_time);
+			set_material_value(scene, texture_props, "bullet", prefix + ".bullet", parameters, eval_time);
+			set_material_value(scene, texture_props, "mask", prefix + ".bullet.mask", parameters, eval_time);
+
+			add_mapping(texture_props, prefix + ".mapping", parameters, "mapping_2d", eval_time);
+		}
 		else
 		{
 			output_name = "";
@@ -312,7 +884,8 @@ void set_material_value(luxcore::Scene *scene,
 {
 	XSI::Parameter xsi_param = parameters.GetItem(xsi_param_name);
 	XSI::Parameter xsi_finall_parameter = get_source_parameter(xsi_param);
-	ShaderParameterType parameter_type = get_shader_parameter_type(xsi_finall_parameter);
+	XSI::ShaderParameter shader_finall_parameter(xsi_finall_parameter);
+	ShaderParameterType parameter_type = get_shader_parameter_type(shader_finall_parameter);
 
 	//check is this parameter has connections or not
 	XSI::CRef param_source = xsi_finall_parameter.GetSource();
@@ -321,6 +894,7 @@ void set_material_value(luxcore::Scene *scene,
 	{
 		//get source node
 		XSI::ShaderParameter shader_parameter(xsi_finall_parameter);
+		XSI::Parameter source_param(param_source);
 		XSI::Shader node = get_input_node(shader_parameter, true);  // we find this node by goes through default converter nodes, so, it can be this converter
 		//if there is connection, try to export corresponding texture or material
 		if (parameter_type == ShaderParameterType::ParameterType_Color4)
@@ -338,9 +912,10 @@ void set_material_value(luxcore::Scene *scene,
 			}
 		}
 		else if (parameter_type == ShaderParameterType::ParameterType_Float || 
-				 parameter_type == ShaderParameterType::ParameterType_Color3)
+				 parameter_type == ShaderParameterType::ParameterType_Color3 ||
+				 parameter_type == ShaderParameterType::ParameterType_Vector3)
 		{
-			//float (or color3) parameter is connected to some node
+			//float (or color3, vector3) parameter is connected to some node
 			//try to recognize the texture of this node
 			std::string texture_name = add_texture(scene, node, eval_time);
 			if (texture_name.size() > 0)
@@ -759,7 +1334,7 @@ std::string add_material(luxcore::Scene* scene, XSI::Shader &material_node, cons
 			//next bump
 			set_material_value(scene, material_props, "bump", prefix + ".bumptex", parameters, eval_time, true);
 			//and normal
-			set_material_value(scene, material_props, "normal", prefix + ".normaltex", parameters, eval_time, true);
+			//set_material_value(scene, material_props, "normal", prefix + ".normaltex", parameters, eval_time, true);
 		}
 	}
 	else

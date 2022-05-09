@@ -120,12 +120,6 @@ glass_type_enum = [
     "Architectural", "architectural"
 ]
 
-metal_mode_enum = [
-    "Color", "color",
-    "Preset", "preset",
-    "Custom n, k Values", "custom"
-]
-
 metal_presets_enum = [
     "Amorphous carbon", "amorphous_carbon",
     "Copper", "copper",
@@ -153,6 +147,13 @@ carpaint_preset_enum = [
     "Opel Titan", "opel_titan",
     "Polaris Silber", "polaris_silber",
     "White", "white"
+]
+
+emission_units_enum = [
+    "Artistic", "artistic", 
+    "Power", "power", 
+    "Lumen", "lumen",
+    "Candela", "candela"
 ]
 
 image_channels_enum = [
@@ -227,6 +228,15 @@ math_enum = [
 ]
 
 color_math_enum = [
+    "Multiply", "scale",
+    "Add", "add",
+    "Subtract", "subtract",
+    "Mix", "mix",
+    "Clamp", "clamp",
+    "Absolute", "abs"
+]
+
+vector_math_enum = [
     "Multiply", "scale",
     "Add", "add",
     "Subtract", "subtract",
@@ -376,6 +386,45 @@ objectid_type_enum = [
     "Raw", "objectid"
 ]
 
+brick_type_enum = [
+    "Running", "running",
+    "Flemish", "flemish",
+    "English", "english",
+    "Herringbone", "herringbone",
+    "Basket", "basket",
+    "Chain link", "chain_link"
+]
+
+vertexcolor_mode_enum = [
+    "Color", "hitpointcolor",
+    "Grey", "hitpointgrey"
+]
+
+vertexcolor_channel_enum = [
+    "RGB", "-1",
+    "R", "0",
+    "G", "1",
+    "B", "2"
+]
+
+fresnel_type_enum = [
+    "Color", "color", 
+    "Preset", "preset", 
+    "File", "nk",
+    "Custom n, k Values", "custom_nk"
+]
+
+fresnel_file_type_enum = [
+    "Lux Pop", "luxpop",
+    "Sopra", "sopra"
+]
+
+split_channel_enum = [
+    "R", "r",
+    "G", "g",
+    "B", "b"
+]
+
 def XSILoadPlugin(in_reg):
     in_reg.Author = "Shekn Itrch"
     in_reg.Name = "LUXShadersPlugin"
@@ -411,6 +460,8 @@ def XSILoadPlugin(in_reg):
     in_reg.RegisterShader("TriplanarNormalMapping", 1, 0)
     in_reg.RegisterShader("TextureMath", 1, 0)
     in_reg.RegisterShader("TextureColorMath", 1, 0)
+    in_reg.RegisterShader("TextureVectorMath", 1, 0)
+    in_reg.RegisterShader("TextureDotProduct", 1, 0)
     in_reg.RegisterShader("TextureCheckerboard2D", 1, 0)
     in_reg.RegisterShader("TextureCheckerboard3D", 1, 0)
     in_reg.RegisterShader("TextureBlackbody", 1, 0)
@@ -431,6 +482,18 @@ def XSILoadPlugin(in_reg):
     in_reg.RegisterShader("TextureUV", 1, 0)
     in_reg.RegisterShader("TextureRandom", 1, 0)
     in_reg.RegisterShader("TextureBombing", 1, 0)
+    in_reg.RegisterShader("TextureBrick", 1, 0)
+    in_reg.RegisterShader("TextureWireframe", 1, 0)
+    in_reg.RegisterShader("TextureDots", 1, 0)
+    in_reg.RegisterShader("TextureFBM", 1, 0)
+    in_reg.RegisterShader("TextureMarble", 1, 0)
+    in_reg.RegisterShader("TextureWrinkled", 1, 0)
+    in_reg.RegisterShader("TextureVertexColor", 1, 0)
+    in_reg.RegisterShader("TextureVertexAlpha", 1, 0)
+    in_reg.RegisterShader("TextureFresnel", 1, 0)
+    in_reg.RegisterShader("TextureSplitRGB", 1, 0)
+    in_reg.RegisterShader("TextureCombineRGB", 1, 0)
+    in_reg.RegisterShader("TextureRemap", 1, 0)
     # camera lense shader nodes
     in_reg.RegisterShader("LensePanoramic", 1, 0)
     in_reg.RegisterShader("LenseBokeh", 1, 0)
@@ -535,6 +598,15 @@ def add_output_emission(shader_def, name="emission"):
     param_def.MainPort = False
 
 
+def add_output_fresnel(shader_def, name="fresnel"):
+    param_options = XSIFactory.CreateShaderParamDefOptions()
+    param_options.SetLongName(name)
+    param_options.SetAttribute(c.siCustomTypeNameAttribute, "fresnel")
+    params = shader_def.OutputParamDefs
+    param_def = params.AddParamDef2(name, c.siShaderDataTypeCustom, param_options)
+    param_def.MainPort = False
+
+
 def add_input_material(param_options, params, default_value=1, name="material"):
     param_options.SetDefaultValue(default_value)
     params.AddParamDef(name, c.siShaderDataTypeColor4, param_options)
@@ -600,6 +672,12 @@ def add_input_3dmapping(param_options, params, default_value="", name="3d mappin
 def add_input_gradient(param_options, params, default_value="", name="gradient"):
     param_options.SetDefaultValue(default_value)
     params.AddParamDef(name, c.siShaderDataTypeGradient, param_options)
+
+
+def add_input_fresnel(param_options, params, default_value="", name="fresnel"):
+    param_options.SetDefaultValue(default_value)
+    param_options.SetAttribute(c.siCustomTypeNameAttribute, "fresnel")
+    params.AddParamDef(name, c.siShaderDataTypeCustom, param_options)
 
 
 def standart_param_options():
@@ -2611,11 +2689,7 @@ def LUXShadersPlugin_ShaderMetal_1_0_Define(in_ctxt):
 
     # parameters
     add_input_boolean(nonport_param_options(), params, False, "is_anisotropic")
-    add_input_string(nonport_param_options(), params, "color", "metal_mode")
-    add_input_string(nonport_param_options(), params, "aluminium", "metal_preset")
-    add_input_color(standart_param_options(), params, [0.8, 0.8, 0.8], "kr")  # create implicit fresnel texture with this color at the export
-    add_input_color(standart_param_options(), params, [0.0, 0.0, 0.0], "n")
-    add_input_color(standart_param_options(), params, [0.0, 0.0, 0.0], "k")
+    add_input_fresnel(standart_param_options(), params, None, "fresnel")
     add_input_float(standart_param_options(), params, 0.1, "uroughness", 0.0, 1.0)
     add_input_float(standart_param_options(), params, 0.1, "vroughness", 0.0, 1.0)
     # default parameters
@@ -2628,12 +2702,7 @@ def LUXShadersPlugin_ShaderMetal_1_0_Define(in_ctxt):
     ppg_layout = shaderDef.PPGLayout
     ppg_layout.AddTab("Shader")
     ppg_layout.AddGroup("Parameters")
-    ppg_layout.AddEnumControl("metal_mode", metal_mode_enum, "Mode")
-    ppg_layout.AddEnumControl("metal_preset", metal_presets_enum, "Preset")
     ppg_layout.AddItem("is_anisotropic", "Anisotropic Roughness")
-    ppg_layout.AddItem("kr", "Color")
-    ppg_layout.AddItem("n", "N")
-    ppg_layout.AddItem("k", "K")
     ppg_layout.AddItem("uroughness", "U Roughness")
     ppg_layout.AddItem("vroughness", "U Roughness")
     ppg_layout.EndGroup()
@@ -2650,41 +2719,6 @@ def OnInit():
         prop.Parameters("vroughness").ReadOnly = False
     else:
         prop.Parameters("vroughness").ReadOnly = True
-    metal_mode = prop.Parameters("metal_mode").Value
-    if metal_mode == "color":
-        prop.Parameters("metal_preset").ReadOnly = True
-        prop.Parameters("n").ReadOnly = True
-        prop.Parameters("k").ReadOnly = True
-        prop.Parameters("kr").ReadOnly = False
-    elif metal_mode == "preset":
-        prop.Parameters("metal_preset").ReadOnly = False
-        prop.Parameters("n").ReadOnly = True
-        prop.Parameters("k").ReadOnly = True
-        prop.Parameters("kr").ReadOnly = True
-    elif metal_mode == "custom":
-        prop.Parameters("metal_preset").ReadOnly = True
-        prop.Parameters("n").ReadOnly = False
-        prop.Parameters("k").ReadOnly = False
-        prop.Parameters("kr").ReadOnly = True
-
-def metal_mode_OnChanged():
-    prop = PPG.Inspected(0)
-    metal_mode = prop.Parameters("metal_mode").Value
-    if metal_mode == "color":
-        prop.Parameters("metal_preset").ReadOnly = True
-        prop.Parameters("n").ReadOnly = True
-        prop.Parameters("k").ReadOnly = True
-        prop.Parameters("kr").ReadOnly = False
-    elif metal_mode == "preset":
-        prop.Parameters("metal_preset").ReadOnly = False
-        prop.Parameters("n").ReadOnly = True
-        prop.Parameters("k").ReadOnly = True
-        prop.Parameters("kr").ReadOnly = True
-    elif metal_mode == "custom":
-        prop.Parameters("metal_preset").ReadOnly = True
-        prop.Parameters("n").ReadOnly = False
-        prop.Parameters("k").ReadOnly = False
-        prop.Parameters("kr").ReadOnly = True
 
 def is_anisotropic_OnChanged():
     prop = PPG.Inspected(0)
@@ -3452,9 +3486,23 @@ def LUXShadersPlugin_Emission_1_0_Define(in_ctxt):
     params = shaderDef.InputParamDefs
 
     # parameters
+    add_input_string(nonport_param_options(), params, "artistic", "unit")
     add_input_string(nonport_param_options(), params, "AUTO", "dls_type")
+    # artistic
     add_input_float(nonport_param_options(), params, 1.0, "gain", 0.0, 4.0)
     add_input_float(nonport_param_options(), params, 0.0, "exposure", -5.0, 5.0)
+    # power
+    add_input_float(nonport_param_options(), params, 100.0, "power", 1.0, 256.0)
+    add_input_float(nonport_param_options(), params, 17.0, "efficency", 1.0, 64.0)
+    add_input_boolean(nonport_param_options(), params, False, "normalized")
+
+    # lumen
+    add_input_float(nonport_param_options(), params, 1000.0, "lumen", 256.0, 4096.0)
+
+    # candela
+    add_input_float(nonport_param_options(), params, 80.0, "candela", 1.0, 256.0)
+    add_input_boolean(nonport_param_options(), params, False, "per_square_meter")
+
     add_input_float(nonport_param_options(), params, 1.0, "importance", 0.0, 2.0)
     add_input_float(nonport_param_options(), params, 90.0, "theta", 0.0, 180.0)
     add_input_integer(nonport_param_options(), params, 0, "lightgroup_id", 0, 7)
@@ -3466,14 +3514,76 @@ def LUXShadersPlugin_Emission_1_0_Define(in_ctxt):
     # next init ppg
     ppg_layout = shaderDef.PPGLayout
     ppg_layout.AddGroup("Parameters")
+    ppg_layout.AddEnumControl("unit", emission_units_enum, "Unit")
     ppg_layout.AddItem("gain", "Gain")
-    ppg_layout.AddItem("importance", "Importance")
     ppg_layout.AddItem("exposure", "Exposure")
+
+    ppg_layout.AddItem("power", "Power (W)")
+    ppg_layout.AddItem("efficency", "Efficency (Im/W)")
+
+    ppg_layout.AddItem("lumen", "Lumen")
+
+    ppg_layout.AddItem("candela", "Candela")
+    ppg_layout.AddItem("per_square_meter", "Per Square Meter")
+
+    ppg_layout.AddItem("normalized", "Normalized by Color Luminancy")
+
+    ppg_layout.AddItem("importance", "Importance")
     ppg_layout.AddItem("theta", "Spread Angle")
     ppg_layout.AddItem("color", "Color")
     ppg_layout.AddItem("lightgroup_id", "ID")
     ppg_layout.AddEnumControl("dls_type", emission_dlstypes_enum, "DLS")
     ppg_layout.EndGroup()
+
+    ppg_layout.Language = "Python"
+    ppg_layout.Logic = '''
+def update(prop):
+    unit = prop.Parameters("unit").Value
+    if unit == "artistic":
+        prop.Parameters("gain").ReadOnly = False
+        prop.Parameters("exposure").ReadOnly = False
+        prop.Parameters("power").ReadOnly = True
+        prop.Parameters("efficency").ReadOnly = True
+        prop.Parameters("lumen").ReadOnly = True
+        prop.Parameters("candela").ReadOnly = True
+        prop.Parameters("per_square_meter").ReadOnly = True
+        prop.Parameters("normalized").ReadOnly = True
+    elif unit == "power":
+        prop.Parameters("gain").ReadOnly = True
+        prop.Parameters("exposure").ReadOnly = True
+        prop.Parameters("power").ReadOnly = False
+        prop.Parameters("efficency").ReadOnly = False
+        prop.Parameters("lumen").ReadOnly = True
+        prop.Parameters("candela").ReadOnly = True
+        prop.Parameters("per_square_meter").ReadOnly = True
+        prop.Parameters("normalized").ReadOnly = False
+    elif unit == "lumen":
+        prop.Parameters("gain").ReadOnly = True
+        prop.Parameters("exposure").ReadOnly = True
+        prop.Parameters("power").ReadOnly = True
+        prop.Parameters("efficency").ReadOnly = True
+        prop.Parameters("lumen").ReadOnly = False
+        prop.Parameters("candela").ReadOnly = True
+        prop.Parameters("per_square_meter").ReadOnly = True
+        prop.Parameters("normalized").ReadOnly = False
+    elif unit == "candela":
+        prop.Parameters("gain").ReadOnly = True
+        prop.Parameters("exposure").ReadOnly = True
+        prop.Parameters("power").ReadOnly = True
+        prop.Parameters("efficency").ReadOnly = True
+        prop.Parameters("lumen").ReadOnly = True
+        prop.Parameters("candela").ReadOnly = False
+        prop.Parameters("per_square_meter").ReadOnly = False
+        prop.Parameters("normalized").ReadOnly = False
+
+def OnInit():
+    prop = PPG.Inspected(0)
+    update(prop)
+
+def unit_OnChanged():
+    prop = PPG.Inspected(0)
+    update(prop)
+'''
 
     # Renderer definition
     rendererDef = shaderDef.AddRendererDef("LuxCore")
@@ -4205,6 +4315,114 @@ def type_OnChanged():
 
     return True
 
+def LUXShadersPlugin_TextureVectorMath_1_0_DefineInfo(in_ctxt):
+    in_ctxt.SetAttribute("Category", "LuxCore/Shader/Texture/Math")
+    in_ctxt.SetAttribute("DisplayName", "luxVectorMath")
+    return True
+
+
+def LUXShadersPlugin_TextureVectorMath_1_0_Define(in_ctxt):
+    shaderDef = in_ctxt.GetAttribute("Definition")
+    shaderDef.AddShaderFamily(c.siShaderFamilyTexture)
+
+    # Input Parameter: input
+    params = shaderDef.InputParamDefs
+
+    # parameters
+    add_input_string(nonport_param_options(), params, "scale", "type")
+    add_input_vector(standart_param_options(), params, [0.0, 0.0, 0.0], "vector_1")
+    add_input_vector(standart_param_options(), params, [0.0, 0.0, 0.0], "vector_2")
+    add_input_float(standart_param_options(), params, 1.0, "fac", 0.0, 1.0)
+    add_input_float(nonport_param_options(), params, 0.0, "clamp_min", 0.0, 1.0)
+    add_input_float(nonport_param_options(), params, 1.0, "clamp_max", 0.0, 1.0)
+
+    # Output Parameter
+    add_output_vector(shaderDef, "vector")
+
+    # next init ppg
+    ppg_layout = shaderDef.PPGLayout
+    ppg_layout.AddGroup("Parameters")
+    ppg_layout.AddEnumControl("type", vector_math_enum, "Type")
+    ppg_layout.AddItem("vector_1", "Vector 1")
+    ppg_layout.AddItem("vector_2", "Vector 2")
+    ppg_layout.AddItem("fac", "Fac")
+    ppg_layout.AddGroup("Clamp")
+    ppg_layout.AddRow()
+    ppg_layout.AddItem("clamp_min", "Min")
+    ppg_layout.AddItem("clamp_max", "Max")
+    ppg_layout.EndRow()
+    ppg_layout.EndGroup()
+    ppg_layout.EndGroup()
+
+    ppg_layout.Language = "Python"
+    ppg_layout.Logic = '''
+def update(prop):
+    type = prop.Parameters("type").Value
+    # ["scale", "add", "subtract", "mix", "clamp", "abs"]
+    if type in ["mix"]:
+        prop.Parameters("fac").ReadOnly = False
+    else:
+        prop.Parameters("fac").ReadOnly = True
+    if type in ["clamp"]:
+        prop.Parameters("clamp_min").ReadOnly = False
+        prop.Parameters("clamp_max").ReadOnly = False
+    else:
+        prop.Parameters("clamp_min").ReadOnly = True
+        prop.Parameters("clamp_max").ReadOnly = True
+    if type in ["clamp", "abs"]:
+        prop.Parameters("vector_2").ReadOnly = True
+    else:
+        prop.Parameters("vector_2").ReadOnly = False
+
+def OnInit():
+    prop = PPG.Inspected(0)
+    update(prop)
+
+def type_OnChanged():
+    prop = PPG.Inspected(0)
+    update(prop)
+'''
+
+    # Renderer definition
+    rendererDef = shaderDef.AddRendererDef("LuxCore")
+    rendererDef.SymbolName = "TextureVectorMath"
+
+    return True
+
+#---------------------dotproduct----------------------------------
+def LUXShadersPlugin_TextureDotProduct_1_0_DefineInfo(in_ctxt):
+    in_ctxt.SetAttribute("Category", "LuxCore/Shader/Texture/Math")
+    in_ctxt.SetAttribute("DisplayName", "luxDotProduct")
+    return True
+
+
+def LUXShadersPlugin_TextureDotProduct_1_0_Define(in_ctxt):
+    shaderDef = in_ctxt.GetAttribute("Definition")
+    shaderDef.AddShaderFamily(c.siShaderFamilyTexture)
+
+    # Input Parameter: input
+    params = shaderDef.InputParamDefs
+
+    # parameters
+    add_input_vector(standart_param_options(), params, [0.0, 0.0, 0.0], "vector_1")
+    add_input_vector(standart_param_options(), params, [0.0, 0.0, 0.0], "vector_2")
+
+    # Output Parameter
+    add_output_float(shaderDef, "value")
+
+    # next init ppg
+    ppg_layout = shaderDef.PPGLayout
+    ppg_layout.AddGroup("Parameters")
+    ppg_layout.AddItem("vector_1", "Vector 1")
+    ppg_layout.AddItem("vector_2", "Vector 2")
+    ppg_layout.EndGroup()
+
+    # Renderer definition
+    rendererDef = shaderDef.AddRendererDef("LuxCore")
+    rendererDef.SymbolName = "TextureDotProduct"
+
+    return True
+
 #---------------------checkerboard2d----------------------------------
 def LUXShadersPlugin_TextureCheckerboard2D_1_0_DefineInfo(in_ctxt):
     in_ctxt.SetAttribute("Category", "LuxCore/Shader/Texture/Texture")
@@ -4930,10 +5148,9 @@ def LUXShadersPlugin_TextureRandom_1_0_Define(in_ctxt):
 
     return True
 
-# in_reg.RegisterShader("TextureBombing", 1, 0)
 #---------------------bombing----------------------------------
 def LUXShadersPlugin_TextureBombing_1_0_DefineInfo(in_ctxt):
-    in_ctxt.SetAttribute("Category", "LuxCore/Shader/Texture/Utils")
+    in_ctxt.SetAttribute("Category", "LuxCore/Shader/Texture/Texture")
     in_ctxt.SetAttribute("DisplayName", "luxBombing")
     return True
 
@@ -4968,5 +5185,509 @@ def LUXShadersPlugin_TextureBombing_1_0_Define(in_ctxt):
     # Renderer definition
     rendererDef = shaderDef.AddRendererDef("LuxCore")
     rendererDef.SymbolName = "TextureBombing"
+
+    return True
+
+#---------------------brick----------------------------------
+def LUXShadersPlugin_TextureBrick_1_0_DefineInfo(in_ctxt):
+    in_ctxt.SetAttribute("Category", "LuxCore/Shader/Texture/Texture")
+    in_ctxt.SetAttribute("DisplayName", "luxBrick")
+    return True
+
+
+def LUXShadersPlugin_TextureBrick_1_0_Define(in_ctxt):
+    shaderDef = in_ctxt.GetAttribute("Definition")
+    shaderDef.AddShaderFamily(c.siShaderFamilyTexture)
+
+    # Input Parameter: input
+    params = shaderDef.InputParamDefs
+
+    # parameters
+    add_input_string(nonport_param_options(), params, "running", "type")
+    add_input_float(nonport_param_options(), params, 0.3, "brickwidth", 0.0, 1.0)
+    add_input_float(nonport_param_options(), params, 0.1, "brickheight", 0.0, 1.0)
+    add_input_float(nonport_param_options(), params, 0.15, "brickdepth", 0.0, 1.0)
+    add_input_float(nonport_param_options(), params, 0.01, "mortarsize", 0.0, 0.1)
+    add_input_float(nonport_param_options(), params, 75.0, "brickrun", 0.0, 100.0)
+    add_input_float(nonport_param_options(), params, 0.0, "brickmodbias", -1.0, 1.0)
+    add_input_color(standart_param_options(), params, [0.3, 0.3, 0.3], "color_1")
+    add_input_color(standart_param_options(), params, [0.6, 0.6, 0.6], "color_2")
+    add_input_color(standart_param_options(), params, [0.2, 0.2, 0.2], "mortar")
+    add_input_3dmapping(standart_param_options(), params, None, "mapping_3d")
+    # Output Parameter
+    add_output_texture(shaderDef, "color")
+
+    # next init ppg
+    ppg_layout = shaderDef.PPGLayout
+    ppg_layout.AddGroup("Parameters")
+    ppg_layout.AddEnumControl("type", brick_type_enum, "Bound Type")
+    ppg_layout.AddItem("brickwidth", "Brick Width")
+    ppg_layout.AddItem("brickheight", "Brick Height")
+    ppg_layout.AddItem("brickdepth", "Brick Depth")
+    ppg_layout.AddItem("mortarsize", "Mortar Size")
+    ppg_layout.AddItem("brickrun", "Brick Run")
+    ppg_layout.AddItem("brickmodbias", "Modulation Bias")
+    ppg_layout.AddItem("color_1", "Brick Color 1")
+    ppg_layout.AddItem("color_2", "Brick Color 2")
+    ppg_layout.AddItem("mortar", "Mortar Color")
+    ppg_layout.EndGroup()
+
+    # Renderer definition
+    rendererDef = shaderDef.AddRendererDef("LuxCore")
+    rendererDef.SymbolName = "TextureBrick"
+
+    return True
+
+#---------------------wireframe----------------------------------
+def LUXShadersPlugin_TextureWireframe_1_0_DefineInfo(in_ctxt):
+    in_ctxt.SetAttribute("Category", "LuxCore/Shader/Texture/Utils")
+    in_ctxt.SetAttribute("DisplayName", "luxWireframe")
+    return True
+
+
+def LUXShadersPlugin_TextureWireframe_1_0_Define(in_ctxt):
+    shaderDef = in_ctxt.GetAttribute("Definition")
+    shaderDef.AddShaderFamily(c.siShaderFamilyTexture)
+
+    # Input Parameter: input
+    params = shaderDef.InputParamDefs
+
+    # parameters
+    add_input_float(nonport_param_options(), params, 0.1, "width", 0.0, 0.5)
+    add_input_color(standart_param_options(), params, [0.8, 0.8, 0.8], "border")
+    add_input_color(standart_param_options(), params, [0.2, 0.2, 0.2], "inside")
+    # Output Parameter
+    add_output_texture(shaderDef, "color")
+
+    # next init ppg
+    ppg_layout = shaderDef.PPGLayout
+    ppg_layout.AddGroup("Parameters")
+    ppg_layout.AddItem("width", "Width")
+    ppg_layout.AddItem("border", "Border")
+    ppg_layout.AddItem("inside", "Inside")
+    ppg_layout.EndGroup()
+
+    # Renderer definition
+    rendererDef = shaderDef.AddRendererDef("LuxCore")
+    rendererDef.SymbolName = "TextureWireframe"
+
+    return True
+
+#---------------------dots----------------------------------
+def LUXShadersPlugin_TextureDots_1_0_DefineInfo(in_ctxt):
+    in_ctxt.SetAttribute("Category", "LuxCore/Shader/Texture/Texture")
+    in_ctxt.SetAttribute("DisplayName", "luxDots")
+    return True
+
+
+def LUXShadersPlugin_TextureDots_1_0_Define(in_ctxt):
+    shaderDef = in_ctxt.GetAttribute("Definition")
+    shaderDef.AddShaderFamily(c.siShaderFamilyTexture)
+
+    # Input Parameter: input
+    params = shaderDef.InputParamDefs
+
+    # parameters
+    add_input_color(standart_param_options(), params, [0.8, 0.8, 0.8], "inside")
+    add_input_color(standart_param_options(), params, [0.1, 0.1, 0.1], "outside")
+    add_input_2dmapping(standart_param_options(), params, None, "mapping_2d")
+    # Output Parameter
+    add_output_texture(shaderDef, "color")
+
+    # next init ppg
+    ppg_layout = shaderDef.PPGLayout
+    ppg_layout.AddGroup("Parameters")
+    ppg_layout.AddItem("inside", "Inside")
+    ppg_layout.AddItem("outside", "Outside")
+    ppg_layout.EndGroup()
+
+    # Renderer definition
+    rendererDef = shaderDef.AddRendererDef("LuxCore")
+    rendererDef.SymbolName = "TextureDots"
+
+    return True
+
+#---------------------fbm----------------------------------
+def LUXShadersPlugin_TextureFBM_1_0_DefineInfo(in_ctxt):
+    in_ctxt.SetAttribute("Category", "LuxCore/Shader/Texture/Texture")
+    in_ctxt.SetAttribute("DisplayName", "luxFBM")
+    return True
+
+
+def LUXShadersPlugin_TextureFBM_1_0_Define(in_ctxt):
+    shaderDef = in_ctxt.GetAttribute("Definition")
+    shaderDef.AddShaderFamily(c.siShaderFamilyTexture)
+
+    # Input Parameter: input
+    params = shaderDef.InputParamDefs
+
+    # parameters
+    add_input_integer(nonport_param_options(), params, 8, "octaves", 1, 12)
+    add_input_float(nonport_param_options(), params, 0.5, "roughness", 0.0, 1.0)
+    add_input_3dmapping(standart_param_options(), params, None, "mapping_3d")
+    # Output Parameter
+    add_output_texture(shaderDef, "color")
+
+    # next init ppg
+    ppg_layout = shaderDef.PPGLayout
+    ppg_layout.AddGroup("Parameters")
+    ppg_layout.AddItem("octaves", "Octaves")
+    ppg_layout.AddItem("roughness", "Roughness")
+    ppg_layout.EndGroup()
+
+    # Renderer definition
+    rendererDef = shaderDef.AddRendererDef("LuxCore")
+    rendererDef.SymbolName = "TextureFBM"
+
+    return True
+
+#---------------------marble----------------------------------
+def LUXShadersPlugin_TextureMarble_1_0_DefineInfo(in_ctxt):
+    in_ctxt.SetAttribute("Category", "LuxCore/Shader/Texture/Texture")
+    in_ctxt.SetAttribute("DisplayName", "luxMarble")
+    return True
+
+
+def LUXShadersPlugin_TextureMarble_1_0_Define(in_ctxt):
+    shaderDef = in_ctxt.GetAttribute("Definition")
+    shaderDef.AddShaderFamily(c.siShaderFamilyTexture)
+
+    # Input Parameter: input
+    params = shaderDef.InputParamDefs
+
+    # parameters
+    add_input_integer(nonport_param_options(), params, 8, "octaves", 1, 12)
+    add_input_float(nonport_param_options(), params, 0.5, "roughness", 0.0, 1.0)
+    add_input_float(nonport_param_options(), params, 1.0, "scale", 0.0, 1.0)
+    add_input_float(nonport_param_options(), params, 0.2, "variation", 0.0, 1.0)
+    add_input_3dmapping(standart_param_options(), params, None, "mapping_3d")
+    # Output Parameter
+    add_output_texture(shaderDef, "color")
+
+    # next init ppg
+    ppg_layout = shaderDef.PPGLayout
+    ppg_layout.AddGroup("Parameters")
+    ppg_layout.AddItem("octaves", "Octaves")
+    ppg_layout.AddItem("roughness", "Roughness")
+    ppg_layout.AddItem("scale", "Scale")
+    ppg_layout.AddItem("variation", "Variation")
+    ppg_layout.EndGroup()
+
+    # Renderer definition
+    rendererDef = shaderDef.AddRendererDef("LuxCore")
+    rendererDef.SymbolName = "TextureMarble"
+
+    return True
+
+#---------------------wrinkled----------------------------------
+def LUXShadersPlugin_TextureWrinkled_1_0_DefineInfo(in_ctxt):
+    in_ctxt.SetAttribute("Category", "LuxCore/Shader/Texture/Texture")
+    in_ctxt.SetAttribute("DisplayName", "luxWrinkled")
+    return True
+
+
+def LUXShadersPlugin_TextureWrinkled_1_0_Define(in_ctxt):
+    shaderDef = in_ctxt.GetAttribute("Definition")
+    shaderDef.AddShaderFamily(c.siShaderFamilyTexture)
+
+    # Input Parameter: input
+    params = shaderDef.InputParamDefs
+
+    # parameters
+    add_input_integer(nonport_param_options(), params, 8, "octaves", 1, 12)
+    add_input_float(nonport_param_options(), params, 0.5, "roughness", 0.0, 1.0)
+    add_input_3dmapping(standart_param_options(), params, None, "mapping_3d")
+    # Output Parameter
+    add_output_texture(shaderDef, "color")
+
+    # next init ppg
+    ppg_layout = shaderDef.PPGLayout
+    ppg_layout.AddGroup("Parameters")
+    ppg_layout.AddItem("octaves", "Octaves")
+    ppg_layout.AddItem("roughness", "Roughness")
+    ppg_layout.EndGroup()
+
+    # Renderer definition
+    rendererDef = shaderDef.AddRendererDef("LuxCore")
+    rendererDef.SymbolName = "TextureWrinkled"
+
+    return True
+
+#---------------------hitpointcolor, hitpointgrey----------------------------------
+def LUXShadersPlugin_TextureVertexColor_1_0_DefineInfo(in_ctxt):
+    in_ctxt.SetAttribute("Category", "LuxCore/Shader/Texture/Utils")
+    in_ctxt.SetAttribute("DisplayName", "luxVertexColor")
+    return True
+
+
+def LUXShadersPlugin_TextureVertexColor_1_0_Define(in_ctxt):
+    shaderDef = in_ctxt.GetAttribute("Definition")
+    shaderDef.AddShaderFamily(c.siShaderFamilyTexture)
+
+    # Input Parameter: input
+    params = shaderDef.InputParamDefs
+
+    # parameters
+    add_input_string(nonport_param_options(), params, "hitpointcolor", "mode")
+    add_input_string(nonport_param_options(), params, "-1", "channel")
+    add_input_integer(nonport_param_options(), params, 0, "index")
+    # Output Parameter
+    add_output_texture(shaderDef, "color")
+
+    # next init ppg
+    ppg_layout = shaderDef.PPGLayout
+    ppg_layout.AddGroup("Parameters")
+    ppg_layout.AddEnumControl("mode", vertexcolor_mode_enum, "Mode")
+    ppg_layout.AddEnumControl("channel", vertexcolor_channel_enum, "Channel")
+    ppg_layout.AddItem("index", "Index")
+    ppg_layout.EndGroup()
+
+    ppg_layout.Language = "Python"
+    ppg_layout.Logic = '''
+def update(prop):
+    mode = prop.Parameters("mode").Value
+    if mode == "hitpointcolor":
+        prop.Parameters("channel").ReadOnly = True
+    else:
+        prop.Parameters("channel").ReadOnly = False
+
+def OnInit():
+    prop = PPG.Inspected(0)
+    update(prop)
+
+def mode_OnChanged():
+    prop = PPG.Inspected(0)
+    update(prop)
+'''
+
+    # Renderer definition
+    rendererDef = shaderDef.AddRendererDef("LuxCore")
+    rendererDef.SymbolName = "TextureVertexColor"
+
+    return True
+
+#---------------------hitpointalpha----------------------------------
+def LUXShadersPlugin_TextureVertexAlpha_1_0_DefineInfo(in_ctxt):
+    in_ctxt.SetAttribute("Category", "LuxCore/Shader/Texture/Utils")
+    in_ctxt.SetAttribute("DisplayName", "luxVertexAlpha")
+    return True
+
+
+def LUXShadersPlugin_TextureVertexAlpha_1_0_Define(in_ctxt):
+    shaderDef = in_ctxt.GetAttribute("Definition")
+    shaderDef.AddShaderFamily(c.siShaderFamilyTexture)
+
+    # Input Parameter: input
+    params = shaderDef.InputParamDefs
+
+    # parameters
+    add_input_integer(nonport_param_options(), params, 0, "index", 0, 4)
+    # Output Parameter
+    add_output_float(shaderDef, "alpha")
+
+    # next init ppg
+    ppg_layout = shaderDef.PPGLayout
+    ppg_layout.AddGroup("Parameters")
+    ppg_layout.AddItem("index", "Index")
+    ppg_layout.EndGroup()
+
+    # Renderer definition
+    rendererDef = shaderDef.AddRendererDef("LuxCore")
+    rendererDef.SymbolName = "TextureVertexAlpha"
+
+    return True
+
+#---------------------fresnelcolor, fresnelpreset, fresnelluxpop, fresnelsopra, fresnelconst----------------------------------
+def LUXShadersPlugin_TextureFresnel_1_0_DefineInfo(in_ctxt):
+    in_ctxt.SetAttribute("Category", "LuxCore/Shader/Texture/Utils")
+    in_ctxt.SetAttribute("DisplayName", "luxFresnel")
+    return True
+
+
+def LUXShadersPlugin_TextureFresnel_1_0_Define(in_ctxt):
+    shaderDef = in_ctxt.GetAttribute("Definition")
+    shaderDef.AddShaderFamily(c.siShaderFamilyTexture)
+
+    # Input Parameter: input
+    params = shaderDef.InputParamDefs
+
+    # parameters
+    add_input_string(nonport_param_options(), params, "preset", "type")
+    add_input_string(nonport_param_options(), params, "aluminium", "preset")
+    add_input_color(standart_param_options(), params, [1.0, 1.0, 1.0], "color")
+    add_input_string(nonport_param_options(), params, "", "file")
+    add_input_string(nonport_param_options(), params, "luxpop", "file_type")
+    add_input_color(nonport_param_options(), params, [0.0, 0.0, 0.0], "color_n")
+    add_input_color(nonport_param_options(), params, [0.0, 0.0, 0.0], "color_k")
+    # Output Parameter
+    add_output_fresnel(shaderDef, "fresnel")
+
+    # next init ppg
+    ppg_layout = shaderDef.PPGLayout
+    ppg_layout.AddGroup("Parameters")
+    ppg_layout.AddEnumControl("type", fresnel_type_enum, "Type")
+    ppg_layout.AddEnumControl("preset", metal_presets_enum, "Preset")
+    ppg_layout.AddItem("color", "Reflection Color")
+    file_item = ppg_layout.AddItem("file", "Nk File", c.siControlFilePath)
+    ppg_layout.AddEnumControl("file_type", fresnel_file_type_enum, "File Type")
+    file_item.SetAttribute(c.siUIOpenFile, True)
+    file_item.SetAttribute(c.siUIFileFilter, "NK data file (*.nk)|*.nk|")
+    file_item.SetAttribute(c.siUIFileMustExist, True)
+    ppg_layout.AddItem("color_n", "N")
+    ppg_layout.AddItem("color_k", "K")
+    ppg_layout.EndGroup()
+
+    ppg_layout.Language = "Python"
+    ppg_layout.Logic = '''
+def update(prop):
+    type = prop.Parameters("type").Value
+    if type == "color":
+        prop.Parameters("preset").ReadOnly = True
+        prop.Parameters("color").ReadOnly = False
+        prop.Parameters("file").ReadOnly = True
+        prop.Parameters("file_type").ReadOnly = True
+        prop.Parameters("color_n").ReadOnly = True
+        prop.Parameters("color_k").ReadOnly = True
+    elif type == "preset":
+        prop.Parameters("preset").ReadOnly = False
+        prop.Parameters("color").ReadOnly = True
+        prop.Parameters("file").ReadOnly = True
+        prop.Parameters("file_type").ReadOnly = True
+        prop.Parameters("color_n").ReadOnly = True
+        prop.Parameters("color_k").ReadOnly = True
+    elif type == "nk":
+        prop.Parameters("preset").ReadOnly = True
+        prop.Parameters("color").ReadOnly = True
+        prop.Parameters("file").ReadOnly = False
+        prop.Parameters("file_type").ReadOnly = False
+        prop.Parameters("color_n").ReadOnly = True
+        prop.Parameters("color_k").ReadOnly = True
+    elif type == "custom_nk":
+        prop.Parameters("preset").ReadOnly = True
+        prop.Parameters("color").ReadOnly = True
+        prop.Parameters("file").ReadOnly = True
+        prop.Parameters("file_type").ReadOnly = True
+        prop.Parameters("color_n").ReadOnly = False
+        prop.Parameters("color_k").ReadOnly = False
+
+def OnInit():
+    prop = PPG.Inspected(0)
+    update(prop)
+
+def type_OnChanged():
+    prop = PPG.Inspected(0)
+    update(prop)
+'''
+
+    # Renderer definition
+    rendererDef = shaderDef.AddRendererDef("LuxCore")
+    rendererDef.SymbolName = "TextureFresnel"
+
+    return True
+
+#---------------------splitfloat3----------------------------------
+def LUXShadersPlugin_TextureSplitRGB_1_0_DefineInfo(in_ctxt):
+    in_ctxt.SetAttribute("Category", "LuxCore/Shader/Texture/Math")
+    in_ctxt.SetAttribute("DisplayName", "luxSplitRGB")
+    return True
+
+
+def LUXShadersPlugin_TextureSplitRGB_1_0_Define(in_ctxt):
+    shaderDef = in_ctxt.GetAttribute("Definition")
+    shaderDef.AddShaderFamily(c.siShaderFamilyTexture)
+
+    # Input Parameter: input
+    params = shaderDef.InputParamDefs
+
+    # parameters
+    add_input_color(standart_param_options(), params, [0.8, 0.8, 0.8], "color")
+    add_input_string(nonport_param_options(), params, "r", "channel")
+    # Output Parameter
+    add_output_float(shaderDef, "value")
+
+    # next init ppg
+    ppg_layout = shaderDef.PPGLayout
+    ppg_layout.AddGroup("Parameters")
+    ppg_layout.AddItem("color", "Color")
+    ppg_layout.AddEnumControl("channel", split_channel_enum, "Channel")
+    ppg_layout.EndGroup()
+
+    # Renderer definition
+    rendererDef = shaderDef.AddRendererDef("LuxCore")
+    rendererDef.SymbolName = "TextureSplitRGB"
+
+    return True
+
+#---------------------makefloat3----------------------------------
+def LUXShadersPlugin_TextureCombineRGB_1_0_DefineInfo(in_ctxt):
+    in_ctxt.SetAttribute("Category", "LuxCore/Shader/Texture/Math")
+    in_ctxt.SetAttribute("DisplayName", "luxCombineRGB")
+    return True
+
+
+def LUXShadersPlugin_TextureCombineRGB_1_0_Define(in_ctxt):
+    shaderDef = in_ctxt.GetAttribute("Definition")
+    shaderDef.AddShaderFamily(c.siShaderFamilyTexture)
+
+    # Input Parameter: input
+    params = shaderDef.InputParamDefs
+
+    # parameters
+    add_input_float(standart_param_options(), params, 0.0, "r", 0.0, 1.0)
+    add_input_float(standart_param_options(), params, 0.0, "g", 0.0, 1.0)
+    add_input_float(standart_param_options(), params, 0.0, "b", 0.0, 1.0)
+    # Output Parameter
+    add_output_texture(shaderDef, "color")
+
+    # next init ppg
+    ppg_layout = shaderDef.PPGLayout
+    ppg_layout.AddGroup("Parameters")
+    ppg_layout.AddItem("r", "R")
+    ppg_layout.AddItem("g", "G")
+    ppg_layout.AddItem("b", "B")
+    ppg_layout.EndGroup()
+
+    # Renderer definition
+    rendererDef = shaderDef.AddRendererDef("LuxCore")
+    rendererDef.SymbolName = "TextureCombineRGB"
+
+    return True
+
+#---------------------remap----------------------------------
+def LUXShadersPlugin_TextureRemap_1_0_DefineInfo(in_ctxt):
+    in_ctxt.SetAttribute("Category", "LuxCore/Shader/Texture/Math")
+    in_ctxt.SetAttribute("DisplayName", "luxRemap")
+    return True
+
+
+def LUXShadersPlugin_TextureRemap_1_0_Define(in_ctxt):
+    shaderDef = in_ctxt.GetAttribute("Definition")
+    shaderDef.AddShaderFamily(c.siShaderFamilyTexture)
+
+    # Input Parameter: input
+    params = shaderDef.InputParamDefs
+
+    # parameters
+    add_input_float(standart_param_options(), params, 0.5, "value", 0.0, 1.0)
+    add_input_float(standart_param_options(), params, 0.0, "sourcemin", 0.0, 1.0)
+    add_input_float(standart_param_options(), params, 1.0, "sourcemax", 0.0, 1.0)
+    add_input_float(standart_param_options(), params, 0.0, "targetmin", 0.0, 1.0)
+    add_input_float(standart_param_options(), params, 1.0, "targetmax", 0.0, 1.0)
+    # Output Parameter
+    add_output_float(shaderDef, "output")
+
+    # next init ppg
+    ppg_layout = shaderDef.PPGLayout
+    ppg_layout.AddGroup("Parameters")
+    ppg_layout.AddItem("value", "Value")
+    ppg_layout.AddItem("sourcemin", "Source Min")
+    ppg_layout.AddItem("sourcemax", "Source Max")
+    ppg_layout.AddItem("targetmin", "Target Min")
+    ppg_layout.AddItem("targetmax", "Target Max")
+    ppg_layout.EndGroup()
+
+    # Renderer definition
+    rendererDef = shaderDef.AddRendererDef("LuxCore")
+    rendererDef.SymbolName = "TextureRemap"
 
     return True

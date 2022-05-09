@@ -244,16 +244,64 @@ void add_emission(luxcore::Scene* scene, XSI::CParameterRefArray &parameters, lu
 			{
 				XSI::CParameterRefArray emission_params = emission_node.GetParameters();
 				set_material_value(scene, lux_props, "color", prefix, emission_params, eval_time);
-				lux_props.Set(luxrays::Property(prefix + ".power")(0));
-				lux_props.Set(luxrays::Property(prefix + ".efficency")(0));
-				float gain = get_float_parameter_value(emission_params, "gain", eval_time);
-				float exposure = get_float_parameter_value(emission_params, "exposure", eval_time);
-				gain = gain * pow(2.0f, exposure);
-				lux_props.Set(luxrays::Property(prefix + ".gain")(gain, gain, gain));
-				lux_props.Set(luxrays::Property(prefix + ".normalizebycolor")(false));
-				lux_props.Set(luxrays::Property(prefix + ".gain.normalizebycolor")(false));
+				float spread_angle = get_float_parameter_value(emission_params, "theta", eval_time);
+
+				XSI::CString unit = get_string_parameter_value(emission_params, "unit", eval_time);
+				float power = get_float_parameter_value(emission_params, "power", eval_time);
+				float efficency = get_float_parameter_value(emission_params, "efficency", eval_time);
+				bool normalized = get_bool_parameter_value(emission_params, "normalized", eval_time);
+				if (unit == "power")
+				{
+					lux_props.Set(luxrays::Property(prefix + ".power")(power / (2.0f * M_PI * (1.0f - cos(DEG2RADF(spread_angle) / 2.0f)))));
+					lux_props.Set(luxrays::Property(prefix + ".efficency")(efficency));
+					lux_props.Set(luxrays::Property(prefix + ".normalizebycolor")(normalized));
+
+					if (power < 0.0001f || efficency < 0.0001f){ lux_props.Set(luxrays::Property(prefix + ".gain")(0.0, 0.0, 0.0)); }
+					else{ lux_props.Set(luxrays::Property(prefix + ".gain")(1.0, 1.0, 1.0)); }
+				}
+				else if (unit == "lumen")
+				{
+					float lumen = get_float_parameter_value(emission_params, "lumen", eval_time);
+					lux_props.Set(luxrays::Property(prefix + ".power")(lumen / (2.0f * M_PI * (1.0f - cos(DEG2RADF(spread_angle) / 2.0f)))));
+					lux_props.Set(luxrays::Property(prefix + ".efficency")(1.0));
+					lux_props.Set(luxrays::Property(prefix + ".normalizebycolor")(normalized));
+					if (lumen < 0.0001f) { lux_props.Set(luxrays::Property(prefix + ".gain")(0.0, 0.0, 0.0)); }
+					else { lux_props.Set(luxrays::Property(prefix + ".gain")(1.0, 1.0, 1.0)); }
+				}
+				else if (unit == "candela")
+				{
+					bool per_square_meter = get_bool_parameter_value(emission_params, "per_square_meter", eval_time);
+					float candela = get_float_parameter_value(emission_params, "candela", eval_time);
+					if (per_square_meter)
+					{
+						lux_props.Set(luxrays::Property(prefix + ".power")(0));
+						lux_props.Set(luxrays::Property(prefix + ".efficency")(0));
+						lux_props.Set(luxrays::Property(prefix + ".gain")(candela, candela, candela));
+						lux_props.Set(luxrays::Property(prefix + ".normalizebycolor")(normalized));
+					}
+					else
+					{
+						lux_props.Set(luxrays::Property(prefix + ".power")(candela * M_PI));
+						lux_props.Set(luxrays::Property(prefix + ".efficency")(1.0f));
+						lux_props.Set(luxrays::Property(prefix + ".normalizebycolor")(normalized));
+						if (candela < 0.0001f) { lux_props.Set(luxrays::Property(prefix + ".gain")(0.0, 0.0, 0.0)); }
+						else { lux_props.Set(luxrays::Property(prefix + ".gain")(1.0, 1.0, 1.0)); }
+					}
+				}
+				else
+				{
+					lux_props.Set(luxrays::Property(prefix + ".power")(0));
+					lux_props.Set(luxrays::Property(prefix + ".efficency")(0));
+					float gain = get_float_parameter_value(emission_params, "gain", eval_time);
+					float exposure = get_float_parameter_value(emission_params, "exposure", eval_time);
+					gain = gain * pow(2.0f, exposure);
+					lux_props.Set(luxrays::Property(prefix + ".gain")(gain, gain, gain));
+					lux_props.Set(luxrays::Property(prefix + ".normalizebycolor")(false));
+					lux_props.Set(luxrays::Property(prefix + ".gain.normalizebycolor")(false));
+				}
+
 				lux_props.Set(luxrays::Property(prefix + ".importance")(get_float_parameter_value(emission_params, "importance", eval_time)));
-				lux_props.Set(luxrays::Property(prefix + ".theta")(get_float_parameter_value(emission_params, "theta", eval_time)));
+				lux_props.Set(luxrays::Property(prefix + ".theta")(spread_angle));
 				lux_props.Set(luxrays::Property(prefix + ".id")(get_int_parameter_value(emission_params, "lightgroup_id", eval_time)));
 				lux_props.Set(luxrays::Property(prefix + ".directlightsampling.type")(get_string_parameter_value(emission_params, "dls_type", eval_time).GetAsciiString()));
 			}
@@ -523,8 +571,6 @@ std::string add_texture(luxcore::Scene* scene, XSI::Shader &texture_node, const 
 				luxrays::Properties clamp_props;
 				clamp_props.Set(luxrays::Property(clamp_prefix + ".type")("clamp"));
 				clamp_props.Set(luxrays::Property(clamp_prefix + ".texture")(output_name));
-				float clamp_min = get_float_parameter_value(parameters, "clamp_min", eval_time);
-				float clamp_max = get_float_parameter_value(parameters, "clamp_max", eval_time);
 				clamp_props.Set(luxrays::Property(clamp_prefix + ".min")(0.0f));
 				clamp_props.Set(luxrays::Property(clamp_prefix + ".max")(1.0f));
 
@@ -533,6 +579,38 @@ std::string add_texture(luxcore::Scene* scene, XSI::Shader &texture_node, const 
 				//and return new name
 				output_name = output_name + "_clamp";
 			}
+		}
+		else if (node_name == "TextureVectorMath")
+		{
+			XSI::CString mode = get_string_parameter_value(parameters, "type", eval_time);
+			texture_props.Set(luxrays::Property(prefix + ".type")(mode.GetAsciiString()));
+			if (mode == "abs")
+			{
+				set_material_value(scene, texture_props, "vector_1", prefix + ".texture", parameters, eval_time);
+			}
+			else if (mode == "clamp")
+			{
+				set_material_value(scene, texture_props, "vector_1", prefix + ".texture", parameters, eval_time);
+				float clamp_min = get_float_parameter_value(parameters, "clamp_min", eval_time);
+				float clamp_max = get_float_parameter_value(parameters, "clamp_max", eval_time);
+				texture_props.Set(luxrays::Property(prefix + ".min")(clamp_min));
+				texture_props.Set(luxrays::Property(prefix + ".max")(clamp_max));
+			}
+			else
+			{
+				set_material_value(scene, texture_props, "vector_1", prefix + ".texture1", parameters, eval_time);
+				set_material_value(scene, texture_props, "vector_2", prefix + ".texture2", parameters, eval_time);
+				if (mode == "mix")
+				{
+					set_material_value(scene, texture_props, "fac", prefix + ".amount", parameters, eval_time);
+				}
+			}
+		}
+		else if (node_name == "TextureDotProduct")
+		{
+			texture_props.Set(luxrays::Property(prefix + ".type")("dotproduct"));
+			set_material_value(scene, texture_props, "vector_1", prefix + ".texture1", parameters, eval_time);
+			set_material_value(scene, texture_props, "vector_2", prefix + ".texture2", parameters, eval_time);
 		}
 		else if (node_name == "TextureCheckerboard2D")
 		{
@@ -856,6 +934,144 @@ std::string add_texture(luxcore::Scene* scene, XSI::Shader &texture_node, const 
 
 			add_mapping(texture_props, prefix + ".mapping", parameters, "mapping_2d", eval_time);
 		}
+		else if (node_name == "TextureBrick")
+		{
+			texture_props.Set(luxrays::Property(prefix + ".type")("brick"));
+			texture_props.Set(luxrays::Property(prefix + ".brickbond")(replace_symbols(get_string_parameter_value(parameters, "type", eval_time), "_", " ").GetAsciiString()));
+			texture_props.Set(luxrays::Property(prefix + ".brickmodbias")(get_float_parameter_value(parameters, "brickmodbias", eval_time)));
+			texture_props.Set(luxrays::Property(prefix + ".brickwidth")(get_float_parameter_value(parameters, "brickwidth", eval_time)));
+			texture_props.Set(luxrays::Property(prefix + ".brickheight")(get_float_parameter_value(parameters, "brickheight", eval_time)));
+			texture_props.Set(luxrays::Property(prefix + ".brickdepth")(get_float_parameter_value(parameters, "brickdepth", eval_time)));
+			texture_props.Set(luxrays::Property(prefix + ".mortarsize")(get_float_parameter_value(parameters, "mortarsize", eval_time)));
+			texture_props.Set(luxrays::Property(prefix + ".brickrun")(get_float_parameter_value(parameters, "brickrun", eval_time) / 100.0f));
+			set_material_value(scene, texture_props, "color_1", prefix + ".bricktex", parameters, eval_time);
+			set_material_value(scene, texture_props, "color_2", prefix + ".brickmodtex", parameters, eval_time);
+			set_material_value(scene, texture_props, "mortar", prefix + ".mortartex", parameters, eval_time);
+			add_mapping(texture_props, prefix + ".mapping", parameters, "mapping_3d", eval_time);
+		}
+		else if (node_name == "TextureWireframe")
+		{
+			texture_props.Set(luxrays::Property(prefix + ".type")("wireframe"));
+			texture_props.Set(luxrays::Property(prefix + ".width")(get_float_parameter_value(parameters, "width", eval_time)));
+			set_material_value(scene, texture_props, "border", prefix + ".border", parameters, eval_time);
+			set_material_value(scene, texture_props, "inside", prefix + ".inside", parameters, eval_time);
+		}
+		else if (node_name == "TextureDots")
+		{
+			texture_props.Set(luxrays::Property(prefix + ".type")("dots"));
+			set_material_value(scene, texture_props, "inside", prefix + ".inside", parameters, eval_time);
+			set_material_value(scene, texture_props, "outside", prefix + ".outside", parameters, eval_time);
+			add_mapping(texture_props, prefix + ".mapping", parameters, "mapping_2d", eval_time);
+		}
+		else if (node_name == "TextureFBM")
+		{
+			texture_props.Set(luxrays::Property(prefix + ".type")("fbm"));
+			texture_props.Set(luxrays::Property(prefix + ".octaves")(get_int_parameter_value(parameters, "octaves", eval_time)));
+			texture_props.Set(luxrays::Property(prefix + ".roughness")(get_float_parameter_value(parameters, "roughness", eval_time)));
+			add_mapping(texture_props, prefix + ".mapping", parameters, "mapping_3d", eval_time);
+		}
+		else if (node_name == "TextureMarble")
+		{
+			texture_props.Set(luxrays::Property(prefix + ".type")("marble"));
+			texture_props.Set(luxrays::Property(prefix + ".octaves")(get_int_parameter_value(parameters, "octaves", eval_time)));
+			texture_props.Set(luxrays::Property(prefix + ".roughness")(get_float_parameter_value(parameters, "roughness", eval_time)));
+			texture_props.Set(luxrays::Property(prefix + ".scale")(get_float_parameter_value(parameters, "scale", eval_time)));
+			texture_props.Set(luxrays::Property(prefix + ".variation")(get_float_parameter_value(parameters, "variation", eval_time)));
+			add_mapping(texture_props, prefix + ".mapping", parameters, "mapping_3d", eval_time);
+		}
+		else if (node_name == "TextureWrinkled")
+		{
+			texture_props.Set(luxrays::Property(prefix + ".type")("wrinkled"));
+			texture_props.Set(luxrays::Property(prefix + ".octaves")(get_int_parameter_value(parameters, "octaves", eval_time)));
+			texture_props.Set(luxrays::Property(prefix + ".roughness")(get_float_parameter_value(parameters, "roughness", eval_time)));
+			add_mapping(texture_props, prefix + ".mapping", parameters, "mapping_3d", eval_time);
+		}
+		else if (node_name == "TextureVertexColor")
+		{
+			XSI::CString mode = get_string_parameter_value(parameters, "mode", eval_time);
+			texture_props.Set(luxrays::Property(prefix + ".type")(mode.GetAsciiString()));
+			if (mode == "hitpointgrey")
+			{
+				XSI::CString channel = get_string_parameter_value(parameters, "channel", eval_time);
+				texture_props.Set(luxrays::Property(prefix + ".channel")(channel.GetAsciiString()));
+			}
+			texture_props.Set(luxrays::Property(prefix + ".dataindex")(get_int_parameter_value(parameters, "index", eval_time)));
+		}
+		else if (node_name == "TextureVertexAlpha")
+		{
+			texture_props.Set(luxrays::Property(prefix + ".type")("hitpointalpha"));
+			texture_props.Set(luxrays::Property(prefix + ".dataindex")(get_int_parameter_value(parameters, "index", eval_time)));
+		}
+		else if (node_name == "TextureFresnel")
+		{
+			XSI::CString type = get_string_parameter_value(parameters, "type", eval_time);
+			if (type == "color")
+			{
+				texture_props.Set(luxrays::Property(prefix + ".type")("fresnelcolor"));
+				set_material_value(scene, texture_props, "color", prefix + ".kr", parameters, eval_time);
+			}
+			else if (type == "preset")
+			{
+				texture_props.Set(luxrays::Property(prefix + ".type")("fresnelpreset"));
+				XSI::CString preset = replace_symbols(get_string_parameter_value(parameters, "preset", eval_time), "_", " ");
+				texture_props.Set(luxrays::Property(prefix + ".name")(preset.GetAsciiString()));
+			}
+			else if (type == "nk")
+			{
+				XSI::CString xsi_file = resolve_path(get_string_parameter_value(parameters, "file", eval_time));
+				if (xsi_file.Length() > 0)
+				{
+					XSI::CString file_type = get_string_parameter_value(parameters, "file_type", eval_time);
+					if (file_type == "luxpop")
+					{
+						texture_props.Set(luxrays::Property(prefix + ".type")("fresnelluxpop"));
+					}
+					else
+					{
+						texture_props.Set(luxrays::Property(prefix + ".type")("fresnelsopra"));
+					}
+					texture_props.Set(luxrays::Property(prefix + ".file")(xsi_file.GetAsciiString()));
+				}
+				else
+				{
+					texture_props.Set(luxrays::Property(prefix + ".type")("fresnelcolor"));
+					texture_props.Set(luxrays::Property(prefix + ".kr")(0.0f, 0.0f, 0.0f));
+				}
+			}
+			else if (type == "custom_nk")
+			{
+				texture_props.Set(luxrays::Property(prefix + ".type")("fresnelconst"));
+				XSI::MATH::CColor4f color_n = get_color_parameter_value(parameters, "color_n", eval_time);
+				XSI::MATH::CColor4f color_k = get_color_parameter_value(parameters, "color_k", eval_time);
+				std::vector<float> array_n{color_n.GetR(), color_n.GetG(), color_n.GetB()};
+				std::vector<float> array_k{ color_k.GetR(), color_k.GetG(), color_k.GetB() };
+				texture_props.Set(luxrays::Property(prefix + ".n")(array_n));
+				texture_props.Set(luxrays::Property(prefix + ".k")(array_k));
+			}
+		}
+		else if (node_name == "TextureSplitRGB")
+		{
+			texture_props.Set(luxrays::Property(prefix + ".type")("splitfloat3"));
+			set_material_value(scene, texture_props, "color", prefix + ".texture", parameters, eval_time);
+			XSI::CString channel = get_string_parameter_value(parameters, "channel", eval_time);
+			texture_props.Set(luxrays::Property(prefix + ".channel")(channel == "r" ? 0 : (channel == "g" ? 1 : 2)));
+		}
+		else if (node_name == "TextureCombineRGB")
+		{
+			texture_props.Set(luxrays::Property(prefix + ".type")("makefloat3"));
+			set_material_value(scene, texture_props, "r", prefix + ".texture1", parameters, eval_time);
+			set_material_value(scene, texture_props, "g", prefix + ".texture2", parameters, eval_time);
+			set_material_value(scene, texture_props, "b", prefix + ".texture3", parameters, eval_time);
+		}
+		else if (node_name == "TextureRemap")
+		{
+			texture_props.Set(luxrays::Property(prefix + ".type")("remap"));
+			set_material_value(scene, texture_props, "value", prefix + ".value", parameters, eval_time);
+			set_material_value(scene, texture_props, "sourcemin", prefix + ".sourcemin", parameters, eval_time);
+			set_material_value(scene, texture_props, "sourcemax", prefix + ".sourcemax", parameters, eval_time);
+			set_material_value(scene, texture_props, "targetmin", prefix + ".targetmin", parameters, eval_time);
+			set_material_value(scene, texture_props, "targetmax", prefix + ".targetmax", parameters, eval_time);
+		}
 		else
 		{
 			output_name = "";
@@ -954,7 +1170,7 @@ void set_material_value(luxcore::Scene *scene,
 		{
 			material_props.Set(luxrays::Property(lux_param_name)((bool)xsi_finall_parameter.GetValue(eval_time)));
 		}
-		else if (parameter_type == ShaderParameterType::ParameterType_Color3)
+		else if (parameter_type == ShaderParameterType::ParameterType_Color3 || parameter_type == ShaderParameterType::ParameterType_Vector3)
 		{
 			XSI::CParameterRefArray params_array = xsi_finall_parameter.GetParameters();
 			XSI::Parameter p[3];
@@ -1126,31 +1342,43 @@ std::string add_material(luxcore::Scene* scene, XSI::Shader &material_node, cons
 			{
 				set_material_value(scene, material_props, "uroughness", prefix + ".vroughness", parameters, eval_time);
 			}
-			if (metal_mode == "color")
+
+			//get connection of the fresnel port
+			XSI::Parameter fp = parameters.GetItem("fresnel");
+			XSI::Parameter fp_finell = get_source_parameter(fp);
+			XSI::ShaderParameter fresnel_parameter(fp);
+			XSI::Shader fresnel_node = get_input_node(fresnel_parameter);
+			
+			bool is_fresnel = false;
+			if (fresnel_node.IsValid())
+			{
+				XSI::CString fresnel_node_prog_id = fresnel_node.GetProgID();
+				if (fresnel_node_prog_id == "LUXShadersPlugin.TextureFresnel.1.0")
+				{
+					std::string fresnel_name = add_texture(scene, fresnel_node, eval_time);
+					if (fresnel_name.size() > 0)
+					{
+						material_props.Set(luxrays::Property(prefix + ".fresnel")(fresnel_name));
+						is_fresnel = true;
+					}
+					else
+					{
+						is_fresnel = false;
+					}
+				}
+			}
+
+			if (!is_fresnel)
 			{
 				//create inline fresnel
 				luxrays::Properties fresnel_props;
 				std::string frensel_name = output_name + "_fresnel";
 				fresnel_props.Set(luxrays::Property("scene.textures." + frensel_name + ".type")("fresnelcolor"));
-
-				set_material_value(scene, fresnel_props, "kr", "scene.textures." + frensel_name + ".kr", parameters, eval_time);
+				fresnel_props.Set(luxrays::Property("scene.textures." + frensel_name + ".kr")(1.0f, 1.0f, 1.0f));
 				scene->Parse(fresnel_props);
 
 				//connect generated fresnel to the material
 				material_props.Set(luxrays::Property(prefix + ".fresnel")(frensel_name));
-			}
-			else if (metal_mode == "preset")
-			{
-				XSI::CString preset = get_string_parameter_value(parameters, "metal_preset", eval_time);
-				material_props.Set(luxrays::Property(prefix + ".preset")(replace_symbols(preset, XSI::CString("_"), XSI::CString(" ")).GetAsciiString()));
-			}
-			else
-			{//n, k mode
-				XSI::MATH::CColor4f n_color = get_color_parameter_value(parameters, "n", eval_time);
-				XSI::MATH::CColor4f k_color = get_color_parameter_value(parameters, "k", eval_time);
-
-				material_props.Set(luxrays::Property(prefix + ".n")(n_color.GetR(), n_color.GetG(), n_color.GetB()));
-				material_props.Set(luxrays::Property(prefix + ".k")(k_color.GetR(), k_color.GetG(), k_color.GetB()));
 			}
 
 			setup_default = true;

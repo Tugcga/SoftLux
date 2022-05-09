@@ -299,7 +299,6 @@ void sync_imagepipline(luxrays::Properties &render_props, const XSI::CTime& eval
 				}
 				else if (name == "PassColorLUT")
 				{
-					//std::string file = std::string(get_string_parameter_value(all_parameters, "file", eval_time).GetAsciiString());
 					XSI::CString xsi_file = resolve_path(get_string_parameter_value(all_parameters, "file", eval_time));
 					float strength = get_float_parameter_value(all_parameters, "strength", eval_time);
 

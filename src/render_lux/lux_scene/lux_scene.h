@@ -38,6 +38,7 @@ void set_material_value(luxcore::Scene* scene,
 	bool ignore_set_branch = false);
 
 std::string add_material(luxcore::Scene* scene, 
+	luxrays::Properties &material_props,
 	XSI::Shader& material_node, 
 	const XSI::CTime& eval_time, 
 	std::string override_name = "");

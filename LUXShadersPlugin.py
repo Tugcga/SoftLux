@@ -425,6 +425,19 @@ split_channel_enum = [
     "B", "b"
 ]
 
+densitygrid_storage_enum = [
+    "Byte", "byte",
+    "Half", "half", 
+    "Float", "float"
+]
+
+densitygrid_wrap_enum = [
+    "Repeat", "repeat",
+    "Black", "black",
+    "White", "white",
+    "Clamp", "clamp"
+]
+
 def XSILoadPlugin(in_reg):
     in_reg.Author = "Shekn Itrch"
     in_reg.Name = "LUXShadersPlugin"
@@ -448,6 +461,9 @@ def XSILoadPlugin(in_reg):
     in_reg.RegisterShader("ShaderGlossyCoating", 1, 0)  # glossycoating
     in_reg.RegisterShader("ShaderDisney", 1, 0)  # disney
     in_reg.RegisterShader("ShaderTwoSided", 1, 0)  # twosided
+    in_reg.RegisterShader("VolumeClear", 1, 0)
+    in_reg.RegisterShader("VolumeHeterogeneous", 1, 0)
+    in_reg.RegisterShader("VolumeHomogeneous", 1, 0)
     # rendertree textures
     in_reg.RegisterShader("TextureImage", 1, 0)
     in_reg.RegisterShader("TextureFloat", 1, 0)
@@ -494,6 +510,7 @@ def XSILoadPlugin(in_reg):
     in_reg.RegisterShader("TextureSplitRGB", 1, 0)
     in_reg.RegisterShader("TextureCombineRGB", 1, 0)
     in_reg.RegisterShader("TextureRemap", 1, 0)
+    in_reg.RegisterShader("TextureOpenVDB", 1, 0)
     # camera lense shader nodes
     in_reg.RegisterShader("LensePanoramic", 1, 0)
     in_reg.RegisterShader("LenseBokeh", 1, 0)
@@ -5689,5 +5706,186 @@ def LUXShadersPlugin_TextureRemap_1_0_Define(in_ctxt):
     # Renderer definition
     rendererDef = shaderDef.AddRendererDef("LuxCore")
     rendererDef.SymbolName = "TextureRemap"
+
+    return True
+
+#---------------------densitygrid----------------------------------
+def LUXShadersPlugin_TextureOpenVDB_1_0_DefineInfo(in_ctxt):
+    in_ctxt.SetAttribute("Category", "LuxCore/Shader/Texture/Texture")
+    in_ctxt.SetAttribute("DisplayName", "luxOpenVDB")
+    return True
+
+
+def LUXShadersPlugin_TextureOpenVDB_1_0_Define(in_ctxt):
+    shaderDef = in_ctxt.GetAttribute("Definition")
+    shaderDef.AddShaderFamily(c.siShaderFamilyTexture)
+
+    # Input Parameter: input
+    params = shaderDef.InputParamDefs
+
+    # parameters
+    add_input_string(nonport_param_options(), params, "", "file")
+    add_input_string(nonport_param_options(), params, "half", "precision")
+    add_input_integer(nonport_param_options(), params, 1, "nx", 1, 1024)
+    add_input_integer(nonport_param_options(), params, 1, "ny", 1, 1024)
+    add_input_integer(nonport_param_options(), params, 1, "nz", 1, 1024)
+    add_input_string(nonport_param_options(), params, "density", "grid")
+    add_input_3dmapping(standart_param_options(), params, None, "mapping_3d")
+    # Output Parameter
+    add_output_texture(shaderDef, "output")
+
+    # next init ppg
+    ppg_layout = shaderDef.PPGLayout
+    ppg_layout.AddGroup("Parameters")
+    file_item = ppg_layout.AddItem("file", "File", c.siControlFilePath)
+    file_item.SetAttribute(c.siUIOpenFile, True)
+    file_item.SetAttribute(c.siUIFileFilter, "OpenVDB file (*.vdb)|*.vdb|")
+    file_item.SetAttribute(c.siUIFileMustExist, True)
+    ppg_layout.AddItem("grid", "Grid Name")
+    ppg_layout.AddEnumControl("precision", densitygrid_storage_enum, "Storage")
+    ppg_layout.AddGroup("Grid Size")
+    ppg_layout.AddRow()
+    ppg_layout.AddItem("nx", "X")
+    ppg_layout.AddItem("ny", "Y")
+    ppg_layout.AddItem("nz", "Z")
+    ppg_layout.EndRow()
+    ppg_layout.EndGroup()
+    ppg_layout.EndGroup()
+
+    # Renderer definition
+    rendererDef = shaderDef.AddRendererDef("LuxCore")
+    rendererDef.SymbolName = "TextureOpenVDB"
+
+    return True
+
+#---------------------------------------------------------
+#----------------------Volume-----------------------------
+
+def setup_defaul_volume_parameters(params):
+    add_input_integer(nonport_param_options(), params, 0, "priority", 0, 10)
+    add_input_float(standart_param_options(), params, 1.5, "ior", 1.0, 2.0)
+    add_input_color(standart_param_options(), params, [1.0, 1.0, 1.0], "absorption")
+    add_input_float(nonport_param_options(), params, 1.0, "absorption_depth", 0.0, 2.0)
+    add_input_color(standart_param_options(), params, [0.0, 0.0, 0.0], "emission")
+    add_input_integer(nonport_param_options(), params, 0, "emission_id", 0, 7)
+
+def setup_default_volume_ppg(ppg_layout):
+    ppg_layout.AddItem("priority", "Priority")
+    ppg_layout.AddItem("absorption_depth", "Absorption Depth")
+    ppg_layout.AddItem("absorption", "Absorption")
+    ppg_layout.AddItem("ior", "IOR")
+    ppg_layout.AddItem("emission", "Emission")
+    ppg_layout.AddItem("emission_id", "Emission ID")
+
+#---------------------clear----------------------------------
+def LUXShadersPlugin_VolumeClear_1_0_DefineInfo(in_ctxt):
+    in_ctxt.SetAttribute("Category", "LuxCore/Shader/Volume")
+    in_ctxt.SetAttribute("DisplayName", "luxClear")
+    return True
+
+
+def LUXShadersPlugin_VolumeClear_1_0_Define(in_ctxt):
+    shaderDef = in_ctxt.GetAttribute("Definition")
+    shaderDef.AddShaderFamily(c.siShaderFamilyVolume)
+
+    # Input Parameter: input
+    params = shaderDef.InputParamDefs
+
+    # parameters
+    setup_defaul_volume_parameters(params)
+    # Output Parameter
+    add_output_closure(shaderDef, "volume")
+
+    # next init ppg
+    ppg_layout = shaderDef.PPGLayout
+    ppg_layout.AddGroup("Parameters")
+    setup_default_volume_ppg(ppg_layout)
+    ppg_layout.EndGroup()
+
+    # Renderer definition
+    rendererDef = shaderDef.AddRendererDef("LuxCore")
+    rendererDef.SymbolName = "VolumeClear"
+
+    return True
+
+#---------------------heterogeneous----------------------------------
+def LUXShadersPlugin_VolumeHeterogeneous_1_0_DefineInfo(in_ctxt):
+    in_ctxt.SetAttribute("Category", "LuxCore/Shader/Volume")
+    in_ctxt.SetAttribute("DisplayName", "luxHeterogeneous")
+    return True
+
+
+def LUXShadersPlugin_VolumeHeterogeneous_1_0_Define(in_ctxt):
+    shaderDef = in_ctxt.GetAttribute("Definition")
+    shaderDef.AddShaderFamily(c.siShaderFamilyVolume)
+
+    # Input Parameter: input
+    params = shaderDef.InputParamDefs
+
+    # parameters
+    add_input_boolean(nonport_param_options(), params, False, "multiscattering")
+    add_input_float(nonport_param_options(), params, 0.1, "step_size", 0.0, 1.0)
+    add_input_integer(nonport_param_options(), params, 1024, "max_steps", 128, 4096)
+    setup_defaul_volume_parameters(params)
+    add_input_color(standart_param_options(), params, [1.0, 1.0, 1.0], "scattering")
+    add_input_float(standart_param_options(), params, 1.0, "scattering_scale", 0.0, 10.0)
+    add_input_vector(standart_param_options(), params, [0.0, 0.0, 0.0], "asymmetry")
+    # Output Parameter
+    add_output_closure(shaderDef, "volume")
+
+    # next init ppg
+    ppg_layout = shaderDef.PPGLayout
+    ppg_layout.AddGroup("Parameters")
+    ppg_layout.AddItem("multiscattering", "Multiscattering")
+    ppg_layout.AddItem("step_size", "Step Size")
+    ppg_layout.AddItem("max_steps", "Max Steps")
+    setup_default_volume_ppg(ppg_layout)
+    ppg_layout.AddItem("scattering", "Scattering")
+    ppg_layout.AddItem("scattering_scale", "Scattering Scale")
+    ppg_layout.AddItem("asymmetry", "Asymmetry")
+    ppg_layout.EndGroup()
+
+    # Renderer definition
+    rendererDef = shaderDef.AddRendererDef("LuxCore")
+    rendererDef.SymbolName = "VolumeHeterogeneous"
+
+    return True
+
+#---------------------homogeneous----------------------------------
+def LUXShadersPlugin_VolumeHomogeneous_1_0_DefineInfo(in_ctxt):
+    in_ctxt.SetAttribute("Category", "LuxCore/Shader/Volume")
+    in_ctxt.SetAttribute("DisplayName", "luxHomogeneous")
+    return True
+
+
+def LUXShadersPlugin_VolumeHomogeneous_1_0_Define(in_ctxt):
+    shaderDef = in_ctxt.GetAttribute("Definition")
+    shaderDef.AddShaderFamily(c.siShaderFamilyVolume)
+
+    # Input Parameter: input
+    params = shaderDef.InputParamDefs
+
+    # parameters
+    add_input_boolean(nonport_param_options(), params, False, "multiscattering")
+    setup_defaul_volume_parameters(params)
+    add_input_color(standart_param_options(), params, [1.0, 1.0, 1.0], "scattering")
+    add_input_float(standart_param_options(), params, 1.0, "scattering_scale", 0.0, 10.0)
+    add_input_vector(standart_param_options(), params, [0.0, 0.0, 0.0], "asymmetry")
+    # Output Parameter
+    add_output_closure(shaderDef, "volume")
+
+    # next init ppg
+    ppg_layout = shaderDef.PPGLayout
+    ppg_layout.AddGroup("Parameters")
+    ppg_layout.AddItem("multiscattering", "Multiscattering")
+    setup_default_volume_ppg(ppg_layout)
+    ppg_layout.AddItem("scattering", "Scattering")
+    ppg_layout.AddItem("scattering_scale", "Scattering Scale")
+    ppg_layout.AddItem("asymmetry", "Asymmetry")
+    ppg_layout.EndGroup()
+
+    # Renderer definition
+    rendererDef = shaderDef.AddRendererDef("LuxCore")
+    rendererDef.SymbolName = "VolumeHomogeneous"
 
     return True

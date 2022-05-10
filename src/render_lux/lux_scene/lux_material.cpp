@@ -7,7 +7,7 @@
 #include "xsi_imageclip2.h"
 
 //return true if we add some mapping to the texture
-bool add_mapping(luxrays::Properties &texture_props, const std::string &prefix, XSI::CParameterRefArray &parameters, const XSI::CString &mapping_parameter_name, const XSI::CTime &eval_time)
+bool add_mapping(luxrays::Properties &texture_props, const std::string &prefix, XSI::CParameterRefArray &parameters, const XSI::CString &mapping_parameter_name, const XSI::CTime &eval_time, const bool force_3dmapping = false)
 {
 	bool to_return = false;
 	XSI::ShaderParameter mapping_parameter = parameters.GetItem(mapping_parameter_name);
@@ -219,6 +219,13 @@ bool add_mapping(luxrays::Properties &texture_props, const std::string &prefix, 
 		else
 		{
 			//mapping port is not connected to something, nothing to do
+			if (force_3dmapping)
+			{
+				texture_props.Set(luxrays::Property(prefix + ".type")("globalmapping3d"));
+				XSI::MATH::CMatrix4 m;
+				m.SetIdentity();
+				texture_props.Set(luxrays::Property(prefix + ".transformation")(xsi_to_lux_matrix(m, false)));
+			}
 		}
 	}
 	else
@@ -1072,6 +1079,32 @@ std::string add_texture(luxcore::Scene* scene, XSI::Shader &texture_node, const 
 			set_material_value(scene, texture_props, "targetmin", prefix + ".targetmin", parameters, eval_time);
 			set_material_value(scene, texture_props, "targetmax", prefix + ".targetmax", parameters, eval_time);
 		}
+		else if (node_name == "TextureOpenVDB")
+		{
+			XSI::CString xsi_file = resolve_path(get_string_parameter_value(parameters, "file", eval_time));
+			XSI::CString grid = get_string_parameter_value(parameters, "grid", eval_time);
+			int nx = get_int_parameter_value(parameters, "nx", eval_time);
+			int ny = get_int_parameter_value(parameters, "ny", eval_time);
+			int nz = get_int_parameter_value(parameters, "nz", eval_time);
+			//here we does not check correctness of the grid name
+			if (xsi_file.Length() > 0 && grid.Length() > 0 && nx > 0 && ny > 0 && nz > 0)
+			{
+				texture_props.Set(luxrays::Property(prefix + ".type")("densitygrid"));
+				texture_props.Set(luxrays::Property(prefix + ".wrap")("black"));
+				texture_props.Set(luxrays::Property(prefix + ".storage")(get_string_parameter_value(parameters, "precision", eval_time).GetAsciiString()));
+				texture_props.Set(luxrays::Property(prefix + ".nx")(nx));
+				texture_props.Set(luxrays::Property(prefix + ".ny")(ny));
+				texture_props.Set(luxrays::Property(prefix + ".nz")(nz));
+				texture_props.Set(luxrays::Property(prefix + ".openvdb.file")(xsi_file.GetAsciiString()));
+				texture_props.Set(luxrays::Property(prefix + ".openvdb.grid")(grid.GetAsciiString()));
+
+				add_mapping(texture_props, prefix + ".mapping", parameters, "mapping_3d", eval_time, true);
+			}
+			else
+			{
+				output_name = "";
+			}
+		}
 		else
 		{
 			output_name = "";
@@ -1117,9 +1150,12 @@ void set_material_value(luxcore::Scene *scene,
 		{
 			//parameter connected to material port
 			//so, try to add new material
-			std::string material_name = add_material(scene, node, eval_time);
+			luxrays::Properties new_material_props;
+			std::string material_name = add_material(scene, new_material_props, node, eval_time);
 			if (material_name.size() > 0)
 			{
+				scene->Parse(new_material_props);
+
 				material_props.Set(luxrays::Property(lux_param_name)(material_name));
 			}
 			else
@@ -1203,10 +1239,9 @@ void set_material_value(luxcore::Scene *scene,
 //if this method is called from sync_material, then returned name should be overrided by the input one
 //return empty string if material node is invalid
 //in thie case replace this materia by null material or default material
-std::string add_material(luxcore::Scene* scene, XSI::Shader &material_node, const XSI::CTime& eval_time, std::string override_name)
+std::string add_material(luxcore::Scene* scene, luxrays::Properties &material_props, XSI::Shader &material_node, const XSI::CTime& eval_time, std::string override_name)
 {
 	//get shader name
-	luxrays::Properties material_props;
 	XSI::CString prog_id = material_node.GetProgID();
 	std::string output_name;
 	if (override_name.size() > 0)
@@ -1570,11 +1605,119 @@ std::string add_material(luxcore::Scene* scene, XSI::Shader &material_node, cons
 		output_name = "";
 	}
 
+	return output_name;
+}
+
+void setup_default_volume(luxcore::Scene* scene, luxrays::Properties &volume_props, std::string &prefix, std::string &volume_name, XSI::CParameterRefArray &parameters, const XSI::CTime& eval_time)
+{
+	set_material_value(scene, volume_props, "ior", prefix + ".ior", parameters, eval_time);
+	int priority = get_int_parameter_value(parameters, "priority", eval_time);
+	volume_props.Set(luxrays::Property(prefix + ".priority")(priority));
+	set_material_value(scene, volume_props, "emission", prefix + ".emission", parameters, eval_time);
+	int emission_id = get_int_parameter_value(parameters, "emission_id", eval_time);
+	volume_props.Set(luxrays::Property(prefix + ".emission.id")(emission_id));
+	float abs_depth = get_float_parameter_value(parameters, "absorption_depth", eval_time);
+
+	//create implicit texture for absorption color and depth
+	std::string abs_name = volume_name + "_colordepth";
+	luxrays::Properties abs_props;
+	std::string abs_prefix = "scene.textures." + abs_name;
+	abs_props.Set(luxrays::Property(abs_prefix + ".type")("colordepth"));
+	set_material_value(scene, abs_props, "absorption", abs_prefix + ".kt", parameters, eval_time);
+	abs_props.Set(luxrays::Property(abs_prefix + ".depth")(abs_depth));
+	scene->Parse(abs_props);
+
+	//set name of the created texture to the volume node
+	volume_props.Set(luxrays::Property(prefix + ".absorption")(abs_name));
+}
+
+void setup_scattering_volume(luxcore::Scene* scene, luxrays::Properties& volume_props, std::string& prefix, std::string& volume_name, XSI::CParameterRefArray& parameters, const XSI::CTime& eval_time)
+{
+	std::string scat_name = volume_name + "_scale";
+	luxrays::Properties scat_props;
+	std::string scat_prefix = "scene.textures." + scat_name;
+
+	scat_props.Set(luxrays::Property(scat_prefix + ".type")("scale"));
+	set_material_value(scene, scat_props, "scattering_scale", scat_prefix + ".texture1", parameters, eval_time);
+	set_material_value(scene, scat_props, "scattering", scat_prefix + ".texture2", parameters, eval_time);
+	scene->Parse(scat_props);
+
+	volume_props.Set(luxrays::Property(prefix + ".scattering")(scat_name));
+}
+
+std::string add_volume_node(luxcore::Scene* scene, XSI::Shader &node, const XSI::CTime& eval_time)
+{
+	XSI::CString prog_id = node.GetProgID();
+	std::string output_name = xsi_object_id_string(node)[0];
+	XSI::CStringArray parts = prog_id.Split(".");
+	std::string prefix = "scene.volumes." + output_name;
+	luxrays::Properties volume_props;
+	if (parts.GetCount() > 1 && parts[0] == "LUXShadersPlugin")
+	{
+		XSI::CString node_name = parts[1];
+		XSI::CParameterRefArray parameters = node.GetParameters();
+		if (node_name == "VolumeClear")
+		{
+			volume_props.Set(luxrays::Property(prefix + ".type")("clear"));
+			setup_default_volume(scene, volume_props, prefix, output_name, parameters, eval_time);
+		}
+		else if (node_name == "VolumeHeterogeneous")
+		{
+			volume_props.Set(luxrays::Property(prefix + ".type")("heterogeneous"));
+			set_material_value(scene, volume_props, "asymmetry", prefix + ".asymmetry", parameters, eval_time);
+			bool multiscattering = get_bool_parameter_value(parameters, "multiscattering", eval_time);
+			volume_props.Set(luxrays::Property(prefix + ".multiscattering")(multiscattering));
+
+			float step_size = get_float_parameter_value(parameters, "step_size", eval_time);
+			int max_steps = get_int_parameter_value(parameters, "max_steps", eval_time);
+			volume_props.Set(luxrays::Property(prefix + ".steps.size")(step_size));
+			volume_props.Set(luxrays::Property(prefix + ".steps.maxcount")(max_steps));
+
+			setup_default_volume(scene, volume_props, prefix, output_name, parameters, eval_time);
+			setup_scattering_volume(scene, volume_props, prefix, output_name, parameters, eval_time);
+		}
+		else if (node_name == "VolumeHomogeneous")
+		{
+			volume_props.Set(luxrays::Property(prefix + ".type")("homogeneous"));
+			set_material_value(scene, volume_props, "asymmetry", prefix + ".asymmetry", parameters, eval_time);
+			bool multiscattering = get_bool_parameter_value(parameters, "multiscattering", eval_time);
+			volume_props.Set(luxrays::Property(prefix + ".multiscattering")(multiscattering));
+
+			setup_default_volume(scene, volume_props, prefix, output_name, parameters, eval_time);
+			setup_scattering_volume(scene, volume_props, prefix, output_name, parameters, eval_time);
+		}
+		else
+		{
+			output_name = "";
+		}
+	}
+	else
+	{
+		output_name = "";
+	}
+
 	if (output_name.size() > 0)
 	{
-		scene->Parse(material_props);
+		scene->Parse(volume_props);
 	}
 	return output_name;
+}
+
+void add_volume(luxcore::Scene* scene, luxrays::Properties &material_props, const std::string &material_name, XSI::Material& xsi_material, const XSI::CTime &eval_time)
+{
+	XSI::CRefArray first_level_shaders = xsi_material.GetShaders();
+	std::vector<XSI::ShaderParameter> volume_ports = get_root_shader_parameter(first_level_shaders, GRSPM_ParameterName, "volume");
+	std::string volume_name = "";
+	if (volume_ports.size() > 0)
+	{
+		XSI::Shader volume_node = get_input_node(volume_ports[0]);
+		volume_name = add_volume_node(scene, volume_node, eval_time);
+	}
+
+	if (volume_name.size() > 0)
+	{
+		material_props.Set(luxrays::Property("scene.materials." + material_name + ".volume.interior")(volume_name));
+	}
 }
 
 void sync_material(luxcore::Scene* scene, XSI::Material &xsi_material, std::set<ULONG>& xsi_materials_in_lux, const XSI::CTime& eval_time)
@@ -1595,6 +1738,9 @@ void sync_material(luxcore::Scene* scene, XSI::Material &xsi_material, std::set<
 		//set default id
 		material_props.Set(luxrays::Property("scene.materials." + material_name + ".id")((int)xsi_material.GetObjectID()));
 
+		//next try to add the volume
+		add_volume(scene, material_props, material_name, xsi_material, eval_time);
+
 		scene->Parse(material_props);
 	}
 	else
@@ -1602,17 +1748,19 @@ void sync_material(luxcore::Scene* scene, XSI::Material &xsi_material, std::set<
 		//get the material node
 		XSI::Shader material_node = get_input_node(surface_ports[0]);
 		//next we should add material from the selected node
-		std::string add_name = add_material(scene, material_node, eval_time, material_name);
+		luxrays::Properties material_props;
+		std::string add_name = add_material(scene, material_props, material_node, eval_time, material_name);
 		if (add_name.size() == 0)
 		{
 			//this is unknown material node
 			//in this case set default material
-			luxrays::Properties material_props;
+			material_props.Clear();
 			material_props.Set(luxrays::Property("scene.materials." + material_name + ".type")("matte"));
 			material_props.Set(luxrays::Property("scene.materials." + material_name + ".kd")(0.8, 0.8, 0.8));
 			material_props.Set(luxrays::Property("scene.materials." + material_name + ".id")((int)xsi_material.GetObjectID()));
-			scene->Parse(material_props);
 		}
+		add_volume(scene, material_props, material_name, xsi_material, eval_time);
+		scene->Parse(material_props);
 	}
 
 	xsi_materials_in_lux.insert(xsi_material.GetObjectID());

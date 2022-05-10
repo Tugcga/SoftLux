@@ -6,6 +6,8 @@
 #include "xsi_materiallibrary.h"
 #include "xsi_imageclip2.h"
 
+#include <unordered_map>
+
 //return true if we add some mapping to the texture
 bool add_mapping(luxrays::Properties &texture_props, const std::string &prefix, XSI::CParameterRefArray &parameters, const XSI::CString &mapping_parameter_name, const XSI::CTime &eval_time, const bool force_3dmapping = false)
 {
@@ -237,7 +239,7 @@ bool add_mapping(luxrays::Properties &texture_props, const std::string &prefix, 
 	return to_return;
 }
 
-void add_emission(luxcore::Scene* scene, XSI::CParameterRefArray &parameters, luxrays::Properties &lux_props, const std::string &prefix, const XSI::CTime &eval_time)
+void add_emission(luxcore::Scene* scene, XSI::CParameterRefArray &parameters, luxrays::Properties &lux_props, const std::string &prefix, std::unordered_map<ULONG, std::string>& exported_nodes_map, const XSI::CTime &eval_time)
 {
 	XSI::ShaderParameter emission_param = parameters.GetItem("emission");
 	if (emission_param.IsValid())
@@ -250,7 +252,7 @@ void add_emission(luxcore::Scene* scene, XSI::CParameterRefArray &parameters, lu
 			if (prog_id == "LUXShadersPlugin.Emission.1.0")
 			{
 				XSI::CParameterRefArray emission_params = emission_node.GetParameters();
-				set_material_value(scene, lux_props, "color", prefix, emission_params, eval_time);
+				set_material_value(scene, lux_props, "color", prefix, emission_params, exported_nodes_map, eval_time);
 				float spread_angle = get_float_parameter_value(emission_params, "theta", eval_time);
 
 				XSI::CString unit = get_string_parameter_value(emission_params, "unit", eval_time);
@@ -324,18 +326,25 @@ void add_emission(luxcore::Scene* scene, XSI::CParameterRefArray &parameters, lu
 	}
 }
 
-void add_inline_bump(luxcore::Scene *scene, std::string prefix, std::string suffix, XSI::CParameterRefArray &parameters, const XSI::CTime &eval_time)
+void add_inline_bump(luxcore::Scene *scene, std::string prefix, std::string suffix, XSI::CParameterRefArray &parameters, std::unordered_map<ULONG, std::string>& exported_nodes_map, const XSI::CTime &eval_time)
 {
 	luxrays::Properties bump_props;
 	std::string bump_prefix = prefix + suffix;
 	bump_props.Set(luxrays::Property(bump_prefix + ".type")("scale"));
-	set_material_value(scene, bump_props, "value" + XSI::CString(suffix.c_str()), bump_prefix + ".texture1", parameters, eval_time);
-	set_material_value(scene, bump_props, "height" + XSI::CString(suffix.c_str()), bump_prefix + ".texture2", parameters, eval_time);
+	set_material_value(scene, bump_props, "value" + XSI::CString(suffix.c_str()), bump_prefix + ".texture1", parameters, exported_nodes_map, eval_time);
+	set_material_value(scene, bump_props, "height" + XSI::CString(suffix.c_str()), bump_prefix + ".texture2", parameters, exported_nodes_map, eval_time);
 	scene->Parse(bump_props);
 }
 
-std::string add_texture(luxcore::Scene* scene, XSI::Shader &texture_node, const XSI::CTime &eval_time)
+std::string add_texture(luxcore::Scene* scene, XSI::Shader &texture_node, std::unordered_map<ULONG, std::string>& exported_nodes_map, const XSI::CTime &eval_time)
 {
+	//we will parse texture parameters in the scene at the end otf the method
+	ULONG node_id = texture_node.GetObjectID();
+	if (exported_nodes_map.contains(node_id))
+	{
+		return exported_nodes_map[node_id];
+	}
+
 	std::string output_name = xsi_object_id_string(texture_node)[0];
 	std::string prefix = "scene.textures." + output_name;
 	
@@ -527,39 +536,39 @@ std::string add_texture(luxcore::Scene* scene, XSI::Shader &texture_node, const 
 
 			if (mode == "abs")
 			{
-				set_material_value(scene, texture_props, "value_1", prefix + ".texture", parameters, eval_time);
+				set_material_value(scene, texture_props, "value_1", prefix + ".texture", parameters, exported_nodes_map, eval_time);
 			}
 			else if (mode == "clamp")
 			{
-				set_material_value(scene, texture_props, "value_1", prefix + ".texture", parameters, eval_time);
+				set_material_value(scene, texture_props, "value_1", prefix + ".texture", parameters, exported_nodes_map, eval_time);
 				texture_props.Set(luxrays::Property(prefix + ".min")(get_float_parameter_value(parameters, "clamp_min", eval_time)));
 				texture_props.Set(luxrays::Property(prefix + ".max")(get_float_parameter_value(parameters, "clamp_max", eval_time)));
 			}
 			else if (mode == "mix")
 			{
-				set_material_value(scene, texture_props, "value_1", prefix + ".texture1", parameters, eval_time);
-				set_material_value(scene, texture_props, "value_2", prefix + ".texture2", parameters, eval_time);
-				set_material_value(scene, texture_props, "fac", prefix + ".amount", parameters, eval_time);
+				set_material_value(scene, texture_props, "value_1", prefix + ".texture1", parameters, exported_nodes_map, eval_time);
+				set_material_value(scene, texture_props, "value_2", prefix + ".texture2", parameters, exported_nodes_map, eval_time);
+				set_material_value(scene, texture_props, "fac", prefix + ".amount", parameters, exported_nodes_map, eval_time);
 			}
 			else if (mode == "power")
 			{
-				set_material_value(scene, texture_props, "value_1", prefix + ".base", parameters, eval_time);
-				set_material_value(scene, texture_props, "value_2", prefix + ".exponent", parameters, eval_time);
+				set_material_value(scene, texture_props, "value_1", prefix + ".base", parameters, exported_nodes_map, eval_time);
+				set_material_value(scene, texture_props, "value_2", prefix + ".exponent", parameters, exported_nodes_map, eval_time);
 			}
 			else if (mode == "rounding")
 			{
-				set_material_value(scene, texture_props, "value_1", prefix + ".texture", parameters, eval_time);
-				set_material_value(scene, texture_props, "value_2", prefix + ".increment", parameters, eval_time);
+				set_material_value(scene, texture_props, "value_1", prefix + ".texture", parameters, exported_nodes_map, eval_time);
+				set_material_value(scene, texture_props, "value_2", prefix + ".increment", parameters, exported_nodes_map, eval_time);
 			}
 			else if (mode == "modulo")
 			{
-				set_material_value(scene, texture_props, "value_1", prefix + ".texture", parameters, eval_time);
-				set_material_value(scene, texture_props, "value_2", prefix + ".modulo", parameters, eval_time);
+				set_material_value(scene, texture_props, "value_1", prefix + ".texture", parameters, exported_nodes_map, eval_time);
+				set_material_value(scene, texture_props, "value_2", prefix + ".modulo", parameters, exported_nodes_map, eval_time);
 			}
 			else
 			{
-				set_material_value(scene, texture_props, "value_1", prefix + ".texture1", parameters, eval_time);
-				set_material_value(scene, texture_props, "value_2", prefix + ".texture2", parameters, eval_time);
+				set_material_value(scene, texture_props, "value_1", prefix + ".texture1", parameters, exported_nodes_map, eval_time);
+				set_material_value(scene, texture_props, "value_2", prefix + ".texture2", parameters, exported_nodes_map, eval_time);
 			}
 
 			bool is_clamp = get_bool_parameter_value(parameters, "is_clamp", eval_time);
@@ -587,21 +596,21 @@ std::string add_texture(luxcore::Scene* scene, XSI::Shader &texture_node, const 
 			texture_props.Set(luxrays::Property(prefix + ".type")(mode.GetAsciiString()));
 			if (mode == "abs")
 			{
-				set_material_value(scene, texture_props, "color_1", prefix + ".texture", parameters, eval_time);
+				set_material_value(scene, texture_props, "color_1", prefix + ".texture", parameters, exported_nodes_map, eval_time);
 			}
 			else if (mode == "clamp")
 			{
-				set_material_value(scene, texture_props, "color_1", prefix + ".texture", parameters, eval_time);
+				set_material_value(scene, texture_props, "color_1", prefix + ".texture", parameters, exported_nodes_map, eval_time);
 				texture_props.Set(luxrays::Property(prefix + ".min")(get_float_parameter_value(parameters, "clamp_min", eval_time)));
 				texture_props.Set(luxrays::Property(prefix + ".max")(get_float_parameter_value(parameters, "clamp_max", eval_time)));
 			}
 			else
 			{
-				set_material_value(scene, texture_props, "color_1", prefix + ".texture1", parameters, eval_time);
-				set_material_value(scene, texture_props, "color_2", prefix + ".texture2", parameters, eval_time);
+				set_material_value(scene, texture_props, "color_1", prefix + ".texture1", parameters, exported_nodes_map, eval_time);
+				set_material_value(scene, texture_props, "color_2", prefix + ".texture2", parameters, exported_nodes_map, eval_time);
 				if (mode == "mix")
 				{
-					set_material_value(scene, texture_props, "fac", prefix + ".amount", parameters, eval_time);
+					set_material_value(scene, texture_props, "fac", prefix + ".amount", parameters, exported_nodes_map, eval_time);
 				}
 			}
 			bool is_clamp = get_bool_parameter_value(parameters, "is_clamp", eval_time);
@@ -627,11 +636,11 @@ std::string add_texture(luxcore::Scene* scene, XSI::Shader &texture_node, const 
 			texture_props.Set(luxrays::Property(prefix + ".type")(mode.GetAsciiString()));
 			if (mode == "abs")
 			{
-				set_material_value(scene, texture_props, "vector_1", prefix + ".texture", parameters, eval_time);
+				set_material_value(scene, texture_props, "vector_1", prefix + ".texture", parameters, exported_nodes_map, eval_time);
 			}
 			else if (mode == "clamp")
 			{
-				set_material_value(scene, texture_props, "vector_1", prefix + ".texture", parameters, eval_time);
+				set_material_value(scene, texture_props, "vector_1", prefix + ".texture", parameters, exported_nodes_map, eval_time);
 				float clamp_min = get_float_parameter_value(parameters, "clamp_min", eval_time);
 				float clamp_max = get_float_parameter_value(parameters, "clamp_max", eval_time);
 				texture_props.Set(luxrays::Property(prefix + ".min")(clamp_min));
@@ -639,32 +648,32 @@ std::string add_texture(luxcore::Scene* scene, XSI::Shader &texture_node, const 
 			}
 			else
 			{
-				set_material_value(scene, texture_props, "vector_1", prefix + ".texture1", parameters, eval_time);
-				set_material_value(scene, texture_props, "vector_2", prefix + ".texture2", parameters, eval_time);
+				set_material_value(scene, texture_props, "vector_1", prefix + ".texture1", parameters, exported_nodes_map, eval_time);
+				set_material_value(scene, texture_props, "vector_2", prefix + ".texture2", parameters, exported_nodes_map, eval_time);
 				if (mode == "mix")
 				{
-					set_material_value(scene, texture_props, "fac", prefix + ".amount", parameters, eval_time);
+					set_material_value(scene, texture_props, "fac", prefix + ".amount", parameters, exported_nodes_map, eval_time);
 				}
 			}
 		}
 		else if (node_name == "TextureDotProduct")
 		{
 			texture_props.Set(luxrays::Property(prefix + ".type")("dotproduct"));
-			set_material_value(scene, texture_props, "vector_1", prefix + ".texture1", parameters, eval_time);
-			set_material_value(scene, texture_props, "vector_2", prefix + ".texture2", parameters, eval_time);
+			set_material_value(scene, texture_props, "vector_1", prefix + ".texture1", parameters, exported_nodes_map, eval_time);
+			set_material_value(scene, texture_props, "vector_2", prefix + ".texture2", parameters, exported_nodes_map, eval_time);
 		}
 		else if (node_name == "TextureCheckerboard2D")
 		{
 			texture_props.Set(luxrays::Property(prefix + ".type")("checkerboard2d"));
-			set_material_value(scene, texture_props, "color_1", prefix + ".texture1", parameters, eval_time);
-			set_material_value(scene, texture_props, "color_2", prefix + ".texture2", parameters, eval_time);
+			set_material_value(scene, texture_props, "color_1", prefix + ".texture1", parameters, exported_nodes_map, eval_time);
+			set_material_value(scene, texture_props, "color_2", prefix + ".texture2", parameters, exported_nodes_map, eval_time);
 			add_mapping(texture_props, prefix + ".mapping", parameters, "mapping_2d", eval_time);
 		}
 		else if (node_name == "TextureCheckerboard3D")
 		{
 			texture_props.Set(luxrays::Property(prefix + ".type")("checkerboard3d"));
-			set_material_value(scene, texture_props, "color_1", prefix + ".texture1", parameters, eval_time);
-			set_material_value(scene, texture_props, "color_2", prefix + ".texture2", parameters, eval_time);
+			set_material_value(scene, texture_props, "color_1", prefix + ".texture1", parameters, exported_nodes_map, eval_time);
+			set_material_value(scene, texture_props, "color_2", prefix + ".texture2", parameters, exported_nodes_map, eval_time);
 			add_mapping(texture_props, prefix + ".mapping", parameters, "mapping_3d", eval_time);
 		}
 		else if (node_name == "TriplanarMapping")
@@ -673,15 +682,15 @@ std::string add_texture(luxcore::Scene* scene, XSI::Shader &texture_node, const 
 			bool multiple_textures = get_bool_parameter_value(parameters, "multiple_textures", eval_time);
 			if (multiple_textures)
 			{
-				set_material_value(scene, texture_props, "color_x", prefix + ".texture1", parameters, eval_time);
-				set_material_value(scene, texture_props, "color_y", prefix + ".texture2", parameters, eval_time);
-				set_material_value(scene, texture_props, "color_z", prefix + ".texture3", parameters, eval_time);
+				set_material_value(scene, texture_props, "color_x", prefix + ".texture1", parameters, exported_nodes_map, eval_time);
+				set_material_value(scene, texture_props, "color_y", prefix + ".texture2", parameters, exported_nodes_map, eval_time);
+				set_material_value(scene, texture_props, "color_z", prefix + ".texture3", parameters, exported_nodes_map, eval_time);
 			}
 			else
 			{
-				set_material_value(scene, texture_props, "color_x", prefix + ".texture1", parameters, eval_time);
-				set_material_value(scene, texture_props, "color_x", prefix + ".texture2", parameters, eval_time);
-				set_material_value(scene, texture_props, "color_x", prefix + ".texture3", parameters, eval_time);
+				set_material_value(scene, texture_props, "color_x", prefix + ".texture1", parameters, exported_nodes_map, eval_time);
+				set_material_value(scene, texture_props, "color_x", prefix + ".texture2", parameters, exported_nodes_map, eval_time);
+				set_material_value(scene, texture_props, "color_x", prefix + ".texture3", parameters, exported_nodes_map, eval_time);
 			}
 			bool is_add = add_mapping(texture_props, prefix + ".mapping", parameters, "mapping_3d", eval_time);
 			if (!is_add)
@@ -694,13 +703,13 @@ std::string add_texture(luxcore::Scene* scene, XSI::Shader &texture_node, const 
 			texture_props.Set(luxrays::Property(prefix + ".type")("triplanar"));
 			bool multiple_textures = get_bool_parameter_value(parameters, "multiple_textures", eval_time);
 			//create inline bump texture
-			add_inline_bump(scene, prefix, "_x", parameters, eval_time);
+			add_inline_bump(scene, prefix, "_x", parameters, exported_nodes_map, eval_time);
 			texture_props.Set(luxrays::Property(prefix + ".texture1")(output_name + "_x"));
 			if (multiple_textures)
 			{
-				add_inline_bump(scene, prefix, "_y", parameters, eval_time);
+				add_inline_bump(scene, prefix, "_y", parameters, exported_nodes_map, eval_time);
 				texture_props.Set(luxrays::Property(prefix + ".texture2")(output_name + "_y"));
-				add_inline_bump(scene, prefix, "_z", parameters, eval_time);
+				add_inline_bump(scene, prefix, "_z", parameters, exported_nodes_map, eval_time);
 				texture_props.Set(luxrays::Property(prefix + ".texture3")(output_name + "_z"));
 			}
 			else
@@ -720,15 +729,15 @@ std::string add_texture(luxcore::Scene* scene, XSI::Shader &texture_node, const 
 			bool multiple_textures = get_bool_parameter_value(parameters, "multiple_textures", eval_time);
 			if (multiple_textures)
 			{
-				set_material_value(scene, texture_props, "color_x", prefix + ".texture1", parameters, eval_time);
-				set_material_value(scene, texture_props, "color_y", prefix + ".texture2", parameters, eval_time);
-				set_material_value(scene, texture_props, "color_z", prefix + ".texture3", parameters, eval_time);
+				set_material_value(scene, texture_props, "color_x", prefix + ".texture1", parameters, exported_nodes_map, eval_time);
+				set_material_value(scene, texture_props, "color_y", prefix + ".texture2", parameters, exported_nodes_map, eval_time);
+				set_material_value(scene, texture_props, "color_z", prefix + ".texture3", parameters, exported_nodes_map, eval_time);
 			}
 			else
 			{
-				set_material_value(scene, texture_props, "color_x", prefix + ".texture1", parameters, eval_time);
-				set_material_value(scene, texture_props, "color_x", prefix + ".texture2", parameters, eval_time);
-				set_material_value(scene, texture_props, "color_x", prefix + ".texture3", parameters, eval_time);
+				set_material_value(scene, texture_props, "color_x", prefix + ".texture1", parameters, exported_nodes_map, eval_time);
+				set_material_value(scene, texture_props, "color_x", prefix + ".texture2", parameters, exported_nodes_map, eval_time);
+				set_material_value(scene, texture_props, "color_x", prefix + ".texture3", parameters, exported_nodes_map, eval_time);
 			}
 
 			bool is_add = add_mapping(texture_props, prefix + ".mapping", parameters, "mapping_3d", eval_time);
@@ -796,8 +805,8 @@ std::string add_texture(luxcore::Scene* scene, XSI::Shader &texture_node, const 
 		else if (node_name == "TextureBump")
 		{
 			texture_props.Set(luxrays::Property(prefix + ".type")("scale"));
-			set_material_value(scene, texture_props, "value", prefix + ".texture1", parameters, eval_time);
-			set_material_value(scene, texture_props, "height", prefix + ".texture2", parameters, eval_time);
+			set_material_value(scene, texture_props, "value", prefix + ".texture1", parameters, exported_nodes_map, eval_time);
+			set_material_value(scene, texture_props, "height", prefix + ".texture2", parameters, exported_nodes_map, eval_time);
 		}
 		else if (node_name == "TextureColorRamp")
 		{
@@ -828,7 +837,7 @@ std::string add_texture(luxcore::Scene* scene, XSI::Shader &texture_node, const 
 						
 					}
 				}
-				set_material_value(scene, texture_props, "amount", prefix + ".amount", parameters, eval_time);
+				set_material_value(scene, texture_props, "amount", prefix + ".amount", parameters, exported_nodes_map, eval_time);
 				//next write positions to the texture
 				ULONG index = 0;
 				for (const auto& [key, value] : positions)
@@ -845,29 +854,29 @@ std::string add_texture(luxcore::Scene* scene, XSI::Shader &texture_node, const 
 		{
 			texture_props.Set(luxrays::Property(prefix + ".type")("distort"));
 			texture_props.Set(luxrays::Property(prefix + ".strength")(get_float_parameter_value(parameters, "strength", eval_time)));
-			set_material_value(scene, texture_props, "texture", prefix + ".texture", parameters, eval_time);
-			set_material_value(scene, texture_props, "offset", prefix + ".offset", parameters, eval_time);
+			set_material_value(scene, texture_props, "texture", prefix + ".texture", parameters, exported_nodes_map, eval_time);
+			set_material_value(scene, texture_props, "offset", prefix + ".offset", parameters, exported_nodes_map, eval_time);
 		}
 		else if (node_name == "TextureHSV")
 		{
 			texture_props.Set(luxrays::Property(prefix + ".type")("hsv"));
-			set_material_value(scene, texture_props, "texture", prefix + ".texture", parameters, eval_time);
-			set_material_value(scene, texture_props, "hue", prefix + ".hue", parameters, eval_time);
-			set_material_value(scene, texture_props, "saturation", prefix + ".saturation", parameters, eval_time);
-			set_material_value(scene, texture_props, "value", prefix + ".value", parameters, eval_time);
+			set_material_value(scene, texture_props, "texture", prefix + ".texture", parameters, exported_nodes_map, eval_time);
+			set_material_value(scene, texture_props, "hue", prefix + ".hue", parameters, exported_nodes_map, eval_time);
+			set_material_value(scene, texture_props, "saturation", prefix + ".saturation", parameters, exported_nodes_map, eval_time);
+			set_material_value(scene, texture_props, "value", prefix + ".value", parameters, exported_nodes_map, eval_time);
 		}
 		else if (node_name == "TextureBrightContrast")
 		{
 			texture_props.Set(luxrays::Property(prefix + ".type")("brightcontrast"));
-			set_material_value(scene, texture_props, "texture", prefix + ".texture", parameters, eval_time);
-			set_material_value(scene, texture_props, "brightness", prefix + ".brightness", parameters, eval_time);
-			set_material_value(scene, texture_props, "contrast", prefix + ".contrast", parameters, eval_time);
+			set_material_value(scene, texture_props, "texture", prefix + ".texture", parameters, exported_nodes_map, eval_time);
+			set_material_value(scene, texture_props, "brightness", prefix + ".brightness", parameters, exported_nodes_map, eval_time);
+			set_material_value(scene, texture_props, "contrast", prefix + ".contrast", parameters, exported_nodes_map, eval_time);
 		}
 		else if (node_name == "TextureInvert")
 		{
 			texture_props.Set(luxrays::Property(prefix + ".type")("subtract"));
-			set_material_value(scene, texture_props, "maximum", prefix + ".texture1", parameters, eval_time);
-			set_material_value(scene, texture_props, "value", prefix + ".texture2", parameters, eval_time);
+			set_material_value(scene, texture_props, "maximum", prefix + ".texture1", parameters, exported_nodes_map, eval_time);
+			set_material_value(scene, texture_props, "value", prefix + ".texture2", parameters, exported_nodes_map, eval_time);
 		}
 		else if (node_name == "TexturePointNormal")
 		{
@@ -931,7 +940,7 @@ std::string add_texture(luxcore::Scene* scene, XSI::Shader &texture_node, const 
 			luxrays::Properties multiplier_props;
 			multiplier_props.Set(luxrays::Property(multiplier_prefix + ".type")("scale"));
 			multiplier_props.Set(luxrays::Property(multiplier_prefix + ".texture1")(output_name));
-			set_material_value(scene, multiplier_props, "multiplier", multiplier_prefix + ".texture2", parameters, eval_time);
+			set_material_value(scene, multiplier_props, "multiplier", multiplier_prefix + ".texture2", parameters, exported_nodes_map, eval_time);
 			texture_props = multiplier_props;
 			output_name = output_name + "_multiplier";
 		}
@@ -959,7 +968,7 @@ std::string add_texture(luxcore::Scene* scene, XSI::Shader &texture_node, const 
 		{
 			texture_props.Set(luxrays::Property(prefix + ".type")("random"));
 			texture_props.Set(luxrays::Property(prefix + ".seed")(get_int_parameter_value(parameters, "seed", eval_time)));
-			set_material_value(scene, texture_props, "value", prefix + ".texture", parameters, eval_time);
+			set_material_value(scene, texture_props, "value", prefix + ".texture", parameters, exported_nodes_map, eval_time);
 		}
 		else if (node_name == "TextureBombing")
 		{
@@ -969,9 +978,9 @@ std::string add_texture(luxcore::Scene* scene, XSI::Shader &texture_node, const 
 
 			texture_props.Set(luxrays::Property(prefix + ".bullet.randomscale.range")(random_scale * 5.0f));
 			texture_props.Set(luxrays::Property(prefix + ".bullet.randomrotation.enable")(use_random_rotation));
-			set_material_value(scene, texture_props, "background", prefix + ".background", parameters, eval_time);
-			set_material_value(scene, texture_props, "bullet", prefix + ".bullet", parameters, eval_time);
-			set_material_value(scene, texture_props, "mask", prefix + ".bullet.mask", parameters, eval_time);
+			set_material_value(scene, texture_props, "background", prefix + ".background", parameters, exported_nodes_map, eval_time);
+			set_material_value(scene, texture_props, "bullet", prefix + ".bullet", parameters, exported_nodes_map, eval_time);
+			set_material_value(scene, texture_props, "mask", prefix + ".bullet.mask", parameters, exported_nodes_map, eval_time);
 
 			add_mapping(texture_props, prefix + ".mapping", parameters, "mapping_2d", eval_time);
 		}
@@ -985,23 +994,23 @@ std::string add_texture(luxcore::Scene* scene, XSI::Shader &texture_node, const 
 			texture_props.Set(luxrays::Property(prefix + ".brickdepth")(get_float_parameter_value(parameters, "brickdepth", eval_time)));
 			texture_props.Set(luxrays::Property(prefix + ".mortarsize")(get_float_parameter_value(parameters, "mortarsize", eval_time)));
 			texture_props.Set(luxrays::Property(prefix + ".brickrun")(get_float_parameter_value(parameters, "brickrun", eval_time) / 100.0f));
-			set_material_value(scene, texture_props, "color_1", prefix + ".bricktex", parameters, eval_time);
-			set_material_value(scene, texture_props, "color_2", prefix + ".brickmodtex", parameters, eval_time);
-			set_material_value(scene, texture_props, "mortar", prefix + ".mortartex", parameters, eval_time);
+			set_material_value(scene, texture_props, "color_1", prefix + ".bricktex", parameters, exported_nodes_map, eval_time);
+			set_material_value(scene, texture_props, "color_2", prefix + ".brickmodtex", parameters, exported_nodes_map, eval_time);
+			set_material_value(scene, texture_props, "mortar", prefix + ".mortartex", parameters, exported_nodes_map, eval_time);
 			add_mapping(texture_props, prefix + ".mapping", parameters, "mapping_3d", eval_time);
 		}
 		else if (node_name == "TextureWireframe")
 		{
 			texture_props.Set(luxrays::Property(prefix + ".type")("wireframe"));
 			texture_props.Set(luxrays::Property(prefix + ".width")(get_float_parameter_value(parameters, "width", eval_time)));
-			set_material_value(scene, texture_props, "border", prefix + ".border", parameters, eval_time);
-			set_material_value(scene, texture_props, "inside", prefix + ".inside", parameters, eval_time);
+			set_material_value(scene, texture_props, "border", prefix + ".border", parameters, exported_nodes_map, eval_time);
+			set_material_value(scene, texture_props, "inside", prefix + ".inside", parameters, exported_nodes_map, eval_time);
 		}
 		else if (node_name == "TextureDots")
 		{
 			texture_props.Set(luxrays::Property(prefix + ".type")("dots"));
-			set_material_value(scene, texture_props, "inside", prefix + ".inside", parameters, eval_time);
-			set_material_value(scene, texture_props, "outside", prefix + ".outside", parameters, eval_time);
+			set_material_value(scene, texture_props, "inside", prefix + ".inside", parameters, exported_nodes_map, eval_time);
+			set_material_value(scene, texture_props, "outside", prefix + ".outside", parameters, exported_nodes_map, eval_time);
 			add_mapping(texture_props, prefix + ".mapping", parameters, "mapping_2d", eval_time);
 		}
 		else if (node_name == "TextureFBM")
@@ -1049,7 +1058,7 @@ std::string add_texture(luxcore::Scene* scene, XSI::Shader &texture_node, const 
 			if (type == "color")
 			{
 				texture_props.Set(luxrays::Property(prefix + ".type")("fresnelcolor"));
-				set_material_value(scene, texture_props, "color", prefix + ".kr", parameters, eval_time);
+				set_material_value(scene, texture_props, "color", prefix + ".kr", parameters, exported_nodes_map, eval_time);
 			}
 			else if (type == "preset")
 			{
@@ -1093,25 +1102,25 @@ std::string add_texture(luxcore::Scene* scene, XSI::Shader &texture_node, const 
 		else if (node_name == "TextureSplitRGB")
 		{
 			texture_props.Set(luxrays::Property(prefix + ".type")("splitfloat3"));
-			set_material_value(scene, texture_props, "color", prefix + ".texture", parameters, eval_time);
+			set_material_value(scene, texture_props, "color", prefix + ".texture", parameters, exported_nodes_map, eval_time);
 			XSI::CString channel = get_string_parameter_value(parameters, "channel", eval_time);
 			texture_props.Set(luxrays::Property(prefix + ".channel")(channel == "r" ? 0 : (channel == "g" ? 1 : 2)));
 		}
 		else if (node_name == "TextureCombineRGB")
 		{
 			texture_props.Set(luxrays::Property(prefix + ".type")("makefloat3"));
-			set_material_value(scene, texture_props, "r", prefix + ".texture1", parameters, eval_time);
-			set_material_value(scene, texture_props, "g", prefix + ".texture2", parameters, eval_time);
-			set_material_value(scene, texture_props, "b", prefix + ".texture3", parameters, eval_time);
+			set_material_value(scene, texture_props, "r", prefix + ".texture1", parameters, exported_nodes_map, eval_time);
+			set_material_value(scene, texture_props, "g", prefix + ".texture2", parameters, exported_nodes_map, eval_time);
+			set_material_value(scene, texture_props, "b", prefix + ".texture3", parameters, exported_nodes_map, eval_time);
 		}
 		else if (node_name == "TextureRemap")
 		{
 			texture_props.Set(luxrays::Property(prefix + ".type")("remap"));
-			set_material_value(scene, texture_props, "value", prefix + ".value", parameters, eval_time);
-			set_material_value(scene, texture_props, "sourcemin", prefix + ".sourcemin", parameters, eval_time);
-			set_material_value(scene, texture_props, "sourcemax", prefix + ".sourcemax", parameters, eval_time);
-			set_material_value(scene, texture_props, "targetmin", prefix + ".targetmin", parameters, eval_time);
-			set_material_value(scene, texture_props, "targetmax", prefix + ".targetmax", parameters, eval_time);
+			set_material_value(scene, texture_props, "value", prefix + ".value", parameters, exported_nodes_map, eval_time);
+			set_material_value(scene, texture_props, "sourcemin", prefix + ".sourcemin", parameters, exported_nodes_map, eval_time);
+			set_material_value(scene, texture_props, "sourcemax", prefix + ".sourcemax", parameters, exported_nodes_map, eval_time);
+			set_material_value(scene, texture_props, "targetmin", prefix + ".targetmin", parameters, exported_nodes_map, eval_time);
+			set_material_value(scene, texture_props, "targetmax", prefix + ".targetmax", parameters, exported_nodes_map, eval_time);
 		}
 		else if (node_name == "TextureOpenVDB")
 		{
@@ -1152,6 +1161,7 @@ std::string add_texture(luxcore::Scene* scene, XSI::Shader &texture_node, const 
 	if (output_name.size() > 0)
 	{
 		scene->Parse(texture_props);
+		exported_nodes_map[node_id] = output_name;
 	}
 
 	return output_name;
@@ -1162,6 +1172,7 @@ void set_material_value(luxcore::Scene *scene,
 	const XSI::CString &xsi_param_name, 
 	const std::string &lux_param_name, 
 	XSI::CParameterRefArray &parameters, 
+	std::unordered_map<ULONG, std::string>& exported_nodes_map,
 	const XSI::CTime &eval_time,
 	bool ignore_set_branch)
 {
@@ -1185,7 +1196,7 @@ void set_material_value(luxcore::Scene *scene,
 			//parameter connected to material port
 			//so, try to add new material
 			luxrays::Properties new_material_props;
-			std::string material_name = add_material(scene, new_material_props, node, eval_time);
+			std::string material_name = add_material(scene, new_material_props, node, exported_nodes_map, eval_time);
 			if (material_name.size() > 0)
 			{
 				scene->Parse(new_material_props);
@@ -1203,7 +1214,7 @@ void set_material_value(luxcore::Scene *scene,
 		{
 			//float (or color3, vector3) parameter is connected to some node
 			//try to recognize the texture of this node
-			std::string texture_name = add_texture(scene, node, eval_time);
+			std::string texture_name = add_texture(scene, node, exported_nodes_map, eval_time);
 			if (texture_name.size() > 0)
 			{
 				material_props.Set(luxrays::Property(lux_param_name)(texture_name));
@@ -1273,8 +1284,15 @@ void set_material_value(luxcore::Scene *scene,
 //if this method is called from sync_material, then returned name should be overrided by the input one
 //return empty string if material node is invalid
 //in thie case replace this materia by null material or default material
-std::string add_material(luxcore::Scene* scene, luxrays::Properties &material_props, XSI::Shader &material_node, const XSI::CTime& eval_time, std::string override_name)
+std::string add_material(luxcore::Scene* scene, luxrays::Properties &material_props, XSI::Shader &material_node, std::unordered_map<ULONG, std::string>& exported_nodes_map, const XSI::CTime& eval_time, std::string override_name)
 {
+	//we does not parse property in the scene in this method
+	ULONG node_id = material_node.GetObjectID();
+	if (exported_nodes_map.contains(node_id))
+	{
+		return exported_nodes_map[node_id];
+	}
+
 	//get shader name
 	XSI::CString prog_id = material_node.GetProgID();
 	std::string output_name;
@@ -1299,14 +1317,14 @@ std::string add_material(luxcore::Scene* scene, luxrays::Properties &material_pr
 		if (node_name == "ShaderMatte")
 		{
 			material_props.Set(luxrays::Property(prefix + ".type")("roughmatte"));
-			set_material_value(scene, material_props, "kd", prefix + ".kd", parameters, eval_time);
-			set_material_value(scene, material_props, "sigma", prefix + ".sigma", parameters, eval_time);
+			set_material_value(scene, material_props, "kd", prefix + ".kd", parameters, exported_nodes_map, eval_time);
+			set_material_value(scene, material_props, "sigma", prefix + ".sigma", parameters, exported_nodes_map, eval_time);
 			setup_default = true;
 		}
 		else if (node_name == "ShaderMirror")
 		{
 			material_props.Set(luxrays::Property(prefix + ".type")("mirror"));
-			set_material_value(scene, material_props, "kr", prefix + ".kr", parameters, eval_time);
+			set_material_value(scene, material_props, "kr", prefix + ".kr", parameters, exported_nodes_map, eval_time);
 			setup_default = true;
 		}
 		else if (node_name == "ShaderGlass")
@@ -1329,29 +1347,29 @@ std::string add_material(luxcore::Scene* scene, luxrays::Properties &material_pr
 			{
 				material_props.Set(luxrays::Property(prefix + ".type")("glass"));
 			}
-			set_material_value(scene, material_props, "kr", prefix + ".kr", parameters, eval_time);
-			set_material_value(scene, material_props, "kt", prefix + ".kt", parameters, eval_time);
-			set_material_value(scene, material_props, "exteriorior", prefix + ".exteriorior", parameters, eval_time);
-			set_material_value(scene, material_props, "interiorior", prefix + ".interiorior", parameters, eval_time);
+			set_material_value(scene, material_props, "kr", prefix + ".kr", parameters, exported_nodes_map, eval_time);
+			set_material_value(scene, material_props, "kt", prefix + ".kt", parameters, exported_nodes_map, eval_time);
+			set_material_value(scene, material_props, "exteriorior", prefix + ".exteriorior", parameters, exported_nodes_map, eval_time);
+			set_material_value(scene, material_props, "interiorior", prefix + ".interiorior", parameters, exported_nodes_map, eval_time);
 			if (glass_mode == "default")
 			{
-				set_material_value(scene, material_props, "cauchyb", prefix + ".cauchyb", parameters, eval_time);
+				set_material_value(scene, material_props, "cauchyb", prefix + ".cauchyb", parameters, exported_nodes_map, eval_time);
 			}
 			if (is_film)
 			{
-				set_material_value(scene, material_props, "filmthickness", prefix + ".filmthickness", parameters, eval_time);
-				set_material_value(scene, material_props, "filmior", prefix + ".filmior", parameters, eval_time);
+				set_material_value(scene, material_props, "filmthickness", prefix + ".filmthickness", parameters, exported_nodes_map, eval_time);
+				set_material_value(scene, material_props, "filmior", prefix + ".filmior", parameters, exported_nodes_map, eval_time);
 			}
 			if (glass_mode == "rough")
 			{
-				set_material_value(scene, material_props, "uroughness", prefix + ".uroughness", parameters, eval_time);
+				set_material_value(scene, material_props, "uroughness", prefix + ".uroughness", parameters, exported_nodes_map, eval_time);
 				if (is_anisotropic)
 				{
-					set_material_value(scene, material_props, "vroughness", prefix + ".vroughness", parameters, eval_time);
+					set_material_value(scene, material_props, "vroughness", prefix + ".vroughness", parameters, exported_nodes_map, eval_time);
 				}
 				else
 				{
-					set_material_value(scene, material_props, "uroughness", prefix + ".vroughness", parameters, eval_time);
+					set_material_value(scene, material_props, "uroughness", prefix + ".vroughness", parameters, exported_nodes_map, eval_time);
 				}
 			}
 			setup_default = true;
@@ -1359,9 +1377,9 @@ std::string add_material(luxcore::Scene* scene, luxrays::Properties &material_pr
 		else if (node_name == "ShaderMix")
 		{
 			material_props.Set(luxrays::Property(prefix + ".type")("mix"));
-			set_material_value(scene, material_props, "material1", prefix + ".material1", parameters, eval_time);
-			set_material_value(scene, material_props, "material2", prefix + ".material2", parameters, eval_time);
-			set_material_value(scene, material_props, "amount", prefix + ".amount", parameters, eval_time);
+			set_material_value(scene, material_props, "material1", prefix + ".material1", parameters, exported_nodes_map, eval_time);
+			set_material_value(scene, material_props, "material2", prefix + ".material2", parameters, exported_nodes_map, eval_time);
+			set_material_value(scene, material_props, "amount", prefix + ".amount", parameters, exported_nodes_map, eval_time);
 			setup_default = true;
 		}
 		else if (node_name == "ShaderNull")
@@ -1371,9 +1389,9 @@ std::string add_material(luxcore::Scene* scene, luxrays::Properties &material_pr
 		else if (node_name == "ShaderMatteTranslucent")
 		{
 			material_props.Set(luxrays::Property(prefix + ".type")("roughmattetranslucent"));
-			set_material_value(scene, material_props, "kr", prefix + ".kr", parameters, eval_time);
-			set_material_value(scene, material_props, "kt", prefix + ".kt", parameters, eval_time);
-			set_material_value(scene, material_props, "sigma", prefix + ".sigma", parameters, eval_time);
+			set_material_value(scene, material_props, "kr", prefix + ".kr", parameters, exported_nodes_map, eval_time);
+			set_material_value(scene, material_props, "kt", prefix + ".kt", parameters, exported_nodes_map, eval_time);
+			set_material_value(scene, material_props, "sigma", prefix + ".sigma", parameters, exported_nodes_map, eval_time);
 			setup_default = true;
 		}
 		else if (node_name == "ShaderGlossy")
@@ -1382,18 +1400,18 @@ std::string add_material(luxcore::Scene* scene, luxrays::Properties &material_pr
 			bool is_anisotropic = get_bool_parameter_value(parameters, "is_anisotropic", eval_time);
 			bool multibounce = get_bool_parameter_value(parameters, "multibounce", eval_time);
 			material_props.Set(luxrays::Property(prefix + ".multibounce")(multibounce));
-			set_material_value(scene, material_props, "kd", prefix + ".kd", parameters, eval_time);
-			set_material_value(scene, material_props, "ks", prefix + ".ks", parameters, eval_time);
-			set_material_value(scene, material_props, "ka", prefix + ".ka", parameters, eval_time);
-			set_material_value(scene, material_props, "d", prefix + ".d", parameters, eval_time);
-			set_material_value(scene, material_props, "index", prefix + ".index", parameters, eval_time);
+			set_material_value(scene, material_props, "kd", prefix + ".kd", parameters, exported_nodes_map, eval_time);
+			set_material_value(scene, material_props, "ks", prefix + ".ks", parameters, exported_nodes_map, eval_time);
+			set_material_value(scene, material_props, "ka", prefix + ".ka", parameters, exported_nodes_map, eval_time);
+			set_material_value(scene, material_props, "d", prefix + ".d", parameters, exported_nodes_map, eval_time);
+			set_material_value(scene, material_props, "index", prefix + ".index", parameters, exported_nodes_map, eval_time);
 			if (is_anisotropic)
 			{
-				set_material_value(scene, material_props, "vroughness", prefix + ".vroughness", parameters, eval_time);
+				set_material_value(scene, material_props, "vroughness", prefix + ".vroughness", parameters, exported_nodes_map, eval_time);
 			}
 			else
 			{
-				set_material_value(scene, material_props, "uroughness", prefix + ".vroughness", parameters, eval_time);
+				set_material_value(scene, material_props, "uroughness", prefix + ".vroughness", parameters, exported_nodes_map, eval_time);
 			}
 
 			setup_default = true;
@@ -1405,11 +1423,11 @@ std::string add_material(luxcore::Scene* scene, luxrays::Properties &material_pr
 			XSI::CString metal_mode = get_string_parameter_value(parameters, "metal_mode", eval_time);
 			if (is_anisotropic)
 			{
-				set_material_value(scene, material_props, "vroughness", prefix + ".vroughness", parameters, eval_time);
+				set_material_value(scene, material_props, "vroughness", prefix + ".vroughness", parameters, exported_nodes_map, eval_time);
 			}
 			else
 			{
-				set_material_value(scene, material_props, "uroughness", prefix + ".vroughness", parameters, eval_time);
+				set_material_value(scene, material_props, "uroughness", prefix + ".vroughness", parameters, exported_nodes_map, eval_time);
 			}
 
 			//get connection of the fresnel port
@@ -1424,7 +1442,7 @@ std::string add_material(luxcore::Scene* scene, luxrays::Properties &material_pr
 				XSI::CString fresnel_node_prog_id = fresnel_node.GetProgID();
 				if (fresnel_node_prog_id == "LUXShadersPlugin.TextureFresnel.1.0")
 				{
-					std::string fresnel_name = add_texture(scene, fresnel_node, eval_time);
+					std::string fresnel_name = add_texture(scene, fresnel_node, exported_nodes_map, eval_time);
 					if (fresnel_name.size() > 0)
 					{
 						material_props.Set(luxrays::Property(prefix + ".fresnel")(fresnel_name));
@@ -1455,14 +1473,14 @@ std::string add_material(luxcore::Scene* scene, luxrays::Properties &material_pr
 		else if (node_name == "ShaderVelvet")
 		{
 			material_props.Set(luxrays::Property(prefix + ".type")("velvet"));
-			set_material_value(scene, material_props, "kd", prefix + ".kd", parameters, eval_time);
-			set_material_value(scene, material_props, "thickness", prefix + ".thickness", parameters, eval_time);
+			set_material_value(scene, material_props, "kd", prefix + ".kd", parameters, exported_nodes_map, eval_time);
+			set_material_value(scene, material_props, "thickness", prefix + ".thickness", parameters, exported_nodes_map, eval_time);
 			bool advanced = get_bool_parameter_value(parameters, "advanced", eval_time);
 			if (advanced)
 			{
-				set_material_value(scene, material_props, "p1", prefix + ".p1", parameters, eval_time);
-				set_material_value(scene, material_props, "p2", prefix + ".p2", parameters, eval_time);
-				set_material_value(scene, material_props, "p3", prefix + ".p3", parameters, eval_time);
+				set_material_value(scene, material_props, "p1", prefix + ".p1", parameters, exported_nodes_map, eval_time);
+				set_material_value(scene, material_props, "p2", prefix + ".p2", parameters, exported_nodes_map, eval_time);
+				set_material_value(scene, material_props, "p3", prefix + ".p3", parameters, exported_nodes_map, eval_time);
 			}
 			setup_default = true;
 		}
@@ -1477,10 +1495,10 @@ std::string add_material(luxcore::Scene* scene, luxrays::Properties &material_pr
 			material_props.Set(luxrays::Property(prefix + ".repeat_u")(repeat_u));
 			material_props.Set(luxrays::Property(prefix + ".repeat_v")(repeat_v));
 
-			set_material_value(scene, material_props, "weft_kd", prefix + ".weft_kd", parameters, eval_time);
-			set_material_value(scene, material_props, "weft_ks", prefix + ".weft_ks", parameters, eval_time);
-			set_material_value(scene, material_props, "warp_kd", prefix + ".warp_kd", parameters, eval_time);
-			set_material_value(scene, material_props, "warp_ks", prefix + ".warp_ks", parameters, eval_time);
+			set_material_value(scene, material_props, "weft_kd", prefix + ".weft_kd", parameters, exported_nodes_map, eval_time);
+			set_material_value(scene, material_props, "weft_ks", prefix + ".weft_ks", parameters, exported_nodes_map, eval_time);
+			set_material_value(scene, material_props, "warp_kd", prefix + ".warp_kd", parameters, exported_nodes_map, eval_time);
+			set_material_value(scene, material_props, "warp_ks", prefix + ".warp_ks", parameters, exported_nodes_map, eval_time);
 
 			setup_default = true;
 		}
@@ -1490,18 +1508,18 @@ std::string add_material(luxcore::Scene* scene, luxrays::Properties &material_pr
 			XSI::CString preset = get_string_parameter_value(parameters, "preset", eval_time);
 			if (preset == "manual")
 			{
-				set_material_value(scene, material_props, "ka", prefix + ".ka", parameters, eval_time);
-				set_material_value(scene, material_props, "d", prefix + ".d", parameters, eval_time);
-				set_material_value(scene, material_props, "kd", prefix + ".kd", parameters, eval_time);
-				set_material_value(scene, material_props, "ks1", prefix + ".ks1", parameters, eval_time);
-				set_material_value(scene, material_props, "ks2", prefix + ".ks2", parameters, eval_time);
-				set_material_value(scene, material_props, "ks3", prefix + ".ks3", parameters, eval_time);
-				set_material_value(scene, material_props, "r1", prefix + ".r1", parameters, eval_time);
-				set_material_value(scene, material_props, "r2", prefix + ".r2", parameters, eval_time);
-				set_material_value(scene, material_props, "r3", prefix + ".r3", parameters, eval_time);
-				set_material_value(scene, material_props, "m1", prefix + ".m1", parameters, eval_time);
-				set_material_value(scene, material_props, "m2", prefix + ".m2", parameters, eval_time);
-				set_material_value(scene, material_props, "m3", prefix + ".m3", parameters, eval_time);
+				set_material_value(scene, material_props, "ka", prefix + ".ka", parameters, exported_nodes_map, eval_time);
+				set_material_value(scene, material_props, "d", prefix + ".d", parameters, exported_nodes_map, eval_time);
+				set_material_value(scene, material_props, "kd", prefix + ".kd", parameters, exported_nodes_map, eval_time);
+				set_material_value(scene, material_props, "ks1", prefix + ".ks1", parameters, exported_nodes_map, eval_time);
+				set_material_value(scene, material_props, "ks2", prefix + ".ks2", parameters, exported_nodes_map, eval_time);
+				set_material_value(scene, material_props, "ks3", prefix + ".ks3", parameters, exported_nodes_map, eval_time);
+				set_material_value(scene, material_props, "r1", prefix + ".r1", parameters, exported_nodes_map, eval_time);
+				set_material_value(scene, material_props, "r2", prefix + ".r2", parameters, exported_nodes_map, eval_time);
+				set_material_value(scene, material_props, "r3", prefix + ".r3", parameters, exported_nodes_map, eval_time);
+				set_material_value(scene, material_props, "m1", prefix + ".m1", parameters, exported_nodes_map, eval_time);
+				set_material_value(scene, material_props, "m2", prefix + ".m2", parameters, exported_nodes_map, eval_time);
+				set_material_value(scene, material_props, "m3", prefix + ".m3", parameters, exported_nodes_map, eval_time);
 			}
 			else
 			{
@@ -1516,28 +1534,28 @@ std::string add_material(luxcore::Scene* scene, luxrays::Properties &material_pr
 			bool multibounce = get_bool_parameter_value(parameters, "multibounce", eval_time);
 			bool is_anisotropic = get_bool_parameter_value(parameters, "is_anisotropic", eval_time);
 			bool is_double = get_bool_parameter_value(parameters, "is_double", eval_time);
-			set_material_value(scene, material_props, "kd", prefix + ".kd", parameters, eval_time);
-			set_material_value(scene, material_props, "kt", prefix + ".kt", parameters, eval_time);
-			set_material_value(scene, material_props, "ks", prefix + ".ks", parameters, eval_time);
-			set_material_value(scene, material_props, is_double ? "ks_bf" : "ks", prefix + ".ks_bf", parameters, eval_time);
-			set_material_value(scene, material_props, "uroughness", prefix + ".uroughness", parameters, eval_time);
-			set_material_value(scene, material_props, is_double ? "uroughness_bf" : "uroughness", prefix + ".uroughness_bf", parameters, eval_time);
+			set_material_value(scene, material_props, "kd", prefix + ".kd", parameters, exported_nodes_map, eval_time);
+			set_material_value(scene, material_props, "kt", prefix + ".kt", parameters, exported_nodes_map, eval_time);
+			set_material_value(scene, material_props, "ks", prefix + ".ks", parameters, exported_nodes_map, eval_time);
+			set_material_value(scene, material_props, is_double ? "ks_bf" : "ks", prefix + ".ks_bf", parameters, exported_nodes_map, eval_time);
+			set_material_value(scene, material_props, "uroughness", prefix + ".uroughness", parameters, exported_nodes_map, eval_time);
+			set_material_value(scene, material_props, is_double ? "uroughness_bf" : "uroughness", prefix + ".uroughness_bf", parameters, exported_nodes_map, eval_time);
 			if (is_anisotropic)
 			{
-				set_material_value(scene, material_props, "vroughness", prefix + ".vroughness", parameters, eval_time);
-				set_material_value(scene, material_props, is_double ? "vroughness_bf" : "vroughness", prefix + ".vroughness_bf", parameters, eval_time);
+				set_material_value(scene, material_props, "vroughness", prefix + ".vroughness", parameters, exported_nodes_map, eval_time);
+				set_material_value(scene, material_props, is_double ? "vroughness_bf" : "vroughness", prefix + ".vroughness_bf", parameters, exported_nodes_map, eval_time);
 			}
 			else
 			{
-				set_material_value(scene, material_props, "uroughness", prefix + ".vroughness", parameters, eval_time);
-				set_material_value(scene, material_props, is_double ? "uroughness_bf" : "uroughness", prefix + ".vroughness_bf", parameters, eval_time);
+				set_material_value(scene, material_props, "uroughness", prefix + ".vroughness", parameters, exported_nodes_map, eval_time);
+				set_material_value(scene, material_props, is_double ? "uroughness_bf" : "uroughness", prefix + ".vroughness_bf", parameters, exported_nodes_map, eval_time);
 			}
-			set_material_value(scene, material_props, "ka", prefix + ".ka", parameters, eval_time);
-			set_material_value(scene, material_props, is_double ? "ka_bf" : "ka", prefix + ".ka_bf", parameters, eval_time);
-			set_material_value(scene, material_props, "d", prefix + ".d", parameters, eval_time);
-			set_material_value(scene, material_props, is_double ? "d_bf" : "d", prefix + ".d_bf", parameters, eval_time);
-			set_material_value(scene, material_props, "index", prefix + ".index", parameters, eval_time);
-			set_material_value(scene, material_props, is_double ? "index_bf" : "index", prefix + ".index_bf", parameters, eval_time);
+			set_material_value(scene, material_props, "ka", prefix + ".ka", parameters, exported_nodes_map, eval_time);
+			set_material_value(scene, material_props, is_double ? "ka_bf" : "ka", prefix + ".ka_bf", parameters, exported_nodes_map, eval_time);
+			set_material_value(scene, material_props, "d", prefix + ".d", parameters, exported_nodes_map, eval_time);
+			set_material_value(scene, material_props, is_double ? "d_bf" : "d", prefix + ".d_bf", parameters, exported_nodes_map, eval_time);
+			set_material_value(scene, material_props, "index", prefix + ".index", parameters, exported_nodes_map, eval_time);
+			set_material_value(scene, material_props, is_double ? "index_bf" : "index", prefix + ".index_bf", parameters, exported_nodes_map, eval_time);
 			material_props.Set(luxrays::Property(prefix + ".multibounce")(multibounce));
 			material_props.Set(luxrays::Property(prefix + ".multibounce_bf")(multibounce));
 
@@ -1548,20 +1566,20 @@ std::string add_material(luxcore::Scene* scene, luxrays::Properties &material_pr
 			material_props.Set(luxrays::Property(prefix + ".type")("glossycoating"));
 			bool multibounce = get_bool_parameter_value(parameters, "multibounce", eval_time);
 			bool is_anisotropic = get_bool_parameter_value(parameters, "is_anisotropic", eval_time);
-			set_material_value(scene, material_props, "base", prefix + ".base", parameters, eval_time);
-			set_material_value(scene, material_props, "ks", prefix + ".ks", parameters, eval_time);
-			set_material_value(scene, material_props, "ka", prefix + ".ka", parameters, eval_time);
-			set_material_value(scene, material_props, "d", prefix + ".d", parameters, eval_time);
-			set_material_value(scene, material_props, "uroughness", prefix + ".uroughness", parameters, eval_time);
+			set_material_value(scene, material_props, "base", prefix + ".base", parameters, exported_nodes_map, eval_time);
+			set_material_value(scene, material_props, "ks", prefix + ".ks", parameters, exported_nodes_map, eval_time);
+			set_material_value(scene, material_props, "ka", prefix + ".ka", parameters, exported_nodes_map, eval_time);
+			set_material_value(scene, material_props, "d", prefix + ".d", parameters, exported_nodes_map, eval_time);
+			set_material_value(scene, material_props, "uroughness", prefix + ".uroughness", parameters, exported_nodes_map, eval_time);
 			if (is_anisotropic)
 			{
-				set_material_value(scene, material_props, "vroughness", prefix + ".vroughness", parameters, eval_time);
+				set_material_value(scene, material_props, "vroughness", prefix + ".vroughness", parameters, exported_nodes_map, eval_time);
 			}
 			else
 			{
-				set_material_value(scene, material_props, "uroughness", prefix + ".vroughness", parameters, eval_time);
+				set_material_value(scene, material_props, "uroughness", prefix + ".vroughness", parameters, exported_nodes_map, eval_time);
 			}
-			set_material_value(scene, material_props, "index", prefix + ".index", parameters, eval_time);
+			set_material_value(scene, material_props, "index", prefix + ".index", parameters, exported_nodes_map, eval_time);
 			material_props.Set(luxrays::Property(prefix + ".multibounce")(multibounce));
 
 			setup_default = true;
@@ -1570,22 +1588,22 @@ std::string add_material(luxcore::Scene* scene, luxrays::Properties &material_pr
 		{
 			material_props.Set(luxrays::Property(prefix + ".type")("disney"));
 			bool is_film = get_bool_parameter_value(parameters, "is_film", eval_time);
-			set_material_value(scene, material_props, "basecolor", prefix + ".basecolor", parameters, eval_time);
-			set_material_value(scene, material_props, "subsurface", prefix + ".subsurface", parameters, eval_time);
-			set_material_value(scene, material_props, "roughness", prefix + ".roughness", parameters, eval_time);
-			set_material_value(scene, material_props, "metallic", prefix + ".metallic", parameters, eval_time);
-			set_material_value(scene, material_props, "specular", prefix + ".specular", parameters, eval_time);
-			set_material_value(scene, material_props, "speculartint", prefix + ".speculartint", parameters, eval_time);
-			set_material_value(scene, material_props, "clearcoat", prefix + ".clearcoat", parameters, eval_time);
-			set_material_value(scene, material_props, "clearcoatgloss", prefix + ".clearcoatgloss", parameters, eval_time);
-			set_material_value(scene, material_props, "anisotropic", prefix + ".anisotropic", parameters, eval_time);
-			set_material_value(scene, material_props, "sheen", prefix + ".sheen", parameters, eval_time);
-			set_material_value(scene, material_props, "sheentint", prefix + ".sheentint", parameters, eval_time);
+			set_material_value(scene, material_props, "basecolor", prefix + ".basecolor", parameters, exported_nodes_map, eval_time);
+			set_material_value(scene, material_props, "subsurface", prefix + ".subsurface", parameters, exported_nodes_map, eval_time);
+			set_material_value(scene, material_props, "roughness", prefix + ".roughness", parameters, exported_nodes_map, eval_time);
+			set_material_value(scene, material_props, "metallic", prefix + ".metallic", parameters, exported_nodes_map, eval_time);
+			set_material_value(scene, material_props, "specular", prefix + ".specular", parameters, exported_nodes_map, eval_time);
+			set_material_value(scene, material_props, "speculartint", prefix + ".speculartint", parameters, exported_nodes_map, eval_time);
+			set_material_value(scene, material_props, "clearcoat", prefix + ".clearcoat", parameters, exported_nodes_map, eval_time);
+			set_material_value(scene, material_props, "clearcoatgloss", prefix + ".clearcoatgloss", parameters, exported_nodes_map, eval_time);
+			set_material_value(scene, material_props, "anisotropic", prefix + ".anisotropic", parameters, exported_nodes_map, eval_time);
+			set_material_value(scene, material_props, "sheen", prefix + ".sheen", parameters, exported_nodes_map, eval_time);
+			set_material_value(scene, material_props, "sheentint", prefix + ".sheentint", parameters, exported_nodes_map, eval_time);
 			if (is_film)
 			{
-				set_material_value(scene, material_props, "filmamount", prefix + ".filmamount", parameters, eval_time);
-				set_material_value(scene, material_props, "filmthickness", prefix + ".filmthickness", parameters, eval_time);
-				set_material_value(scene, material_props, "filmior", prefix + ".filmior", parameters, eval_time);
+				set_material_value(scene, material_props, "filmamount", prefix + ".filmamount", parameters, exported_nodes_map, eval_time);
+				set_material_value(scene, material_props, "filmthickness", prefix + ".filmthickness", parameters, exported_nodes_map, eval_time);
+				set_material_value(scene, material_props, "filmior", prefix + ".filmior", parameters, exported_nodes_map, eval_time);
 			}
 
 			setup_default = true;
@@ -1593,8 +1611,8 @@ std::string add_material(luxcore::Scene* scene, luxrays::Properties &material_pr
 		else if (node_name == "ShaderTwoSided")
 		{
 			material_props.Set(luxrays::Property(prefix + ".type")("twosided"));
-			set_material_value(scene, material_props, "frontmaterial", prefix + ".frontmaterial", parameters, eval_time);
-			set_material_value(scene, material_props, "backmaterial", prefix + ".backmaterial", parameters, eval_time);
+			set_material_value(scene, material_props, "frontmaterial", prefix + ".frontmaterial", parameters, exported_nodes_map, eval_time);
+			set_material_value(scene, material_props, "backmaterial", prefix + ".backmaterial", parameters, exported_nodes_map, eval_time);
 
 			setup_default = true;
 		}
@@ -1607,7 +1625,7 @@ std::string add_material(luxcore::Scene* scene, luxrays::Properties &material_pr
 		{
 			//default material values
 			//any material (except null) contains these parameters
-			set_material_value(scene, material_props, "transparency", prefix + ".transparency", parameters, eval_time);
+			set_material_value(scene, material_props, "transparency", prefix + ".transparency", parameters, exported_nodes_map, eval_time);
 			XSI::MATH::CColor4f transparency_shadow = get_color_parameter_value(parameters, "transparency_shadow", eval_time);
 			bool visibility_indirect_diffuse_enable = get_bool_parameter_value(parameters, "visibility_indirect_diffuse_enable", eval_time);
 			bool visibility_indirect_glossy_enable = get_bool_parameter_value(parameters, "visibility_indirect_glossy_enable", eval_time);
@@ -1627,9 +1645,9 @@ std::string add_material(luxcore::Scene* scene, luxrays::Properties &material_pr
 			material_props.Set(luxrays::Property(prefix + ".holdout.enable")(holdout_enable));
 
 			//try to add emission
-			add_emission(scene, parameters, material_props, prefix + ".emission", eval_time);
+			add_emission(scene, parameters, material_props, prefix + ".emission", exported_nodes_map, eval_time);
 			//next bump
-			set_material_value(scene, material_props, "bump", prefix + ".bumptex", parameters, eval_time, true);
+			set_material_value(scene, material_props, "bump", prefix + ".bumptex", parameters, exported_nodes_map, eval_time, true);
 			//and normal
 			//set_material_value(scene, material_props, "normal", prefix + ".normaltex", parameters, eval_time, true);
 		}
@@ -1638,16 +1656,20 @@ std::string add_material(luxcore::Scene* scene, luxrays::Properties &material_pr
 	{
 		output_name = "";
 	}
+	if (output_name.size() > 0)
+	{
+		exported_nodes_map[node_id] = output_name;
+	}
 
 	return output_name;
 }
 
-void setup_default_volume(luxcore::Scene* scene, luxrays::Properties &volume_props, std::string &prefix, std::string &volume_name, XSI::CParameterRefArray &parameters, const XSI::CTime& eval_time)
+void setup_default_volume(luxcore::Scene* scene, luxrays::Properties &volume_props, std::string &prefix, std::string &volume_name, XSI::CParameterRefArray &parameters, std::unordered_map<ULONG, std::string>& exported_nodes_map, const XSI::CTime& eval_time)
 {
-	set_material_value(scene, volume_props, "ior", prefix + ".ior", parameters, eval_time);
+	set_material_value(scene, volume_props, "ior", prefix + ".ior", parameters, exported_nodes_map, eval_time);
 	int priority = get_int_parameter_value(parameters, "priority", eval_time);
 	volume_props.Set(luxrays::Property(prefix + ".priority")(priority));
-	set_material_value(scene, volume_props, "emission", prefix + ".emission", parameters, eval_time);
+	set_material_value(scene, volume_props, "emission", prefix + ".emission", parameters, exported_nodes_map, eval_time);
 	int emission_id = get_int_parameter_value(parameters, "emission_id", eval_time);
 	volume_props.Set(luxrays::Property(prefix + ".emission.id")(emission_id));
 	float abs_depth = get_float_parameter_value(parameters, "absorption_depth", eval_time);
@@ -1657,7 +1679,7 @@ void setup_default_volume(luxcore::Scene* scene, luxrays::Properties &volume_pro
 	luxrays::Properties abs_props;
 	std::string abs_prefix = "scene.textures." + abs_name;
 	abs_props.Set(luxrays::Property(abs_prefix + ".type")("colordepth"));
-	set_material_value(scene, abs_props, "absorption", abs_prefix + ".kt", parameters, eval_time);
+	set_material_value(scene, abs_props, "absorption", abs_prefix + ".kt", parameters, exported_nodes_map, eval_time);
 	abs_props.Set(luxrays::Property(abs_prefix + ".depth")(abs_depth));
 	scene->Parse(abs_props);
 
@@ -1665,22 +1687,28 @@ void setup_default_volume(luxcore::Scene* scene, luxrays::Properties &volume_pro
 	volume_props.Set(luxrays::Property(prefix + ".absorption")(abs_name));
 }
 
-void setup_scattering_volume(luxcore::Scene* scene, luxrays::Properties& volume_props, std::string& prefix, std::string& volume_name, XSI::CParameterRefArray& parameters, const XSI::CTime& eval_time)
+void setup_scattering_volume(luxcore::Scene* scene, luxrays::Properties& volume_props, std::string& prefix, std::string& volume_name, XSI::CParameterRefArray& parameters, std::unordered_map<ULONG, std::string>& exported_nodes_map, const XSI::CTime& eval_time)
 {
 	std::string scat_name = volume_name + "_scale";
 	luxrays::Properties scat_props;
 	std::string scat_prefix = "scene.textures." + scat_name;
 
 	scat_props.Set(luxrays::Property(scat_prefix + ".type")("scale"));
-	set_material_value(scene, scat_props, "scattering_scale", scat_prefix + ".texture1", parameters, eval_time);
-	set_material_value(scene, scat_props, "scattering", scat_prefix + ".texture2", parameters, eval_time);
+	set_material_value(scene, scat_props, "scattering_scale", scat_prefix + ".texture1", parameters, exported_nodes_map, eval_time);
+	set_material_value(scene, scat_props, "scattering", scat_prefix + ".texture2", parameters, exported_nodes_map, eval_time);
 	scene->Parse(scat_props);
 
 	volume_props.Set(luxrays::Property(prefix + ".scattering")(scat_name));
 }
 
-std::string add_volume_node(luxcore::Scene* scene, XSI::Shader &node, const XSI::CTime& eval_time)
+std::string add_volume_node(luxcore::Scene* scene, XSI::Shader &node, std::unordered_map<ULONG, std::string> &exported_nodes_map, const XSI::CTime& eval_time)
 {
+	ULONG node_id = node.GetObjectID();
+	if (exported_nodes_map.contains(node_id))
+	{
+		return exported_nodes_map[node_id];
+	}
+
 	XSI::CString prog_id = node.GetProgID();
 	std::string output_name = xsi_object_id_string(node)[0];
 	XSI::CStringArray parts = prog_id.Split(".");
@@ -1693,12 +1721,12 @@ std::string add_volume_node(luxcore::Scene* scene, XSI::Shader &node, const XSI:
 		if (node_name == "VolumeClear")
 		{
 			volume_props.Set(luxrays::Property(prefix + ".type")("clear"));
-			setup_default_volume(scene, volume_props, prefix, output_name, parameters, eval_time);
+			setup_default_volume(scene, volume_props, prefix, output_name, parameters, exported_nodes_map, eval_time);
 		}
 		else if (node_name == "VolumeHeterogeneous")
 		{
 			volume_props.Set(luxrays::Property(prefix + ".type")("heterogeneous"));
-			set_material_value(scene, volume_props, "asymmetry", prefix + ".asymmetry", parameters, eval_time);
+			set_material_value(scene, volume_props, "asymmetry", prefix + ".asymmetry", parameters, exported_nodes_map, eval_time);
 			bool multiscattering = get_bool_parameter_value(parameters, "multiscattering", eval_time);
 			volume_props.Set(luxrays::Property(prefix + ".multiscattering")(multiscattering));
 
@@ -1707,18 +1735,18 @@ std::string add_volume_node(luxcore::Scene* scene, XSI::Shader &node, const XSI:
 			volume_props.Set(luxrays::Property(prefix + ".steps.size")(step_size));
 			volume_props.Set(luxrays::Property(prefix + ".steps.maxcount")(max_steps));
 
-			setup_default_volume(scene, volume_props, prefix, output_name, parameters, eval_time);
-			setup_scattering_volume(scene, volume_props, prefix, output_name, parameters, eval_time);
+			setup_default_volume(scene, volume_props, prefix, output_name, parameters, exported_nodes_map, eval_time);
+			setup_scattering_volume(scene, volume_props, prefix, output_name, parameters, exported_nodes_map, eval_time);
 		}
 		else if (node_name == "VolumeHomogeneous")
 		{
 			volume_props.Set(luxrays::Property(prefix + ".type")("homogeneous"));
-			set_material_value(scene, volume_props, "asymmetry", prefix + ".asymmetry", parameters, eval_time);
+			set_material_value(scene, volume_props, "asymmetry", prefix + ".asymmetry", parameters, exported_nodes_map, eval_time);
 			bool multiscattering = get_bool_parameter_value(parameters, "multiscattering", eval_time);
 			volume_props.Set(luxrays::Property(prefix + ".multiscattering")(multiscattering));
 
-			setup_default_volume(scene, volume_props, prefix, output_name, parameters, eval_time);
-			setup_scattering_volume(scene, volume_props, prefix, output_name, parameters, eval_time);
+			setup_default_volume(scene, volume_props, prefix, output_name, parameters, exported_nodes_map, eval_time);
+			setup_scattering_volume(scene, volume_props, prefix, output_name, parameters, exported_nodes_map, eval_time);
 		}
 		else
 		{
@@ -1733,11 +1761,12 @@ std::string add_volume_node(luxcore::Scene* scene, XSI::Shader &node, const XSI:
 	if (output_name.size() > 0)
 	{
 		scene->Parse(volume_props);
+		exported_nodes_map[node_id] = output_name;
 	}
 	return output_name;
 }
 
-void add_volume(luxcore::Scene* scene, luxrays::Properties &material_props, const std::string &material_name, XSI::Material& xsi_material, const XSI::CTime &eval_time)
+void add_volume(luxcore::Scene* scene, luxrays::Properties &material_props, const std::string &material_name, XSI::Material& xsi_material, std::unordered_map<ULONG, std::string>& exported_nodes_map, const XSI::CTime &eval_time)
 {
 	XSI::CRefArray first_level_shaders = xsi_material.GetShaders();
 	std::vector<XSI::ShaderParameter> volume_ports = get_root_shader_parameter(first_level_shaders, GRSPM_ParameterName, "volume");
@@ -1745,7 +1774,7 @@ void add_volume(luxcore::Scene* scene, luxrays::Properties &material_props, cons
 	if (volume_ports.size() > 0)
 	{
 		XSI::Shader volume_node = get_input_node(volume_ports[0]);
-		volume_name = add_volume_node(scene, volume_node, eval_time);
+		volume_name = add_volume_node(scene, volume_node, exported_nodes_map, eval_time);
 	}
 
 	if (volume_name.size() > 0)
@@ -1761,6 +1790,7 @@ void sync_material(luxcore::Scene* scene, XSI::Material &xsi_material, std::set<
 	//and assign it to the polygon meshes
 
 	std::string material_name = xsi_object_id_string(xsi_material)[0];
+	std::unordered_map<ULONG, std::string> exported_nodes_map;  // key - id of the rendertree node, value - name in the textures or materials list
 
 	XSI::CRefArray first_level_shaders = xsi_material.GetShaders();
 	std::vector<XSI::ShaderParameter> surface_ports = get_root_shader_parameter(first_level_shaders, GRSPM_ParameterName, "surface");
@@ -1773,7 +1803,7 @@ void sync_material(luxcore::Scene* scene, XSI::Material &xsi_material, std::set<
 		material_props.Set(luxrays::Property("scene.materials." + material_name + ".id")((int)xsi_material.GetObjectID()));
 
 		//next try to add the volume
-		add_volume(scene, material_props, material_name, xsi_material, eval_time);
+		add_volume(scene, material_props, material_name, xsi_material, exported_nodes_map, eval_time);
 
 		scene->Parse(material_props);
 	}
@@ -1783,7 +1813,7 @@ void sync_material(luxcore::Scene* scene, XSI::Material &xsi_material, std::set<
 		XSI::Shader material_node = get_input_node(surface_ports[0]);
 		//next we should add material from the selected node
 		luxrays::Properties material_props;
-		std::string add_name = add_material(scene, material_props, material_node, eval_time, material_name);
+		std::string add_name = add_material(scene, material_props, material_node, exported_nodes_map, eval_time, material_name);
 		if (add_name.size() == 0)
 		{
 			//this is unknown material node
@@ -1793,7 +1823,7 @@ void sync_material(luxcore::Scene* scene, XSI::Material &xsi_material, std::set<
 			material_props.Set(luxrays::Property("scene.materials." + material_name + ".kd")(0.8, 0.8, 0.8));
 			material_props.Set(luxrays::Property("scene.materials." + material_name + ".id")((int)xsi_material.GetObjectID()));
 		}
-		add_volume(scene, material_props, material_name, xsi_material, eval_time);
+		add_volume(scene, material_props, material_name, xsi_material, exported_nodes_map, eval_time);
 		scene->Parse(material_props);
 	}
 

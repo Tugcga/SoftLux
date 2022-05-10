@@ -34,12 +34,14 @@ void set_material_value(luxcore::Scene* scene,
 	const XSI::CString& xsi_param_name, 
 	const std::string& lux_param_name, 
 	XSI::CParameterRefArray& parameters, 
+	std::unordered_map<ULONG, std::string>& exported_nodes_map,
 	const XSI::CTime& eval_time,
 	bool ignore_set_branch = false);
 
 std::string add_material(luxcore::Scene* scene, 
 	luxrays::Properties &material_props,
 	XSI::Shader& material_node, 
+	std::unordered_map<ULONG, std::string>& exported_nodes_map,
 	const XSI::CTime& eval_time, 
 	std::string override_name = "");
 

@@ -15,6 +15,8 @@
 #include <xsi_iceattribute.h>
 #include <xsi_iceattributedataarray2D.h>
 
+#include <filesystem>
+
 bool is_xsi_object_visible(const XSI::CTime &eval_time, XSI::X3DObject &xsi_object)
 {
 	XSI::Property visibility_prop;
@@ -112,8 +114,24 @@ XSI::CString resolve_path(const XSI::CString &input_path)
 	if (input_path.Length() > 0 && !XSI::CUtils::IsAbsolutePath(input_path))
 	{
 		XSI::CString project_path = XSI::Application().GetActiveProject().GetPath();
-		return XSI::CUtils::ResolvePath(XSI::CUtils::BuildPath(project_path, input_path));
+		XSI::CString to_return = XSI::CUtils::ResolvePath(XSI::CUtils::BuildPath(project_path, input_path));
+		if (std::filesystem::exists(to_return.GetAsciiString()))
+		{
+			return to_return;
+		}
+		else
+		{
+			return "";
+		}
 	}
 
-	return input_path;
+
+	if (std::filesystem::exists(input_path.GetAsciiString()))
+	{
+		return input_path;
+	}
+	else
+	{
+		return "";
+	}
 }

@@ -366,6 +366,40 @@ std::string add_texture(luxcore::Scene* scene, XSI::Shader &texture_node, const 
 			XSI::MATH::CVector3 input = get_vector_parameter_value(parameters, "input", eval_time);
 			texture_props.Set(luxrays::Property(prefix + ".value")(input.GetX(), input.GetY(), input.GetZ()));
 		}
+		else if (node_name == "txt2d-image-explicit")
+		{
+			XSI::Parameter tex_param = parameters.GetItem("tex");
+			XSI::Parameter tex_param_finall = get_source_parameter(tex_param);
+			XSI::Parameter repeats_param = parameters.GetItem("repeats");
+			XSI::Parameter repeats_param_finall = get_source_parameter(repeats_param);
+						
+			XSI::CRef tex_source = tex_param_finall.GetSource();
+			if (tex_source.IsValid() && repeats_param_finall.IsValid())
+			{
+				XSI::ImageClip2 clip(tex_source);
+				XSI::CString file_path = clip.GetFileName();
+
+				XSI::CParameterRefArray repeats_params = repeats_param_finall.GetParameters();
+				float repeat_x = ((XSI::Parameter)repeats_params[0]).GetValue();
+				float repeat_y = ((XSI::Parameter)repeats_params[1]).GetValue();
+				float repeat_z = ((XSI::Parameter)repeats_params[2]).GetValue();
+
+				//we will use only the first uv, because there is no way to define the uv index from tspace_id property value (this property contains the name, but not the index of the uv)
+				//the same material can used for different object, which can contains one or several uvs
+				texture_props.Set(luxrays::Property(prefix + ".type")("imagemap"));
+				texture_props.Set(luxrays::Property(prefix + ".file")(file_path.GetAsciiString()));
+				texture_props.Set(luxrays::Property(prefix + ".wrap")("repeat"));
+				texture_props.Set(luxrays::Property(prefix + ".gamma")(2.2f));
+				//also set the mapping
+				texture_props.Set(luxrays::Property(prefix + ".mapping.type")("uvmapping2d"));
+				texture_props.Set(luxrays::Property(prefix + ".mapping.uvindex")(0));
+				texture_props.Set(luxrays::Property(prefix + ".mapping.uvscale")(repeat_x, repeat_y));
+			}
+			else
+			{
+				output_name = "";
+			}
+		}
 		else
 		{
 			//unknown built-in node

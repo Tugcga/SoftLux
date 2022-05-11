@@ -45,6 +45,17 @@ std::string add_material(luxcore::Scene* scene,
 	const XSI::CTime& eval_time, 
 	std::string override_name = "");
 
+std::string add_shape(luxcore::Scene* scene, 
+	std::string& input_shape_name,
+	XSI::Shader& node, 
+	std::unordered_map<ULONG, std::string>& exported_nodes_map,
+	const XSI::CTime& eval_time);
+
+std::string sync_polymesh_shapes(luxcore::Scene* scene, 
+	std::string& input_shape_name, 
+	XSI::Material& xsi_material,
+	const XSI::CTime& eval_time);
+
 void sync_material(luxcore::Scene* scene, XSI::Material& xsi_material, std::set<ULONG>& xsi_materials_in_lux, const XSI::CTime& eval_time);
 void sync_materials(luxcore::Scene* scene, const XSI::Scene& xsi_scene, std::set<ULONG>& xsi_materials_in_lux, const XSI::CTime& eval_time);
 void reassign_all_materials(luxcore::Scene* scene, const XSI::Scene& xsi_scene, std::set<ULONG>& xsi_materials_in_lux, std::unordered_map<ULONG, std::vector<std::string>>& xsi_id_to_lux_names_map, const XSI::CTime& eval_time);

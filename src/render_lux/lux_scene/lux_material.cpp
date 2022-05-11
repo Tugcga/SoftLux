@@ -338,7 +338,7 @@ void add_inline_bump(luxcore::Scene *scene, std::string prefix, std::string suff
 
 std::string add_texture(luxcore::Scene* scene, XSI::Shader &texture_node, std::unordered_map<ULONG, std::string>& exported_nodes_map, const XSI::CTime &eval_time)
 {
-	//we will parse texture parameters in the scene at the end otf the method
+	//we will parse texture parameters in the scene at the end of the method
 	ULONG node_id = texture_node.GetObjectID();
 	if (exported_nodes_map.contains(node_id))
 	{
@@ -1874,6 +1874,179 @@ void sync_materials(luxcore::Scene *scene, const XSI::Scene &xsi_scene, std::set
 			}
 		}
 	}
+}
+
+std::string interate_shape(luxcore::Scene* scene, std::string& input_shape_name, XSI::CParameterRefArray &parameters, std::unordered_map<ULONG, std::string>& exported_nodes_map, const XSI::CTime& eval_time)
+{
+	//get shape input of the node
+	XSI::ShaderParameter shape_parameter(parameters.GetItem("in_shape"));
+	if (shape_parameter.IsValid())
+	{
+		//get source node of the parameter
+		XSI::Shader source_node = get_input_node(shape_parameter);
+		if (source_node.IsValid())
+		{
+			return add_shape(scene, input_shape_name, source_node, exported_nodes_map, eval_time);
+		}
+		else
+		{
+			//no connection
+			return input_shape_name;
+		}
+	}
+	else
+	{
+		return input_shape_name;
+	}
+}
+
+std::string add_shape(luxcore::Scene* scene, std::string& input_shape_name, XSI::Shader &node, std::unordered_map<ULONG, std::string>& exported_nodes_map, const XSI::CTime& eval_time)
+{
+	XSI::CString prog_id = node.GetProgID();
+	XSI::CParameterRefArray parameters = node.GetParameters();
+	luxrays::Properties shape_props;
+	if (prog_id == "LUXShadersPlugin.ShapeSubdivision.1.0")
+	{
+		std::string subshape_name = interate_shape(scene, input_shape_name, parameters, exported_nodes_map, eval_time);
+		std::string shape_name = subshape_name + "_subdivision";
+		std::string prefix = "scene.shapes." + shape_name;
+		shape_props.Set(luxrays::Property(prefix + ".type")("subdiv"));
+		shape_props.Set(luxrays::Property(prefix + ".source")(subshape_name));
+
+		int maxlevel = get_int_parameter_value(parameters, "maxlevel", eval_time);
+		float maxedgescreensize = get_int_parameter_value(parameters, "maxedgescreensize", eval_time);
+		shape_props.Set(luxrays::Property(prefix + ".maxlevel")(maxlevel));
+		shape_props.Set(luxrays::Property(prefix + ".maxedgescreensize")(maxedgescreensize));
+
+		scene->Parse(shape_props);
+		return shape_name;
+	}
+	else if (prog_id == "LUXShadersPlugin.ShapeHeightDisplacement.1.0")
+	{
+		std::string subshape_name = interate_shape(scene, input_shape_name, parameters, exported_nodes_map, eval_time);
+		std::string shape_name = subshape_name + "_height_displacement";
+		std::string prefix = "scene.shapes." + shape_name;
+		shape_props.Set(luxrays::Property(prefix + ".type")("displacement"));
+		shape_props.Set(luxrays::Property(prefix + ".source")(subshape_name));
+
+		shape_props.Set(luxrays::Property(prefix + ".map.type")("height"));
+		float scale = get_float_parameter_value(parameters, "scale", eval_time);
+		float offset = get_float_parameter_value(parameters, "offset", eval_time);
+		bool normalsmooth = get_bool_parameter_value(parameters, "normalsmooth", eval_time);
+		shape_props.Set(luxrays::Property(prefix + ".scale")(scale));
+		shape_props.Set(luxrays::Property(prefix + ".offset")(offset));
+		shape_props.Set(luxrays::Property(prefix + ".normalsmooth")(normalsmooth));
+		set_material_value(scene, shape_props, "height", prefix + ".map", parameters, exported_nodes_map, eval_time);
+
+		scene->Parse(shape_props);
+		return shape_name;
+	}
+	else if (prog_id == "LUXShadersPlugin.ShapeVectorDisplacement.1.0")
+	{
+		std::string subshape_name = interate_shape(scene, input_shape_name, parameters, exported_nodes_map, eval_time);
+		std::string shape_name = subshape_name + "_vector_displacement";
+		std::string prefix = "scene.shapes." + shape_name;
+		shape_props.Set(luxrays::Property(prefix + ".type")("displacement"));
+		shape_props.Set(luxrays::Property(prefix + ".source")(subshape_name));
+
+		shape_props.Set(luxrays::Property(prefix + ".map.type")("vector"));
+		float scale = get_float_parameter_value(parameters, "scale", eval_time);
+		float offset = get_float_parameter_value(parameters, "offset", eval_time);
+		bool normalsmooth = get_bool_parameter_value(parameters, "normalsmooth", eval_time);
+		shape_props.Set(luxrays::Property(prefix + ".scale")(scale));
+		shape_props.Set(luxrays::Property(prefix + ".offset")(offset));
+		shape_props.Set(luxrays::Property(prefix + ".normalsmooth")(normalsmooth));
+		set_material_value(scene, shape_props, "vector", prefix + ".map", parameters, exported_nodes_map, eval_time);
+		XSI::CString channels = get_string_parameter_value(parameters, "channels", eval_time);
+		//parse symbols in channels string
+		std::vector<int> a(3);
+		for (ULONG i = 0; i < 3; i++)
+		{
+			char v = channels.GetAt(i);
+			if (v == '0') { a[i] = 0; }
+			else if (v == '1') { a[i] = 1; }
+			else { a[i] = 2; }
+		}
+		shape_props.Set(luxrays::Property(prefix + ".map.channels")(a[0], a[1], a[2]));
+
+		scene->Parse(shape_props);
+		return shape_name;
+	}
+	else if (prog_id == "LUXShadersPlugin.ShapeHarlequin.1.0")
+	{
+		std::string subshape_name = interate_shape(scene, input_shape_name, parameters, exported_nodes_map, eval_time);
+		std::string shape_name = subshape_name + "_harlequin";
+		std::string prefix = "scene.shapes." + shape_name;
+		shape_props.Set(luxrays::Property(prefix + ".type")("harlequin"));
+		shape_props.Set(luxrays::Property(prefix + ".source")(subshape_name));
+
+		scene->Parse(shape_props);
+		return shape_name;
+	}
+	else if (prog_id == "LUXShadersPlugin.ShapeSimplify.1.0")
+	{
+		std::string subshape_name = interate_shape(scene, input_shape_name, parameters, exported_nodes_map, eval_time);
+		std::string shape_name = subshape_name + "_simplify";
+		std::string prefix = "scene.shapes." + shape_name;
+		shape_props.Set(luxrays::Property(prefix + ".type")("simplify"));
+		shape_props.Set(luxrays::Property(prefix + ".source")(subshape_name));
+
+		float edgescreensize = get_float_parameter_value(parameters, "edgescreensize", eval_time);
+		float target = get_float_parameter_value(parameters, "target", eval_time);
+		bool preserveborder = get_bool_parameter_value(parameters, "preserveborder", eval_time);
+		shape_props.Set(luxrays::Property(prefix + ".edgescreensize")(edgescreensize));
+		shape_props.Set(luxrays::Property(prefix + ".preserveborder")(preserveborder));
+		shape_props.Set(luxrays::Property(prefix + ".target")(target / 100.0f));
+
+		scene->Parse(shape_props);
+		return shape_name;
+	}
+	else if (prog_id == "LUXShadersPlugin.ShapeEdgeDetectorAOV.1.0")
+	{
+		std::string subshape_name = interate_shape(scene, input_shape_name, parameters, exported_nodes_map, eval_time);
+		std::string shape_name = subshape_name + "_edgedetector";
+		std::string prefix = "scene.shapes." + shape_name;
+		shape_props.Set(luxrays::Property(prefix + ".type")("edgedetectoraov"));
+		shape_props.Set(luxrays::Property(prefix + ".source")(subshape_name));
+
+		scene->Parse(shape_props);
+		return shape_name;
+	}
+	else if (prog_id == "LUXShadersPlugin.ShapeBevel.1.0")
+	{
+		std::string subshape_name = interate_shape(scene, input_shape_name, parameters, exported_nodes_map, eval_time);
+		std::string shape_name = subshape_name + "_bevel";
+		std::string prefix = "scene.shapes." + shape_name;
+		shape_props.Set(luxrays::Property(prefix + ".type")("bevel"));
+		shape_props.Set(luxrays::Property(prefix + ".source")(subshape_name));
+
+		float radius = get_float_parameter_value(parameters, "radius", eval_time);
+		shape_props.Set(luxrays::Property(prefix + ".bevel.radius")(radius));
+
+		scene->Parse(shape_props);
+		return shape_name;
+	}
+	else
+	{
+		return input_shape_name;
+	}
+}
+
+std::string sync_polymesh_shapes(luxcore::Scene* scene, std::string &input_shape_name, XSI::Material & xsi_material, const XSI::CTime &eval_time)
+{
+	XSI::CRefArray first_level_shaders = xsi_material.GetShaders();
+	std::unordered_map<ULONG, std::string> exported_nodes_map;
+	std::vector<XSI::ShaderParameter> contour_ports = get_root_shader_parameter(first_level_shaders, GRSPM_ParameterName, "contour");
+	std::string output_shape_name = input_shape_name;
+	if (contour_ports.size() > 0)
+	{
+		//something connected to the port
+		//get this node
+		XSI::Shader shape_node = get_input_node(contour_ports[0]);
+		output_shape_name = add_shape(scene, input_shape_name, shape_node, exported_nodes_map, eval_time);
+	}
+	
+	return output_shape_name;
 }
 
 void reassign_all_materials(luxcore::Scene* scene, const XSI::Scene& xsi_scene, std::set<ULONG>& xsi_materials_in_lux, std::unordered_map<ULONG, std::vector<std::string>>& xsi_id_to_lux_names_map, const XSI::CTime &eval_time)

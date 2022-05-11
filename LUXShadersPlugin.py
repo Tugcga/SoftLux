@@ -438,6 +438,15 @@ densitygrid_wrap_enum = [
     "Clamp", "clamp"
 ]
 
+vectordisplacement_axis_enum = [
+    "0, 1, 2", "012", 
+    "0, 2, 1 (Mudbox)", "021",
+    "1, 0, 2", "102", 
+    "1, 2, 0", "120", 
+    "2, 0, 1 (Blender)", "201", 
+    "2, 1, 0", "210"
+]
+
 def XSILoadPlugin(in_reg):
     in_reg.Author = "Shekn Itrch"
     in_reg.Name = "LUXShadersPlugin"
@@ -543,6 +552,16 @@ def XSILoadPlugin(in_reg):
     # we should recognize available parameters for selected *.lut file
     # and output it to PPG
     # in_reg.RegisterShader("PassTonemapOpenColorIO", 1, 0)
+    # shapes
+    in_reg.RegisterShader("ShapeSubdivision", 1, 0)
+    in_reg.RegisterShader("ShapeHeightDisplacement", 1, 0)
+    in_reg.RegisterShader("ShapeVectorDisplacement", 1, 0)
+    in_reg.RegisterShader("ShapeHarlequin", 1, 0)
+    # in_reg.RegisterShader("ShapeSimplify", 1, 0)  # works incorrect, does not support it now
+    # in_reg.RegisterShader("ShapeIslandAOV", 1, 0)  # does not need this, export for all meshes
+    # in_reg.RegisterShader("ShapeRandomTriangleAOV", 1, 0)  # this is the same
+    in_reg.RegisterShader("ShapeEdgeDetectorAOV", 1, 0)
+    in_reg.RegisterShader("ShapeBevel", 1, 0)
 
     # pass environment shaders
     in_reg.RegisterShader("PassInfinite", 1, 0)
@@ -624,6 +643,14 @@ def add_output_fresnel(shader_def, name="fresnel"):
     param_def.MainPort = False
 
 
+def add_output_shape(shader_def, name="shape"):
+    param_options = XSIFactory.CreateShaderParamDefOptions()
+    param_options.SetLongName(name)
+    params = shader_def.OutputParamDefs
+    param_def = params.AddParamDef2(name, c.siShaderDataTypeColor4, param_options)
+    param_def.MainPort = False
+
+
 def add_input_material(param_options, params, default_value=1, name="material"):
     param_options.SetDefaultValue(default_value)
     params.AddParamDef(name, c.siShaderDataTypeColor4, param_options)
@@ -695,6 +722,11 @@ def add_input_fresnel(param_options, params, default_value="", name="fresnel"):
     param_options.SetDefaultValue(default_value)
     param_options.SetAttribute(c.siCustomTypeNameAttribute, "fresnel")
     params.AddParamDef(name, c.siShaderDataTypeCustom, param_options)
+
+
+def add_input_shape(param_options, params, default_value=None, name="shape"):
+    param_options.SetDefaultValue(default_value)
+    params.AddParamDef(name, c.siShaderDataTypeColor4, param_options)
 
 
 def standart_param_options():
@@ -1084,7 +1116,7 @@ def LUXShadersPlugin_PassOutputSwitcher_1_0_Define(in_ctxt):
     # parameters
     add_input_boolean(nonport_param_options(), params, True, "enable")
     add_input_string(nonport_param_options(), params, "DEPTH", "channel")
-    add_input_integer(nonport_param_options(), params, 0, "index", 0, 4)
+    add_input_integer(nonport_param_options(), params, 1, "index", 1, 4)
     
     # Output Parameter: out
     add_output_closure(shaderDef, "out")
@@ -5447,7 +5479,7 @@ def LUXShadersPlugin_TextureVertexColor_1_0_Define(in_ctxt):
     # parameters
     add_input_string(nonport_param_options(), params, "hitpointcolor", "mode")
     add_input_string(nonport_param_options(), params, "-1", "channel")
-    add_input_integer(nonport_param_options(), params, 0, "index")
+    add_input_integer(nonport_param_options(), params, 1, "index", 1, 4)
     # Output Parameter
     add_output_texture(shaderDef, "color")
 
@@ -5498,7 +5530,7 @@ def LUXShadersPlugin_TextureVertexAlpha_1_0_Define(in_ctxt):
     params = shaderDef.InputParamDefs
 
     # parameters
-    add_input_integer(nonport_param_options(), params, 0, "index", 0, 4)
+    add_input_integer(nonport_param_options(), params, 1, "index", 1, 4)
     # Output Parameter
     add_output_float(shaderDef, "alpha")
 
@@ -5887,5 +5919,312 @@ def LUXShadersPlugin_VolumeHomogeneous_1_0_Define(in_ctxt):
     # Renderer definition
     rendererDef = shaderDef.AddRendererDef("LuxCore")
     rendererDef.SymbolName = "VolumeHomogeneous"
+
+    return True
+
+#-----------------------------------------------------------------
+#-----------------------Shapes------------------------------------
+
+def LUXShadersPlugin_ShapeSubdivision_1_0_DefineInfo(in_ctxt):
+    in_ctxt.SetAttribute("Category", "LuxCore/Shape")
+    in_ctxt.SetAttribute("DisplayName", "luxSubdivision")
+    return True
+
+
+def LUXShadersPlugin_ShapeSubdivision_1_0_Define(in_ctxt):
+    shaderDef = in_ctxt.GetAttribute("Definition")
+    shaderDef.AddShaderFamily(c.siShaderFamilyCntMat)
+
+    # Input Parameter: input
+    params = shaderDef.InputParamDefs
+
+    # parameters
+    add_input_shape(standart_param_options(), params, None, "in_shape")
+    add_input_integer(nonport_param_options(), params, 2, "maxlevel", 0, 6)
+    add_input_float(nonport_param_options(), params, 0.0, "maxedgescreensize", 0.0, 1.0)
+    # Output Parameter
+    add_output_closure(shaderDef, "shape")
+
+    # next init ppg
+    ppg_layout = shaderDef.PPGLayout
+    ppg_layout.AddGroup("Parameters")
+    ppg_layout.AddItem("maxlevel", "Max Level")
+    ppg_layout.AddItem("maxedgescreensize", "Max Edge Screen Size")
+    ppg_layout.EndGroup()
+
+    # Renderer definition
+    rendererDef = shaderDef.AddRendererDef("LuxCore")
+    rendererDef.SymbolName = "ShapeSubdivision"
+
+    return True
+
+#-------------------------------------------------------------------
+def LUXShadersPlugin_ShapeHeightDisplacement_1_0_DefineInfo(in_ctxt):
+    in_ctxt.SetAttribute("Category", "LuxCore/Shape")
+    in_ctxt.SetAttribute("DisplayName", "luxHeightDisplacement")
+    return True
+
+
+def LUXShadersPlugin_ShapeHeightDisplacement_1_0_Define(in_ctxt):
+    shaderDef = in_ctxt.GetAttribute("Definition")
+    shaderDef.AddShaderFamily(c.siShaderFamilyCntMat)
+
+    # Input Parameter: input
+    params = shaderDef.InputParamDefs
+
+    # parameters
+    add_input_shape(standart_param_options(), params, None, "in_shape")
+    add_input_float(standart_param_options(), params, 0.0, "height", 0.0, 1.0)
+    add_input_float(nonport_param_options(), params, 1.0, "scale", 0.0, 4.0)
+    add_input_float(nonport_param_options(), params, 0.0, "offset", 0.0, 1.0)
+    add_input_boolean(nonport_param_options(), params, True, "normalsmooth")
+    # Output Parameter
+    add_output_closure(shaderDef, "shape")
+
+    # next init ppg
+    ppg_layout = shaderDef.PPGLayout
+    ppg_layout.AddGroup("Parameters")
+    ppg_layout.AddItem("scale", "Scale")
+    ppg_layout.AddItem("offset", "Offset")
+    ppg_layout.AddItem("normalsmooth", "Smooth Normals")
+    ppg_layout.AddItem("height", "Height")
+    ppg_layout.EndGroup()
+
+    # Renderer definition
+    rendererDef = shaderDef.AddRendererDef("LuxCore")
+    rendererDef.SymbolName = "ShapeHeightDisplacement"
+
+    return True
+
+#-------------------------------------------------------------------
+def LUXShadersPlugin_ShapeVectorDisplacement_1_0_DefineInfo(in_ctxt):
+    in_ctxt.SetAttribute("Category", "LuxCore/Shape")
+    in_ctxt.SetAttribute("DisplayName", "luxVectorDisplacement")
+    return True
+
+
+def LUXShadersPlugin_ShapeVectorDisplacement_1_0_Define(in_ctxt):
+    shaderDef = in_ctxt.GetAttribute("Definition")
+    shaderDef.AddShaderFamily(c.siShaderFamilyCntMat)
+
+    # Input Parameter: input
+    params = shaderDef.InputParamDefs
+
+    # parameters
+    add_input_shape(standart_param_options(), params, None, "in_shape")
+    add_input_vector(standart_param_options(), params, [0.0, 0.0, 0.0], "vector")
+    add_input_float(nonport_param_options(), params, 1.0, "scale", 0.0, 4.0)
+    add_input_float(nonport_param_options(), params, 0.0, "offset", 0.0, 1.0)
+    add_input_boolean(nonport_param_options(), params, True, "normalsmooth")
+    add_input_string(nonport_param_options(), params, "201", "channels")
+    # Output Parameter
+    add_output_closure(shaderDef, "shape")
+
+    # next init ppg
+    ppg_layout = shaderDef.PPGLayout
+    ppg_layout.AddGroup("Parameters")
+    ppg_layout.AddItem("scale", "Scale")
+    ppg_layout.AddItem("offset", "Offset")
+    ppg_layout.AddItem("normalsmooth", "Smooth Normals")
+    ppg_layout.AddEnumControl("channels", vectordisplacement_axis_enum, "Map Channels")
+    ppg_layout.EndGroup()
+
+    # Renderer definition
+    rendererDef = shaderDef.AddRendererDef("LuxCore")
+    rendererDef.SymbolName = "ShapeVectorDisplacement"
+
+    return True
+
+#-------------------------------------------------------------------
+def LUXShadersPlugin_ShapeHarlequin_1_0_DefineInfo(in_ctxt):
+    in_ctxt.SetAttribute("Category", "LuxCore/Shape")
+    in_ctxt.SetAttribute("DisplayName", "luxHarlequin")
+    return True
+
+
+def LUXShadersPlugin_ShapeHarlequin_1_0_Define(in_ctxt):
+    shaderDef = in_ctxt.GetAttribute("Definition")
+    shaderDef.AddShaderFamily(c.siShaderFamilyCntMat)
+
+    # Input Parameter: input
+    params = shaderDef.InputParamDefs
+
+    # parameters
+    add_input_shape(standart_param_options(), params, None, "in_shape")
+    # Output Parameter
+    add_output_closure(shaderDef, "shape")
+
+    # next init ppg
+    ppg_layout = shaderDef.PPGLayout
+    ppg_layout.AddGroup("Parameters")
+    ppg_layout.EndGroup()
+
+    # Renderer definition
+    rendererDef = shaderDef.AddRendererDef("LuxCore")
+    rendererDef.SymbolName = "ShapeHarlequin"
+
+    return True
+
+#-------------------------------------------------------------------
+def LUXShadersPlugin_ShapeSimplify_1_0_DefineInfo(in_ctxt):
+    in_ctxt.SetAttribute("Category", "LuxCore/Shape")
+    in_ctxt.SetAttribute("DisplayName", "luxSimplify")
+    return True
+
+
+def LUXShadersPlugin_ShapeSimplify_1_0_Define(in_ctxt):
+    shaderDef = in_ctxt.GetAttribute("Definition")
+    shaderDef.AddShaderFamily(c.siShaderFamilyCntMat)
+
+    # Input Parameter: input
+    params = shaderDef.InputParamDefs
+
+    # parameters
+    add_input_shape(standart_param_options(), params, None, "in_shape")
+    add_input_float(nonport_param_options(), params, 25.0, "target", 0.0, 100.0)
+    add_input_float(nonport_param_options(), params, 0.0, "edgescreensize", 0.0, 1.0)
+    add_input_boolean(nonport_param_options(), params, False, "preserveborder")
+    # Output Parameter
+    add_output_closure(shaderDef, "shape")
+
+    # next init ppg
+    ppg_layout = shaderDef.PPGLayout
+    ppg_layout.AddGroup("Parameters")
+    ppg_layout.AddItem("target", "Target")
+    ppg_layout.AddItem("edgescreensize", "Edge Screen Size")
+    ppg_layout.AddItem("preserveborder", "Preserve Border")
+    ppg_layout.EndGroup()
+
+    # Renderer definition
+    rendererDef = shaderDef.AddRendererDef("LuxCore")
+    rendererDef.SymbolName = "ShapeSimplify"
+
+    return True
+
+#-------------------------------------------------------------------
+def LUXShadersPlugin_ShapeIslandAOV_1_0_DefineInfo(in_ctxt):
+    in_ctxt.SetAttribute("Category", "LuxCore/Shape")
+    in_ctxt.SetAttribute("DisplayName", "luxIslandAOV")
+    return True
+
+
+def LUXShadersPlugin_ShapeIslandAOV_1_0_Define(in_ctxt):
+    shaderDef = in_ctxt.GetAttribute("Definition")
+    shaderDef.AddShaderFamily(c.siShaderFamilyCntMat)
+
+    # Input Parameter: input
+    params = shaderDef.InputParamDefs
+
+    # parameters
+    add_input_shape(standart_param_options(), params, None, "in_shape")
+    add_input_integer(nonport_param_options(), params, 0, "dataindex", 0, 4)
+    # Output Parameter
+    add_output_closure(shaderDef, "shape")
+
+    # next init ppg
+    ppg_layout = shaderDef.PPGLayout
+    ppg_layout.AddGroup("Parameters")
+    ppg_layout.AddItem("dataindex", "Data Index")
+    ppg_layout.EndGroup()
+
+    # Renderer definition
+    rendererDef = shaderDef.AddRendererDef("LuxCore")
+    rendererDef.SymbolName = "ShapeIslandAOV"
+
+    return True
+
+#-------------------------------------------------------------------
+def LUXShadersPlugin_ShapeRandomTriangleAOV_1_0_DefineInfo(in_ctxt):
+    in_ctxt.SetAttribute("Category", "LuxCore/Shape")
+    in_ctxt.SetAttribute("DisplayName", "luxRandomTriangleAOV")
+    return True
+
+
+def LUXShadersPlugin_ShapeRandomTriangleAOV_1_0_Define(in_ctxt):
+    shaderDef = in_ctxt.GetAttribute("Definition")
+    shaderDef.AddShaderFamily(c.siShaderFamilyCntMat)
+
+    # Input Parameter: input
+    params = shaderDef.InputParamDefs
+
+    # parameters
+    add_input_shape(standart_param_options(), params, None, "in_shape")
+    add_input_integer(nonport_param_options(), params, 0, "srcdataindex", 0, 4)
+    add_input_integer(nonport_param_options(), params, 1, "dstdataindex", 0, 4)
+    # Output Parameter
+    add_output_closure(shaderDef, "shape")
+
+    # next init ppg
+    ppg_layout = shaderDef.PPGLayout
+    ppg_layout.AddGroup("Parameters")
+    ppg_layout.AddItem("srcdataindex", "Src Data Index")
+    ppg_layout.AddItem("dstdataindex", "Dst Data Index")
+    ppg_layout.EndGroup()
+
+    # Renderer definition
+    rendererDef = shaderDef.AddRendererDef("LuxCore")
+    rendererDef.SymbolName = "ShapeRandomTriangleAOV"
+
+    return True
+
+#-------------------------------------------------------------------
+def LUXShadersPlugin_ShapeEdgeDetectorAOV_1_0_DefineInfo(in_ctxt):
+    in_ctxt.SetAttribute("Category", "LuxCore/Shape")
+    in_ctxt.SetAttribute("DisplayName", "luxEdgeDetectorAOV")
+    return True
+
+
+def LUXShadersPlugin_ShapeEdgeDetectorAOV_1_0_Define(in_ctxt):
+    shaderDef = in_ctxt.GetAttribute("Definition")
+    shaderDef.AddShaderFamily(c.siShaderFamilyCntMat)
+
+    # Input Parameter: input
+    params = shaderDef.InputParamDefs
+
+    # parameters
+    add_input_shape(standart_param_options(), params, None, "in_shape")
+    # Output Parameter
+    add_output_closure(shaderDef, "shape")
+
+    # next init ppg
+    ppg_layout = shaderDef.PPGLayout
+    ppg_layout.AddGroup("Parameters")
+    ppg_layout.EndGroup()
+
+    # Renderer definition
+    rendererDef = shaderDef.AddRendererDef("LuxCore")
+    rendererDef.SymbolName = "ShapeEdgeDetectorAOV"
+
+    return True
+
+#-------------------------------------------------------------------
+def LUXShadersPlugin_ShapeBevel_1_0_DefineInfo(in_ctxt):
+    in_ctxt.SetAttribute("Category", "LuxCore/Shape")
+    in_ctxt.SetAttribute("DisplayName", "luxBevel")
+    return True
+
+
+def LUXShadersPlugin_ShapeBevel_1_0_Define(in_ctxt):
+    shaderDef = in_ctxt.GetAttribute("Definition")
+    shaderDef.AddShaderFamily(c.siShaderFamilyCntMat)
+
+    # Input Parameter: input
+    params = shaderDef.InputParamDefs
+
+    # parameters
+    add_input_shape(standart_param_options(), params, None, "in_shape")
+    add_input_float(nonport_param_options(), params, 0.0, "radius", 0.0, 1.0)
+    # Output Parameter
+    add_output_shape(shaderDef, "shape")
+
+    # next init ppg
+    ppg_layout = shaderDef.PPGLayout
+    ppg_layout.AddGroup("Parameters")
+    ppg_layout.AddItem("radius", "Radius")
+    ppg_layout.EndGroup()
+
+    # Renderer definition
+    rendererDef = shaderDef.AddRendererDef("LuxCore")
+    rendererDef.SymbolName = "ShapeBevel"
 
     return True

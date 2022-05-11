@@ -198,9 +198,26 @@ bool sync_polymesh(luxcore::Scene* scene, XSI::X3DObject& xsi_object, std::set<U
 	//read vertex colors
 	XSI::CRefArray vertex_colors_array = xsi_acc.GetVertexColors();
 	ULONG vertex_colors_array_count = vertex_colors_array.GetCount();
+	//set the first vertex color to empty
+	//if this shift is 0, then we copy real vertex color starting from the zeros index
+	//if this value is 1, then we reset the zeros index and write only from the first one
+	ULONG shift_vc_index = 1;
+	//we will fill it by the procedural data (pointenss and harlequin)
 	//reserve array
-	std::vector<float> xsi_colors(vertex_colors_array_count * nodes_count * 3);  // save 3 color channels per node
-	std::vector<float> xsi_alphas(vertex_colors_array_count * nodes_count);
+	std::vector<float> xsi_colors((vertex_colors_array_count + shift_vc_index) * nodes_count * 3);  // save 3 color channels per node
+	std::vector<float> xsi_alphas((vertex_colors_array_count + shift_vc_index) * nodes_count);
+	//fill the first channels by zeros
+	for (ULONG vc_index = 0; vc_index < shift_vc_index; vc_index++)
+	{
+		for (ULONG node_index = 0; node_index < nodes_count; node_index++)
+		{
+			xsi_colors[3 * nodes_count * vc_index + 3 * node_index] = 0.0f;
+			xsi_colors[3 * nodes_count * vc_index + 3 * node_index + 1] = 0.0f;
+			xsi_colors[3 * nodes_count * vc_index + 3 * node_index + 2] = 0.0f;
+			xsi_alphas[nodes_count * vc_index + node_index] = 0.0f;
+		}
+	}
+	//copy colors to other channels
 	for (ULONG vc_index = 0; vc_index < vertex_colors_array_count; vc_index++)
 	{
 		XSI::ClusterProperty vertex_color_prop(vertex_colors_array[vc_index]);
@@ -208,10 +225,10 @@ bool sync_polymesh(luxcore::Scene* scene, XSI::X3DObject& xsi_object, std::set<U
 		vertex_color_prop.GetValues(values);
 		for (ULONG node_index = 0; node_index < nodes_count; node_index++)
 		{
-			xsi_colors[3 * nodes_count * vc_index + 3 * node_index] = values[4 * node_index];
-			xsi_colors[3 * nodes_count * vc_index + 3 * node_index + 1] = values[4 * node_index + 1];
-			xsi_colors[3 * nodes_count * vc_index + 3 * node_index + 2] = values[4 * node_index + 2];
-			xsi_alphas[nodes_count * vc_index + node_index] = values[4 * node_index + 3];
+			xsi_colors[3 * nodes_count * (vc_index + shift_vc_index) + 3 * node_index] = values[4 * node_index];
+			xsi_colors[3 * nodes_count * (vc_index + shift_vc_index) + 3 * node_index + 1] = values[4 * node_index + 1];
+			xsi_colors[3 * nodes_count * (vc_index + shift_vc_index) + 3 * node_index + 2] = values[4 * node_index + 2];
+			xsi_alphas[nodes_count * (vc_index + shift_vc_index) + node_index] = values[4 * node_index + 3];
 		}
 	}
 	
@@ -219,6 +236,7 @@ bool sync_polymesh(luxcore::Scene* scene, XSI::X3DObject& xsi_object, std::set<U
 	xsi_acc.GetPolygonMaterialIndices(polygon_material_indices);
 	XSI::CRefArray xsi_materials = xsi_object.GetMaterials();
 	std::vector<std::string> xsi_material_names;
+	std::vector<XSI::Material> xsi_material_materials;
 	std::map<ULONG, ULONG> material_index_to_submesh;  // key - index in the material list, value - index in names list (this list is shorter)
 	for (ULONG i = 0; i < xsi_materials.GetCount(); i++)
 	{
@@ -228,6 +246,7 @@ bool sync_polymesh(luxcore::Scene* scene, XSI::X3DObject& xsi_object, std::set<U
 		if (index == -1)
 		{
 			xsi_material_names.push_back(new_name);
+			xsi_material_materials.push_back(m);
 			material_index_to_submesh[i] = xsi_material_names.size() - 1;
 		}
 		else
@@ -281,9 +300,9 @@ bool sync_polymesh(luxcore::Scene* scene, XSI::X3DObject& xsi_object, std::set<U
 			submesh_uvs[i][j] = new UV[submesh_vertices_count[i]];
 		}
 
-		submesh_colors[i] = std::vector<Color*>(vertex_colors_array_count);
-		submesh_alphas[i] = std::vector<Alpha*>(vertex_colors_array_count);
-		for (ULONG j = 0; j < vertex_colors_array_count; j++)
+		submesh_colors[i] = std::vector<Color*>(vertex_colors_array_count + shift_vc_index);
+		submesh_alphas[i] = std::vector<Alpha*>(vertex_colors_array_count + shift_vc_index);
+		for (ULONG j = 0; j < vertex_colors_array_count + 1; j++)
 		{
 			submesh_colors[i][j] = new Color[submesh_vertices_count[i]];
 			submesh_alphas[i][j] = new Alpha[submesh_vertices_count[i]];
@@ -319,7 +338,7 @@ bool sync_polymesh(luxcore::Scene* scene, XSI::X3DObject& xsi_object, std::set<U
 			}
 
 			//set colors
-			for (ULONG k = 0; k < vertex_colors_array_count; k++)
+			for (ULONG k = 0; k < vertex_colors_array_count + shift_vc_index; k++)
 			{
 				submesh_colors[submesh_index][k][point_pointer] = Color(xsi_colors[3 * nodes_count * k + 3 * n], xsi_colors[3 * nodes_count * k + 3 * n + 1], xsi_colors[3 * nodes_count * k + 3 * n + 2]);
 				submesh_alphas[submesh_index][k][point_pointer] = Alpha(xsi_alphas[nodes_count * k + n]);
@@ -359,7 +378,7 @@ bool sync_polymesh(luxcore::Scene* scene, XSI::X3DObject& xsi_object, std::set<U
 		std::array<float*, LC_MESH_MAX_DATA_COUNT> alphas;
 		fill(colors.begin(), colors.end(), nullptr);
 		fill(alphas.begin(), alphas.end(), nullptr);
-		for (ULONG j = 0; j < std::min(vertex_colors_array_count, (ULONG)LC_MESH_MAX_DATA_COUNT); j++)
+		for (ULONG j = 0; j < std::min(vertex_colors_array_count + shift_vc_index, (ULONG)LC_MESH_MAX_DATA_COUNT); j++)
 		{
 			colors[j] = (float*)&submesh_colors[i][j][0];
 			alphas[j] = (float*)&submesh_alphas[i][j][0];
@@ -369,12 +388,52 @@ bool sync_polymesh(luxcore::Scene* scene, XSI::X3DObject& xsi_object, std::set<U
 			(unsigned int*)submesh_triangles[i], 
 			(float*)submesh_normals[i],
 			uv_count > 0 ? &uvs : NULL,
-			vertex_colors_array_count > 0 ? &colors : NULL,
-			vertex_colors_array_count > 0 ? &alphas : NULL);
+			(vertex_colors_array_count + shift_vc_index) > 0 ? &colors : NULL,
+			(vertex_colors_array_count + shift_vc_index) > 0 ? &alphas : NULL);
+		//form shape modificators
+		std::string shape_name = submesh_name;
+		if (!use_default_material && override_material == 0)
+		{
+			shape_name = sync_polymesh_shapes(scene, submesh_name, xsi_material_materials[i], eval_time);
+			if (submesh_name != shape_name)
+			{
+				//in this case we should remember, that after changing material we should also change the mesh
+			}
+
+			//if we select this in the render settings, then add default shapes
+			//add pointness
+			std::string p_shape_name = shape_name + "_pointness";
+			std::string p_prefix = "scene.shapes." + p_shape_name;
+			luxrays::Properties p_shape_props;
+			p_shape_props.Set(luxrays::Property(p_prefix + ".type")("pointiness"));
+			p_shape_props.Set(luxrays::Property(p_prefix + ".source")(shape_name));
+			scene->Parse(p_shape_props);
+
+			//also add islandaov
+			std::string island_shape_name = shape_name + "_island_aov";
+			std::string island_prefix = "scene.shapes." + island_shape_name;
+			luxrays::Properties island_shape_props;
+			island_shape_props.Set(luxrays::Property(island_prefix + ".type")("islandaov"));
+			island_shape_props.Set(luxrays::Property(island_prefix + ".source")(p_shape_name));
+			island_shape_props.Set(luxrays::Property(island_prefix + ".dataindex")(0));
+			scene->Parse(island_shape_props);
+
+			//and randomtriangleaov
+			std::string random_shape_name = shape_name + "_random_tri_aov_shape";
+			std::string random_prefix = "scene.shapes." + random_shape_name;
+			luxrays::Properties random_shape_props;
+			random_shape_props.Set(luxrays::Property(random_prefix + ".type")("randomtriangleaov"));
+			random_shape_props.Set(luxrays::Property(random_prefix + ".source")(island_shape_name));
+			random_shape_props.Set(luxrays::Property(random_prefix + ".srcdataindex")(0));
+			random_shape_props.Set(luxrays::Property(random_prefix + ".dstdataindex")(1));
+			scene->Parse(random_shape_props);
+
+			shape_name = random_shape_name;
+		}
 
 		//add mesh to the scene
 		luxrays::Properties submobject_props;
-		submobject_props.Set(luxrays::Property("scene.objects." + subobject_name + ".shape")(submesh_name));
+		submobject_props.Set(luxrays::Property("scene.objects." + subobject_name + ".shape")(shape_name));
 		//get mesh material
 		std::string material_name = use_default_material ? "default_material" : (override_material == 0 ? xsi_material_names[i] : std::string(XSI::CString(override_material).GetAsciiString()));
 		submobject_props.Set(luxrays::Property("scene.objects." + subobject_name + ".material")(material_name));
@@ -411,6 +470,9 @@ bool sync_polymesh(luxcore::Scene* scene, XSI::X3DObject& xsi_object, std::set<U
 
 	xsi_material_names.clear();
 	xsi_material_names.shrink_to_fit();
+
+	xsi_material_materials.clear();
+	xsi_material_materials.shrink_to_fit();
 
 	submesh_vertices_count.clear();
 	submesh_vertices_count.shrink_to_fit();

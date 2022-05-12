@@ -1405,6 +1405,7 @@ std::string add_material(luxcore::Scene* scene, luxrays::Properties &material_pr
 			set_material_value(scene, material_props, "ka", prefix + ".ka", parameters, exported_nodes_map, eval_time);
 			set_material_value(scene, material_props, "d", prefix + ".d", parameters, exported_nodes_map, eval_time);
 			set_material_value(scene, material_props, "index", prefix + ".index", parameters, exported_nodes_map, eval_time);
+			set_material_value(scene, material_props, "uroughness", prefix + ".uroughness", parameters, exported_nodes_map, eval_time);
 			if (is_anisotropic)
 			{
 				set_material_value(scene, material_props, "vroughness", prefix + ".vroughness", parameters, exported_nodes_map, eval_time);
@@ -1421,6 +1422,7 @@ std::string add_material(luxcore::Scene* scene, luxrays::Properties &material_pr
 			material_props.Set(luxrays::Property(prefix + ".type")("metal2"));
 			bool is_anisotropic = get_bool_parameter_value(parameters, "is_anisotropic", eval_time);
 			XSI::CString metal_mode = get_string_parameter_value(parameters, "metal_mode", eval_time);
+			set_material_value(scene, material_props, "uroughness", prefix + ".uroughness", parameters, exported_nodes_map, eval_time);
 			if (is_anisotropic)
 			{
 				set_material_value(scene, material_props, "vroughness", prefix + ".vroughness", parameters, exported_nodes_map, eval_time);

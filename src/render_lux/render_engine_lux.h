@@ -84,11 +84,14 @@ private:
 	std::unordered_map<ULONG, std::vector<ULONG>> master_to_instance_map;
 	//the same list for exported materials
 	std::set<ULONG> xsi_materials_in_lux;
-	//should we reassigna materials after scene creation
+	//should we reassign materials after scene creation
 	//activate when we update material and this update contains reassign to some object
 	//ids of pass environment shader node, whcich recognized as lights
 	std::vector<ULONG> xsi_environment_in_lux;
 	bool reinit_environments;
+	//this map to each material with active shape node corresponds ids (in XSI) of polygonmeshes which use this material
+	//when we change material in the keys list, then we should reexport all polygonmeshes
+	std::unordered_map<ULONG, std::set<ULONG>> material_with_shape_to_polymesh_map;
 
 	luxcore::Film::FilmOutputType lux_visual_output_type;
 	luxcore::Film::FilmOutputType last_lux_visual_output_type;

@@ -21,9 +21,29 @@
 void set_lux_camera_positions(luxrays::Properties& camera_props, const XSI::MATH::CVector3& xsi_position, const XSI::MATH::CVector3& xsi_target_position);
 
 //return true if we add the object to the scene, and false in other case (unsupported object, for example)
-bool sync_object(luxcore::Scene* scene, XSI::X3DObject& xsi_object, std::set<ULONG>& xsi_materials_in_lux, std::unordered_map<ULONG, std::vector<std::string>>& xsi_id_to_lux_names_map, std::unordered_map<ULONG, std::vector<ULONG>>& master_to_instance_map, const XSI::CTime& eval_time);
-void sync_shaderball(luxcore::Scene* scene, XSI::RendererContext& xsi_render_context, std::unordered_map<ULONG, std::vector<std::string>>& xsi_id_to_lux_names_map, const XSI::CTime& eval_time, const ULONG override_material_id);
-void sync_scene_objects(luxcore::Scene* scene, XSI::RendererContext& xsi_render_context, std::set<ULONG>& xsi_materials_in_lux, std::unordered_map<ULONG, std::vector<std::string>> &xsi_id_to_lux_names_map, std::unordered_map<ULONG, std::vector<ULONG>> &master_to_instance_map, const XSI::CTime& eval_time);
+bool sync_object(luxcore::Scene* scene, 
+	XSI::X3DObject& xsi_object, 
+	std::set<ULONG>& xsi_materials_in_lux, 
+	std::unordered_map<ULONG, std::vector<std::string>>& xsi_id_to_lux_names_map, 
+	std::unordered_map<ULONG, std::vector<ULONG>>& master_to_instance_map, 
+	std::unordered_map<ULONG, std::set<ULONG>>& material_with_shape_to_polymesh_map,
+	const XSI::CTime& eval_time);
+
+void sync_shaderball(luxcore::Scene* scene, 
+	XSI::RendererContext& xsi_render_context, 
+	std::unordered_map<ULONG, std::vector<std::string>>& xsi_id_to_lux_names_map, 
+	std::unordered_map<ULONG, std::set<ULONG>>& material_with_shape_to_polymesh_map,
+	const XSI::CTime& eval_time, 
+	const ULONG override_material_id);
+
+void sync_scene_objects(luxcore::Scene* scene, 
+	XSI::RendererContext& xsi_render_context, 
+	std::set<ULONG>& xsi_materials_in_lux,
+	std::unordered_map<ULONG, std::vector<std::string>> &xsi_id_to_lux_names_map, 
+	std::unordered_map<ULONG, std::vector<ULONG>> &master_to_instance_map, 
+	std::unordered_map<ULONG, std::set<ULONG>>& material_with_shape_to_polymesh_map,
+	const XSI::CTime& eval_time);
+
 void sync_shaderball_back_material(luxcore::Scene* scene);
 void sync_default_material(luxcore::Scene* scene);
 void override_material(luxcore::Scene* scene, XSI::X3DObject& xsi_object, const std::string material_name);
@@ -49,11 +69,13 @@ std::string add_shape(luxcore::Scene* scene,
 	std::string& input_shape_name,
 	XSI::Shader& node, 
 	std::unordered_map<ULONG, std::string>& exported_nodes_map,
+	const bool ignore_subdivision,
 	const XSI::CTime& eval_time);
 
 std::string sync_polymesh_shapes(luxcore::Scene* scene, 
 	std::string& input_shape_name, 
 	XSI::Material& xsi_material,
+	const bool ignore_subdivision,
 	const XSI::CTime& eval_time);
 
 void sync_material(luxcore::Scene* scene, XSI::Material& xsi_material, std::set<ULONG>& xsi_materials_in_lux, const XSI::CTime& eval_time);
@@ -67,11 +89,13 @@ bool sync_pointcloud(luxcore::Scene* scene,
 	std::unordered_map<ULONG, std::vector<std::string>>& xsi_id_to_lux_names_map,
 	std::set<ULONG>& xsi_materials_in_lux,
 	std::unordered_map<ULONG, std::vector<ULONG>>& master_to_instance_map,
+	std::unordered_map<ULONG, std::set<ULONG>>& material_with_shape_to_polymesh_map,
 	const XSI::CTime& eval_time);
 
 bool sync_polymesh(luxcore::Scene* scene, 
 	XSI::X3DObject& xsi_object, 
 	std::set<ULONG>& xsi_materials_in_lux,
+	std::unordered_map<ULONG, std::set<ULONG>> &material_with_shape_to_polymesh_map,
 	const XSI::CTime& eval_time, 
 	const ULONG override_material = 0, 
 	const bool use_default_material = false);
@@ -87,6 +111,7 @@ void sync_instance(luxcore::Scene* scene,
 	std::unordered_map<ULONG, std::vector<std::string>>& xsi_id_to_lux_names_map,
 	std::set<ULONG>& xsi_materials_in_lux,
 	std::unordered_map<ULONG, std::vector<ULONG>>& master_to_instance_map,
+	std::unordered_map<ULONG, std::set<ULONG>>& material_with_shape_to_polymesh_map,
 	const XSI::CTime& eval_time,
 	const bool ignore_master_visibility = false,
 	const bool is_branch = true);
@@ -102,7 +127,15 @@ bool sync_hair(luxcore::Scene* scene,
 	const XSI::CTime& eval_time);
 
 //this method used for instances, next it call the more general method
-bool sync_instance(luxcore::Scene* scene, XSI::Model& xsi_model, std::unordered_map<ULONG, std::vector<std::string>>& xsi_id_to_lux_names_map, std::set<ULONG>& xsi_materials_in_lux, std::unordered_map<ULONG, std::vector<ULONG>>& master_to_instance_map, const XSI::CTime& eval_time);
+bool sync_instance(luxcore::Scene* scene, 
+	XSI::Model& xsi_model, 
+	std::unordered_map<ULONG, 
+	std::vector<std::string>>& xsi_id_to_lux_names_map,
+	std::set<ULONG>& xsi_materials_in_lux, 
+	std::unordered_map<ULONG, std::vector<ULONG>>& master_to_instance_map, 
+	std::unordered_map<ULONG, std::set<ULONG>>& material_with_shape_to_polymesh_map,
+	const XSI::CTime& eval_time);
+
 void sync_shaderball_lights(luxcore::Scene* scene);
 bool sync_xsi_light(luxcore::Scene* scene, XSI::Light& xsi_light, const XSI::CTime& eval_time);
 bool update_light_object(luxcore::Scene* scene, XSI::X3DObject& xsi_object, const XSI::CTime& eval_time);

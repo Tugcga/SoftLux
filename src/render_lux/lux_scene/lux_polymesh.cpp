@@ -121,7 +121,13 @@ void define_area_light_mesh(luxcore::Scene* scene, const std::string &shape_name
 
 //use override_material for shaderball main object (this is id of the material)
 //use use_default_material for background of the shaderball
-bool sync_polymesh(luxcore::Scene* scene, XSI::X3DObject& xsi_object, std::set<ULONG>& xsi_materials_in_lux, const XSI::CTime& eval_time, const ULONG override_material, const bool use_default_material)
+bool sync_polymesh(luxcore::Scene* scene, 
+	XSI::X3DObject& xsi_object, 
+	std::set<ULONG>& xsi_materials_in_lux, 
+	std::unordered_map<ULONG, std::set<ULONG>> &material_with_shape_to_polymesh_map,
+	const XSI::CTime& eval_time, 
+	const ULONG override_material, 
+	const bool use_default_material)
 {
 	//the main principle: each node is a separate vertex in the Luxcore mesh
 	//get polygonmesh geometry properties
@@ -198,10 +204,10 @@ bool sync_polymesh(luxcore::Scene* scene, XSI::X3DObject& xsi_object, std::set<U
 	//read vertex colors
 	XSI::CRefArray vertex_colors_array = xsi_acc.GetVertexColors();
 	ULONG vertex_colors_array_count = vertex_colors_array.GetCount();
-	//set the first vertex color to empty
-	//if this shift is 0, then we copy real vertex color starting from the zeros index
-	//if this value is 1, then we reset the zeros index and write only from the first one
-	ULONG shift_vc_index = 1;
+	//if the mesh contains colors, then write it from the index = 1
+	//and use index = 0 for generated data
+	//if there are no colors in the mesh, then does not create empty color channel
+	ULONG shift_vc_index = vertex_colors_array_count > 0 ? 1 : 0;
 	//we will fill it by the procedural data (pointenss and harlequin)
 	//reserve array
 	std::vector<float> xsi_colors((vertex_colors_array_count + shift_vc_index) * nodes_count * 3);  // save 3 color channels per node
@@ -217,6 +223,7 @@ bool sync_polymesh(luxcore::Scene* scene, XSI::X3DObject& xsi_object, std::set<U
 			xsi_alphas[nodes_count * vc_index + node_index] = 0.0f;
 		}
 	}
+	
 	//copy colors to other channels
 	for (ULONG vc_index = 0; vc_index < vertex_colors_array_count; vc_index++)
 	{
@@ -231,7 +238,7 @@ bool sync_polymesh(luxcore::Scene* scene, XSI::X3DObject& xsi_object, std::set<U
 			xsi_alphas[nodes_count * (vc_index + shift_vc_index) + node_index] = values[4 * node_index + 3];
 		}
 	}
-	
+		
 	XSI::CLongArray polygon_material_indices;
 	xsi_acc.GetPolygonMaterialIndices(polygon_material_indices);
 	XSI::CRefArray xsi_materials = xsi_object.GetMaterials();
@@ -302,14 +309,12 @@ bool sync_polymesh(luxcore::Scene* scene, XSI::X3DObject& xsi_object, std::set<U
 
 		submesh_colors[i] = std::vector<Color*>(vertex_colors_array_count + shift_vc_index);
 		submesh_alphas[i] = std::vector<Alpha*>(vertex_colors_array_count + shift_vc_index);
-		for (ULONG j = 0; j < vertex_colors_array_count + 1; j++)
+		for (ULONG j = 0; j < vertex_colors_array_count + shift_vc_index; j++)
 		{
 			submesh_colors[i][j] = new Color[submesh_vertices_count[i]];
 			submesh_alphas[i][j] = new Alpha[submesh_vertices_count[i]];
 		}
-
 	}
-
 	//fill the data
 	std::vector<ULONG> submesh_point_index(submeshes_count, 0);  // store here actual submesh maximal point index
 	std::vector<ULONG> submesh_triangle_index(submeshes_count, 0);
@@ -390,14 +395,27 @@ bool sync_polymesh(luxcore::Scene* scene, XSI::X3DObject& xsi_object, std::set<U
 			uv_count > 0 ? &uvs : NULL,
 			(vertex_colors_array_count + shift_vc_index) > 0 ? &colors : NULL,
 			(vertex_colors_array_count + shift_vc_index) > 0 ? &alphas : NULL);
+
 		//form shape modificators
 		std::string shape_name = submesh_name;
 		if (!use_default_material && override_material == 0)
 		{
-			shape_name = sync_polymesh_shapes(scene, submesh_name, xsi_material_materials[i], eval_time);
+			//may be this is a bug of the LuxCore, but if the shape contains vertex color, then it crashes in the subdivision process
+			//so, to fix this, ignore subdivision if there ara colors in the mesh
+			//vertex_colors_array_count > 0 is true if there are colors
+			//in this case say exporter to ignore subdivision
+			//but if the mesh contains harequin shape, then it generate color to the 0-th index correctly
+			//so, the problem with user-defined colors
+			shape_name = sync_polymesh_shapes(scene, submesh_name, xsi_material_materials[i], vertex_colors_array_count > 0, eval_time);
 			if (submesh_name != shape_name)
 			{
 				//in this case we should remember, that after changing material we should also change the mesh
+				ULONG material_id = xsi_material_materials[i].GetObjectID();
+				if (!material_with_shape_to_polymesh_map.contains(material_id))
+				{
+					material_with_shape_to_polymesh_map[material_id] = std::set<ULONG>();
+				}
+				material_with_shape_to_polymesh_map[material_id].insert(xsi_object.GetObjectID());
 			}
 
 			//if we select this in the render settings, then add default shapes
@@ -410,7 +428,7 @@ bool sync_polymesh(luxcore::Scene* scene, XSI::X3DObject& xsi_object, std::set<U
 			scene->Parse(p_shape_props);
 
 			//also add islandaov
-			std::string island_shape_name = shape_name + "_island_aov";
+			std::string island_shape_name = p_shape_name + "_island_aov";
 			std::string island_prefix = "scene.shapes." + island_shape_name;
 			luxrays::Properties island_shape_props;
 			island_shape_props.Set(luxrays::Property(island_prefix + ".type")("islandaov"));
@@ -419,7 +437,7 @@ bool sync_polymesh(luxcore::Scene* scene, XSI::X3DObject& xsi_object, std::set<U
 			scene->Parse(island_shape_props);
 
 			//and randomtriangleaov
-			std::string random_shape_name = shape_name + "_random_tri_aov_shape";
+			std::string random_shape_name = island_shape_name + "_random_tri_aov_shape";
 			std::string random_prefix = "scene.shapes." + random_shape_name;
 			luxrays::Properties random_shape_props;
 			random_shape_props.Set(luxrays::Property(random_prefix + ".type")("randomtriangleaov"));

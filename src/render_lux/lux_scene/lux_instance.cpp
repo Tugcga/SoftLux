@@ -30,6 +30,7 @@ void sync_instance(luxcore::Scene* scene,
 	std::unordered_map<ULONG, std::vector<std::string>>& xsi_id_to_lux_names_map,
 	std::set<ULONG>& xsi_materials_in_lux,
 	std::unordered_map<ULONG, std::vector<ULONG>>& master_to_instance_map,
+	std::unordered_map<ULONG, std::set<ULONG>>& material_with_shape_to_polymesh_map,
 	const XSI::CTime& eval_time,
 	const bool ignore_master_visibility,
 	const bool is_branch)
@@ -64,7 +65,7 @@ void sync_instance(luxcore::Scene* scene,
 				//this is because it outside of the isolation view, because in non-isolation mode we at first export geometry and only then - instances
 				if (ignore_master_visibility || is_xsi_object_visible(eval_time, object))
 				{
-					bool is_sync = sync_object(scene, object, xsi_materials_in_lux, xsi_id_to_lux_names_map, master_to_instance_map, eval_time);
+					bool is_sync = sync_object(scene, object, xsi_materials_in_lux, xsi_id_to_lux_names_map, master_to_instance_map, material_with_shape_to_polymesh_map, eval_time);
 					if (is_sync)
 					{
 						xsi_id_to_lux_names_map[xsi_id] = xsi_object_id_string(object);
@@ -119,6 +120,7 @@ bool sync_instance(luxcore::Scene* scene, XSI::Model &xsi_model,
 	std::unordered_map<ULONG, std::vector<std::string>>& xsi_id_to_lux_names_map, 
 	std::set<ULONG>& xsi_materials_in_lux,
 	std::unordered_map<ULONG, std::vector<ULONG>>& master_to_instance_map,
+	std::unordered_map<ULONG, std::set<ULONG>>& material_with_shape_to_polymesh_map,
 	const XSI::CTime& eval_time)
 {
 	ULONG model_id = xsi_model.GetObjectID();
@@ -130,7 +132,7 @@ bool sync_instance(luxcore::Scene* scene, XSI::Model &xsi_model,
 	XSI::Model master = xsi_model.GetInstanceMaster();
 	XSI::MATH::CTransformation model_tfm = xsi_model.GetKinematics().GetGlobal().GetTransform();
 	std::string model_id_str = std::to_string(model_id);
-	sync_instance(scene, model_id, model_id_str, master, model_tfm, xsi_id_to_lux_names_map, xsi_materials_in_lux, master_to_instance_map, eval_time);
+	sync_instance(scene, model_id, model_id_str, master, model_tfm, xsi_id_to_lux_names_map, xsi_materials_in_lux, master_to_instance_map, material_with_shape_to_polymesh_map, eval_time);
 
 	return true;
 }

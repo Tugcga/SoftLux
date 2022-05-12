@@ -12,6 +12,7 @@ bool sync_pointcloud(luxcore::Scene* scene,
 	std::unordered_map<ULONG, std::vector<std::string>>& xsi_id_to_lux_names_map,
 	std::set<ULONG>& xsi_materials_in_lux,
 	std::unordered_map<ULONG, std::vector<ULONG>>& master_to_instance_map,
+	std::unordered_map<ULONG, std::set<ULONG>>& material_with_shape_to_polymesh_map,
 	const XSI::CTime& eval_time)
 {
 	ULONG xsi_id = xsi_object.GetObjectID();
@@ -80,7 +81,7 @@ bool sync_pointcloud(luxcore::Scene* scene,
 				point_tfm.MulInPlace(particles_tfm);
 
 				std::string point_name = std::to_string(xsi_id) + "_" + std::to_string(i);
-				sync_instance(scene, xsi_id, point_name, master_root, point_tfm, xsi_id_to_lux_names_map, xsi_materials_in_lux, master_to_instance_map, eval_time, true, is_branch_selected);
+				sync_instance(scene, xsi_id, point_name, master_root, point_tfm, xsi_id_to_lux_names_map, xsi_materials_in_lux, master_to_instance_map, material_with_shape_to_polymesh_map, eval_time, true, is_branch_selected);
 			}
 		}
 	}

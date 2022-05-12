@@ -9,6 +9,7 @@
 
 #include <vector>
 #include <string>
+#include <set>
 
 void log_message(const XSI::CString &message, XSI::siSeverityType level)
 {
@@ -91,6 +92,23 @@ XSI::CString to_string(const std::vector<ULONG> &array)
 	{
 		to_return += ", " + XSI::CString(array[i]);
 	}
+	to_return += "]";
+	return to_return;
+}
+
+XSI::CString to_string(const std::set<ULONG>& array)
+{
+	if (array.size() == 0)
+	{
+		return "[]";
+	}
+
+	XSI::CString to_return = "[";
+	for (auto it = array.begin(); it != array.end(); ++it)
+	{
+		to_return += XSI::CString(*it) + ", ";
+	}
+	to_return = to_return.GetSubString(0, to_return.Length() - 2);
 	to_return += "]";
 	return to_return;
 }

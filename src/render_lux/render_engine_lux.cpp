@@ -40,6 +40,7 @@ RenderEngineLux::RenderEngineLux()
 
 	xsi_id_to_lux_names_map.clear();
 	master_to_instance_map.clear();
+	material_with_shape_to_polymesh_map.clear();
 
 	RenderEngineLux::is_log = false;
 }
@@ -86,6 +87,7 @@ void RenderEngineLux::clear_scene()
 	xsi_environment_in_lux.clear();
 	xsi_id_to_lux_names_map.clear();
 	master_to_instance_map.clear();
+	material_with_shape_to_polymesh_map.clear();
 }
 
 //here we clear session and render config
@@ -180,7 +182,7 @@ void RenderEngineLux::update_object(XSI::X3DObject& xsi_object)
 	//sync object again
 	if (is_xsi_object_visible(eval_time, xsi_object))
 	{
-		bool is_sync = sync_object(scene, xsi_object, xsi_materials_in_lux, xsi_id_to_lux_names_map, master_to_instance_map, eval_time);
+		bool is_sync = sync_object(scene, xsi_object, xsi_materials_in_lux, xsi_id_to_lux_names_map, master_to_instance_map, material_with_shape_to_polymesh_map, eval_time);
 		if (is_sync)
 		{
 			ULONG xsi_id = xsi_object.GetObjectID();
@@ -380,7 +382,20 @@ XSI::CStatus RenderEngineLux::update_scene(XSI::Material& xsi_material, bool mat
 			{
 				update_object(host_object);
 			}
+		}
 
+		ULONG material_id = xsi_material.GetObjectID();
+		if (material_with_shape_to_polymesh_map.contains(material_id))
+		{
+			for (auto it = material_with_shape_to_polymesh_map[material_id].begin(); it != material_with_shape_to_polymesh_map[material_id].end(); ++it)
+			{
+				ULONG mesh_id = *it;
+				XSI::X3DObject mesh_object(XSI::Application().GetObjectFromID(mesh_id));
+				if (mesh_object.IsValid())
+				{
+					update_object(mesh_object);
+				}
+			}
 		}
 
 		return XSI::CStatus::OK;
@@ -424,7 +439,7 @@ XSI::CStatus RenderEngineLux::create_scene()
 		{
 			XSI::Material shaderball_material(shaderball_item);
 			sync_material(scene, shaderball_material, xsi_materials_in_lux, eval_time);
-			sync_shaderball(scene, m_render_context, xsi_id_to_lux_names_map, eval_time, shaderball_material.GetObjectID());
+			sync_shaderball(scene, m_render_context, xsi_id_to_lux_names_map, material_with_shape_to_polymesh_map, eval_time, shaderball_material.GetObjectID());
 		}
 		else
 		{
@@ -442,13 +457,17 @@ XSI::CStatus RenderEngineLux::create_scene()
 		sync_ambient(scene, eval_time);
 
 		//sync scene objects
-		sync_scene_objects(scene, m_render_context, xsi_materials_in_lux, xsi_id_to_lux_names_map, master_to_instance_map, eval_time);
+		sync_scene_objects(scene, m_render_context, xsi_materials_in_lux, xsi_id_to_lux_names_map, master_to_instance_map, material_with_shape_to_polymesh_map, eval_time);
 
 		//environment light (hdri, sky, sun)
 		xsi_environment_in_lux = sync_environment(scene, eval_time);
 	}
 
 	//print update maps
+	/*for (const auto& [key, value] : material_with_shape_to_polymesh_map)
+	{
+		log_message("\t" + XSI::CString(key) + ": " + to_string(value));
+	}*/
 	/*log_message("master_to_instance_map:");
 	for (const auto& [key, value]: master_to_instance_map)
 	{
@@ -499,7 +518,7 @@ XSI::CStatus RenderEngineLux::post_scene()
 
 		//next create it again
 		XSI::X3DObject xsi_instance(XSI::Application().GetObjectFromID(xsi_id));
-		bool is_sync = sync_object(scene, xsi_instance, xsi_materials_in_lux, xsi_id_to_lux_names_map, master_to_instance_map, eval_time);
+		bool is_sync = sync_object(scene, xsi_instance, xsi_materials_in_lux, xsi_id_to_lux_names_map, master_to_instance_map, material_with_shape_to_polymesh_map, eval_time);
 		if (is_sync)
 		{
 			xsi_id_to_lux_names_map[xsi_instance.GetObjectID()] = xsi_object_id_string(xsi_instance);
@@ -525,7 +544,7 @@ void RenderEngineLux::render()
 {
 	m_render_context.ProgressUpdate("Rendering...", "Rendering...", 0);
 
-	//session->GetRenderConfig().Export("D:\\Graphic\\For Softimage\\_addons\\AddonDevelopWorkgroup\\Addons\\SoftLux\\Application\\Plugins\\bin\\nt-x86-64\\output\\");
+	session->GetRenderConfig().Export("D:\\Graphic\\For Softimage\\_addons\\AddonDevelopWorkgroup\\Addons\\SoftLux\\Application\\Plugins\\bin\\nt-x86-64\\output\\");
 	//return;
 
 	session->Start();

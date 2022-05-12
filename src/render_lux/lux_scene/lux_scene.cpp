@@ -13,12 +13,13 @@ bool sync_object(luxcore::Scene* scene, XSI::X3DObject &xsi_object,
 	std::set<ULONG>& xsi_materials_in_lux, 
 	std::unordered_map<ULONG, std::vector<std::string>>& xsi_id_to_lux_names_map, 
 	std::unordered_map<ULONG, std::vector<ULONG>>& master_to_instance_map,
+	std::unordered_map<ULONG, std::set<ULONG>> &material_with_shape_to_polymesh_map,
 	const XSI::CTime& eval_time)
 {
 	XSI::CString xsi_type = xsi_object.GetType();
 	if (xsi_type == "polymsh")
 	{
-		return sync_polymesh(scene, xsi_object, xsi_materials_in_lux, eval_time);
+		return sync_polymesh(scene, xsi_object, xsi_materials_in_lux, material_with_shape_to_polymesh_map, eval_time);
 	}
 	else if (xsi_type == "pointcloud")
 	{
@@ -28,7 +29,7 @@ bool sync_object(luxcore::Scene* scene, XSI::X3DObject &xsi_object,
 		}
 		else
 		{
-			return sync_pointcloud(scene, xsi_object, xsi_id_to_lux_names_map, xsi_materials_in_lux, master_to_instance_map, eval_time);
+			return sync_pointcloud(scene, xsi_object, xsi_id_to_lux_names_map, xsi_materials_in_lux, master_to_instance_map, material_with_shape_to_polymesh_map, eval_time);
 		}
 	}
 	else if (xsi_type == "hair")
@@ -41,7 +42,7 @@ bool sync_object(luxcore::Scene* scene, XSI::X3DObject &xsi_object,
 		XSI::siModelKind model_kind = xsi_model.GetModelKind();
 		if (model_kind == XSI::siModelKind_Instance)
 		{
-			return sync_instance(scene, xsi_model, xsi_id_to_lux_names_map, xsi_materials_in_lux, master_to_instance_map, eval_time);
+			return sync_instance(scene, xsi_model, xsi_id_to_lux_names_map, xsi_materials_in_lux, master_to_instance_map, material_with_shape_to_polymesh_map, eval_time);
 		}
 		else
 		{
@@ -60,6 +61,7 @@ void sync_models(luxcore::Scene* scene, const XSI::CRefArray& xsi_models_list,
 	std::unordered_map<ULONG, std::vector<std::string>>& xsi_id_to_lux_names_map,
 	std::set<ULONG>& xsi_materials_in_lux, 
 	std::unordered_map<ULONG, std::vector<ULONG>>& master_to_instance_map,
+	std::unordered_map<ULONG, std::set<ULONG>>& material_with_shape_to_polymesh_map,
 	const XSI::CTime& eval_time)
 {
 	for (ULONG i = 0; i < xsi_models_list.GetCount(); i++)
@@ -68,7 +70,7 @@ void sync_models(luxcore::Scene* scene, const XSI::CRefArray& xsi_models_list,
 		XSI::siModelKind model_kind = xsi_model.GetModelKind();
 		if (model_kind == XSI::siModelKind_Instance)
 		{
-			bool is_sync = sync_instance(scene, xsi_model, xsi_id_to_lux_names_map, xsi_materials_in_lux, master_to_instance_map, eval_time);
+			bool is_sync = sync_instance(scene, xsi_model, xsi_id_to_lux_names_map, xsi_materials_in_lux, master_to_instance_map, material_with_shape_to_polymesh_map, eval_time);
 			if (is_sync)
 			{
 				xsi_id_to_lux_names_map[xsi_model.GetObjectID()] = xsi_object_id_string(xsi_model);
@@ -83,6 +85,7 @@ void sync_scene_objects(luxcore::Scene* scene,
 	std::set<ULONG>& xsi_materials_in_lux, 
 	std::unordered_map<ULONG, std::vector<std::string>> &xsi_id_to_lux_names_map,
 	std::unordered_map<ULONG, std::vector<ULONG>>& master_to_instance_map,
+	std::unordered_map<ULONG, std::set<ULONG>>& material_with_shape_to_polymesh_map,
 	const XSI::CTime& eval_time)
 {
 	for (ULONG i = 0; i < xsi_list.GetCount(); i++)
@@ -107,7 +110,7 @@ void sync_scene_objects(luxcore::Scene* scene,
 		{
 			if (is_xsi_object_visible(eval_time, xsi_object))
 			{
-				bool is_sync = sync_object(scene, xsi_object, xsi_materials_in_lux, xsi_id_to_lux_names_map, master_to_instance_map, eval_time);
+				bool is_sync = sync_object(scene, xsi_object, xsi_materials_in_lux, xsi_id_to_lux_names_map, master_to_instance_map, material_with_shape_to_polymesh_map, eval_time);
 				if (is_sync)
 				{
 					//remember object in the map
@@ -141,23 +144,24 @@ void sync_scene_objects(luxcore::Scene* scene, XSI::RendererContext& xsi_render_
 	std::set<ULONG>& xsi_materials_in_lux, 
 	std::unordered_map<ULONG, std::vector<std::string>> &xsi_id_to_lux_names_map, 
 	std::unordered_map<ULONG, std::vector<ULONG>> &master_to_instance_map,
+	std::unordered_map<ULONG, std::set<ULONG>>& material_with_shape_to_polymesh_map,
 	const XSI::CTime& eval_time)
 {
 	const XSI::CRefArray& xsi_isolation_list = xsi_render_context.GetArrayAttribute("ObjectList");
 	if (xsi_isolation_list.GetCount() > 0)
 	{//we are in isolation mode
-		sync_scene_objects(scene, xsi_isolation_list, XSI::siX3DObjectID, xsi_materials_in_lux, xsi_id_to_lux_names_map, master_to_instance_map, eval_time);
+		sync_scene_objects(scene, xsi_isolation_list, XSI::siX3DObjectID, xsi_materials_in_lux, xsi_id_to_lux_names_map, master_to_instance_map, material_with_shape_to_polymesh_map, eval_time);
 	}
 	else
 	{//we should check all objects in the scene
 		//for simplicity get all X3Dobjects and then filter by their types
 		const XSI::CRefArray& xsi_objects_list = XSI::Application().FindObjects(XSI::siGeometryID);
-		sync_scene_objects(scene, xsi_objects_list, XSI::siGeometryID, xsi_materials_in_lux, xsi_id_to_lux_names_map, master_to_instance_map, eval_time);
+		sync_scene_objects(scene, xsi_objects_list, XSI::siGeometryID, xsi_materials_in_lux, xsi_id_to_lux_names_map, master_to_instance_map, material_with_shape_to_polymesh_map, eval_time);
 
 		//also try to find model instances
 		//in the isolation mode these models aready in the list
 		const XSI::CRefArray& xsi_models_list = XSI::Application().FindObjects(XSI::siModelID);
-		sync_models(scene, xsi_models_list, xsi_id_to_lux_names_map, xsi_materials_in_lux, master_to_instance_map, eval_time);
+		sync_models(scene, xsi_models_list, xsi_id_to_lux_names_map, xsi_materials_in_lux, master_to_instance_map, material_with_shape_to_polymesh_map, eval_time);
 	}
 
 	//next lights

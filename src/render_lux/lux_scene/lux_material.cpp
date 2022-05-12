@@ -1878,7 +1878,7 @@ void sync_materials(luxcore::Scene *scene, const XSI::Scene &xsi_scene, std::set
 	}
 }
 
-std::string interate_shape(luxcore::Scene* scene, std::string& input_shape_name, XSI::CParameterRefArray &parameters, std::unordered_map<ULONG, std::string>& exported_nodes_map, const XSI::CTime& eval_time)
+std::string iterate_shape(luxcore::Scene* scene, std::string& input_shape_name, XSI::CParameterRefArray &parameters, std::unordered_map<ULONG, std::string>& exported_nodes_map, const bool ignore_subdivision, const XSI::CTime& eval_time)
 {
 	//get shape input of the node
 	XSI::ShaderParameter shape_parameter(parameters.GetItem("in_shape"));
@@ -1888,7 +1888,7 @@ std::string interate_shape(luxcore::Scene* scene, std::string& input_shape_name,
 		XSI::Shader source_node = get_input_node(shape_parameter);
 		if (source_node.IsValid())
 		{
-			return add_shape(scene, input_shape_name, source_node, exported_nodes_map, eval_time);
+			return add_shape(scene, input_shape_name, source_node, exported_nodes_map, ignore_subdivision, eval_time);
 		}
 		else
 		{
@@ -1902,14 +1902,14 @@ std::string interate_shape(luxcore::Scene* scene, std::string& input_shape_name,
 	}
 }
 
-std::string add_shape(luxcore::Scene* scene, std::string& input_shape_name, XSI::Shader &node, std::unordered_map<ULONG, std::string>& exported_nodes_map, const XSI::CTime& eval_time)
+std::string add_shape(luxcore::Scene* scene, std::string& input_shape_name, XSI::Shader &node, std::unordered_map<ULONG, std::string>& exported_nodes_map, const bool ignore_subdivision, const XSI::CTime& eval_time)
 {
 	XSI::CString prog_id = node.GetProgID();
 	XSI::CParameterRefArray parameters = node.GetParameters();
 	luxrays::Properties shape_props;
-	if (prog_id == "LUXShadersPlugin.ShapeSubdivision.1.0")
+	if (!ignore_subdivision && prog_id == "LUXShadersPlugin.ShapeSubdivision.1.0")
 	{
-		std::string subshape_name = interate_shape(scene, input_shape_name, parameters, exported_nodes_map, eval_time);
+		std::string subshape_name = iterate_shape(scene, input_shape_name, parameters, exported_nodes_map, ignore_subdivision, eval_time);
 		std::string shape_name = subshape_name + "_subdivision";
 		std::string prefix = "scene.shapes." + shape_name;
 		shape_props.Set(luxrays::Property(prefix + ".type")("subdiv"));
@@ -1925,7 +1925,7 @@ std::string add_shape(luxcore::Scene* scene, std::string& input_shape_name, XSI:
 	}
 	else if (prog_id == "LUXShadersPlugin.ShapeHeightDisplacement.1.0")
 	{
-		std::string subshape_name = interate_shape(scene, input_shape_name, parameters, exported_nodes_map, eval_time);
+		std::string subshape_name = iterate_shape(scene, input_shape_name, parameters, exported_nodes_map, ignore_subdivision, eval_time);
 		std::string shape_name = subshape_name + "_height_displacement";
 		std::string prefix = "scene.shapes." + shape_name;
 		shape_props.Set(luxrays::Property(prefix + ".type")("displacement"));
@@ -1938,14 +1938,14 @@ std::string add_shape(luxcore::Scene* scene, std::string& input_shape_name, XSI:
 		shape_props.Set(luxrays::Property(prefix + ".scale")(scale));
 		shape_props.Set(luxrays::Property(prefix + ".offset")(offset));
 		shape_props.Set(luxrays::Property(prefix + ".normalsmooth")(normalsmooth));
-		set_material_value(scene, shape_props, "height", prefix + ".map", parameters, exported_nodes_map, eval_time);
+		set_material_value(scene, shape_props, "height", prefix + ".map", parameters, exported_nodes_map, ignore_subdivision, eval_time);
 
 		scene->Parse(shape_props);
 		return shape_name;
 	}
 	else if (prog_id == "LUXShadersPlugin.ShapeVectorDisplacement.1.0")
 	{
-		std::string subshape_name = interate_shape(scene, input_shape_name, parameters, exported_nodes_map, eval_time);
+		std::string subshape_name = iterate_shape(scene, input_shape_name, parameters, exported_nodes_map, ignore_subdivision, eval_time);
 		std::string shape_name = subshape_name + "_vector_displacement";
 		std::string prefix = "scene.shapes." + shape_name;
 		shape_props.Set(luxrays::Property(prefix + ".type")("displacement"));
@@ -1958,7 +1958,7 @@ std::string add_shape(luxcore::Scene* scene, std::string& input_shape_name, XSI:
 		shape_props.Set(luxrays::Property(prefix + ".scale")(scale));
 		shape_props.Set(luxrays::Property(prefix + ".offset")(offset));
 		shape_props.Set(luxrays::Property(prefix + ".normalsmooth")(normalsmooth));
-		set_material_value(scene, shape_props, "vector", prefix + ".map", parameters, exported_nodes_map, eval_time);
+		set_material_value(scene, shape_props, "vector", prefix + ".map", parameters, exported_nodes_map, ignore_subdivision, eval_time);
 		XSI::CString channels = get_string_parameter_value(parameters, "channels", eval_time);
 		//parse symbols in channels string
 		std::vector<int> a(3);
@@ -1976,7 +1976,7 @@ std::string add_shape(luxcore::Scene* scene, std::string& input_shape_name, XSI:
 	}
 	else if (prog_id == "LUXShadersPlugin.ShapeHarlequin.1.0")
 	{
-		std::string subshape_name = interate_shape(scene, input_shape_name, parameters, exported_nodes_map, eval_time);
+		std::string subshape_name = iterate_shape(scene, input_shape_name, parameters, exported_nodes_map, ignore_subdivision, eval_time);
 		std::string shape_name = subshape_name + "_harlequin";
 		std::string prefix = "scene.shapes." + shape_name;
 		shape_props.Set(luxrays::Property(prefix + ".type")("harlequin"));
@@ -1987,7 +1987,7 @@ std::string add_shape(luxcore::Scene* scene, std::string& input_shape_name, XSI:
 	}
 	else if (prog_id == "LUXShadersPlugin.ShapeSimplify.1.0")
 	{
-		std::string subshape_name = interate_shape(scene, input_shape_name, parameters, exported_nodes_map, eval_time);
+		std::string subshape_name = iterate_shape(scene, input_shape_name, parameters, exported_nodes_map, ignore_subdivision, eval_time);
 		std::string shape_name = subshape_name + "_simplify";
 		std::string prefix = "scene.shapes." + shape_name;
 		shape_props.Set(luxrays::Property(prefix + ".type")("simplify"));
@@ -2005,7 +2005,7 @@ std::string add_shape(luxcore::Scene* scene, std::string& input_shape_name, XSI:
 	}
 	else if (prog_id == "LUXShadersPlugin.ShapeEdgeDetectorAOV.1.0")
 	{
-		std::string subshape_name = interate_shape(scene, input_shape_name, parameters, exported_nodes_map, eval_time);
+		std::string subshape_name = iterate_shape(scene, input_shape_name, parameters, exported_nodes_map, ignore_subdivision, eval_time);
 		std::string shape_name = subshape_name + "_edgedetector";
 		std::string prefix = "scene.shapes." + shape_name;
 		shape_props.Set(luxrays::Property(prefix + ".type")("edgedetectoraov"));
@@ -2016,7 +2016,7 @@ std::string add_shape(luxcore::Scene* scene, std::string& input_shape_name, XSI:
 	}
 	else if (prog_id == "LUXShadersPlugin.ShapeBevel.1.0")
 	{
-		std::string subshape_name = interate_shape(scene, input_shape_name, parameters, exported_nodes_map, eval_time);
+		std::string subshape_name = iterate_shape(scene, input_shape_name, parameters, exported_nodes_map, ignore_subdivision, eval_time);
 		std::string shape_name = subshape_name + "_bevel";
 		std::string prefix = "scene.shapes." + shape_name;
 		shape_props.Set(luxrays::Property(prefix + ".type")("bevel"));
@@ -2034,7 +2034,7 @@ std::string add_shape(luxcore::Scene* scene, std::string& input_shape_name, XSI:
 	}
 }
 
-std::string sync_polymesh_shapes(luxcore::Scene* scene, std::string &input_shape_name, XSI::Material & xsi_material, const XSI::CTime &eval_time)
+std::string sync_polymesh_shapes(luxcore::Scene* scene, std::string &input_shape_name, XSI::Material & xsi_material, const bool ignore_subdivision, const XSI::CTime &eval_time)
 {
 	XSI::CRefArray first_level_shaders = xsi_material.GetShaders();
 	std::unordered_map<ULONG, std::string> exported_nodes_map;
@@ -2045,7 +2045,7 @@ std::string sync_polymesh_shapes(luxcore::Scene* scene, std::string &input_shape
 		//something connected to the port
 		//get this node
 		XSI::Shader shape_node = get_input_node(contour_ports[0]);
-		output_shape_name = add_shape(scene, input_shape_name, shape_node, exported_nodes_map, eval_time);
+		output_shape_name = add_shape(scene, input_shape_name, shape_node, exported_nodes_map, ignore_subdivision, eval_time);
 	}
 	
 	return output_shape_name;

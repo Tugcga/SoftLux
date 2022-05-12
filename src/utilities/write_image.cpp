@@ -2,6 +2,7 @@
 #include <fstream>
 #include <xsi_string.h>
 #include "logs.h"
+#include "export_common.h"
 
 #define STBI_MSC_SECURE_CRT
 #define STB_IMAGE_WRITE_IMPLEMENTATION
@@ -9,42 +10,6 @@
 
 #define TINYEXR_IMPLEMENTATION
 #include "tinyexr.h"
-
-bool create_dir(const std::string& file_path)
-{
-	const size_t last_slash = file_path.find_last_of("/\\");
-	std::string folder_path = file_path.substr(0, last_slash);
-	std::string file_name = file_path.substr(last_slash + 1, file_path.length());
-	if (file_name.length() > 0 && file_name[0] == ':')//unsupported file start
-	{
-		return false;
-	}
-	while (CreateDirectory(folder_path.c_str(), NULL) == FALSE)
-	{
-		if (ERROR_ALREADY_EXISTS == GetLastError())
-		{
-			return true;
-		}
-		TCHAR s_temp[MAX_PATH];
-		int k = folder_path.length();
-		strcpy(s_temp, folder_path.c_str());
-
-		while (CreateDirectory(s_temp, NULL) != TRUE)
-		{
-			while (s_temp[--k] != '\\')
-			{
-				if (k <= 1)
-				{
-					return false;
-				}
-				s_temp[k] = NULL;
-			}
-		}
-	}
-
-	return true;
-}
-
 
 float clamp_float(float value, float min, float max)
 {

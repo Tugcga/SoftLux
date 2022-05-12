@@ -19,3 +19,5 @@ std::vector<std::string> xsi_object_id_string(XSI::ProjectItem& xsi_item);
 //convert path from local (with respect to project path) to global
 //or return the input path, if it already global
 XSI::CString resolve_path(const XSI::CString& input_path);
+
+bool create_dir(const std::string& file_path);

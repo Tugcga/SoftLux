@@ -15,6 +15,8 @@ SICALLBACK LuxCoreRenderer_Init(XSI::CRef &in_ctxt)
 
 	XSI::CLongArray	process;
 	process.Add(XSI::siRenderProcessRender);
+	process.Add(XSI::siRenderProcessExportArchive);
+	process.Add(XSI::siRenderProcessGenerateRenderMap);
 	renderer.PutProcessTypes(process);
 
 	XSI::CString options_name = L"LuxCore Renderer Options";

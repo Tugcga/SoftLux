@@ -16,6 +16,15 @@
 #include <xsi_iceattributedataarray2D.h>
 
 #include <filesystem>
+#include <fstream>
+#include <windows.h>
+#include <algorithm>
+#include <cassert>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <sstream>
+#include <limits>
 
 bool is_xsi_object_visible(const XSI::CTime &eval_time, XSI::X3DObject &xsi_object)
 {
@@ -134,4 +143,39 @@ XSI::CString resolve_path(const XSI::CString &input_path)
 	{
 		return "";
 	}
+}
+
+bool create_dir(const std::string& file_path)
+{
+	const size_t last_slash = file_path.find_last_of("/\\");
+	std::string folder_path = file_path.substr(0, last_slash);
+	std::string file_name = file_path.substr(last_slash + 1, file_path.length());
+	if (file_name.length() > 0 && file_name[0] == ':')//unsupported file start
+	{
+		return false;
+	}
+	while (CreateDirectory(folder_path.c_str(), NULL) == FALSE)
+	{
+		if (ERROR_ALREADY_EXISTS == GetLastError())
+		{
+			return true;
+		}
+		TCHAR s_temp[MAX_PATH];
+		int k = folder_path.length();
+		strcpy(s_temp, folder_path.c_str());
+
+		while (CreateDirectory(s_temp, NULL) != TRUE)
+		{
+			while (s_temp[--k] != '\\')
+			{
+				if (k <= 1)
+				{
+					return false;
+				}
+				s_temp[k] = NULL;
+			}
+		}
+	}
+
+	return true;
 }

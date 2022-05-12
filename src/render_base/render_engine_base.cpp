@@ -216,6 +216,11 @@ XSI::CStatus RenderEngineBase::pre_render(XSI::RendererContext &render_context)
 	render_type = render_type_str == XSI::CString("Pass") ? RenderType_Pass :
 			(render_type_str == XSI::CString("Region") ? RenderType_Region : (
 			render_type_str == XSI::CString("Shaderball") ? RenderType_Shaderball : RenderType_Rendermap));
+	archive_folder = render_context.GetAttribute("ArchiveFileName");
+	if (render_type == RenderType_Pass && archive_folder.Length() > 0)
+	{
+		render_type = RenderType_Export;
+	}
 
 	if (render_type == RenderType_Pass && file_output && output_paths.GetCount() == 0)
 	{//this is Pass render, but nothing to render
@@ -340,6 +345,7 @@ XSI::CStatus RenderEngineBase::scene_process()
 		force_recreate_scene || 
 		render_type == RenderType_Pass || 
 		render_type == RenderType_Rendermap ||
+		render_type == RenderType_Export ||
 		dirty_refs_value.IsEmpty())
 	{//recreate the scene
 		force_recreate_scene = false;

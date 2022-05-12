@@ -16,6 +16,7 @@ enum RenderType
 	RenderType_Shaderball,
 	RenderType_Region,
 	RenderType_Rendermap,
+	RenderType_Export,
 	RenderType_Unknown
 };
 
@@ -42,6 +43,7 @@ public:
 	//these public variables can be used from render engine
 	RenderType render_type;
 	XSI::RendererContext m_render_context;  // save it in the pre_render method
+	XSI::CString archive_folder;
 	XSI::Property m_render_property;
 	XSI::CTime eval_time;
 	RenderVisualBuffer visual_buffer;

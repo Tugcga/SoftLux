@@ -50,3 +50,5 @@ luxcore::RenderSession* sync_render_config(luxcore::Scene* scene, const RenderTy
 
 void read_visual_buffer(luxcore::Film &film, luxcore::Film::FilmOutputType visual_type, RenderVisualBuffer &buffer);
 void copy_film_to_output_pixels(luxcore::Film& film, std::vector<float>& output_pixels, const XSI::CStringArray& output_channels);
+
+void export_scene(luxcore::RenderSession* session, XSI::RendererContext& render_context, const XSI::CString& archive_folder);

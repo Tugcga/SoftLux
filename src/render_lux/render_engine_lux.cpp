@@ -542,44 +542,52 @@ XSI::CStatus RenderEngineLux::post_scene()
 
 void RenderEngineLux::render()
 {
-	m_render_context.ProgressUpdate("Rendering...", "Rendering...", 0);
-
-	session->GetRenderConfig().Export("D:\\Graphic\\For Softimage\\_addons\\AddonDevelopWorkgroup\\Addons\\SoftLux\\Application\\Plugins\\bin\\nt-x86-64\\output\\");
-	//return;
-
-	session->Start();
-
-	//session->Pause();
-	//session->SaveResumeFile("D:\\Graphic\\For Softimage\\_addons\\AddonDevelopWorkgroup\\Addons\\SoftLux\\Application\\Plugins\\bin\\nt-x86-64\\render_session.rsm");
-	//session->Resume();
-
-	const luxrays::Properties& stats = session->GetStats();
-	luxcore::Film& film = session->GetFilm();
-	while (!session->HasDone())
+	log_message("call render type " + XSI::CString(render_type));
+	if (render_type == RenderType_Export)
 	{
-		session->UpdateStats();
-		const double elapsedTime = stats.Get("stats.renderengine.time").Get<double>();
-		const float convergence = stats.Get("stats.renderengine.convergence").Get<unsigned int>();
+		export_scene(session, m_render_context, archive_folder);
+	}
+	else
+	{
+		m_render_context.ProgressUpdate("Rendering...", "Rendering...", 0);
 
+		//session->GetRenderConfig().Export("D:\\Graphic\\For Softimage\\_addons\\AddonDevelopWorkgroup\\Addons\\SoftLux\\Application\\Plugins\\bin\\nt-x86-64\\output\\");
+		//return;
+
+		session->Start();
+
+		//session->Pause();
+		//session->SaveResumeFile("D:\\Graphic\\For Softimage\\_addons\\AddonDevelopWorkgroup\\Addons\\SoftLux\\Application\\Plugins\\bin\\nt-x86-64\\render_session.rsm");
+		//session->Resume();
+
+		const luxrays::Properties& stats = session->GetStats();
+		luxcore::Film& film = session->GetFilm();
+		while (!session->HasDone())
+		{
+			session->UpdateStats();
+			const double elapsedTime = stats.Get("stats.renderengine.time").Get<double>();
+			const float convergence = stats.Get("stats.renderengine.convergence").Get<unsigned int>();
+
+			read_visual_buffer(film, lux_visual_output_type, visual_buffer);
+			m_render_context.NewFragment(RenderTile(visual_buffer.corner_x, visual_buffer.corner_y, visual_buffer.width, visual_buffer.height, visual_buffer.pixels, false, 4));
+
+			//calculate percentage of the render samples, pass is done samples
+			const unsigned int pass = stats.Get("stats.renderengine.pass").Get<unsigned int>();
+			m_render_context.ProgressUpdate("Rendering...", "Rendering...", int((float)pass * 100.0f / (float)40));
+
+			std::this_thread::sleep_for(100ms);
+		}
+
+		session->Stop();
+
+		//after render fill the buffer at last time
 		read_visual_buffer(film, lux_visual_output_type, visual_buffer);
 		m_render_context.NewFragment(RenderTile(visual_buffer.corner_x, visual_buffer.corner_y, visual_buffer.width, visual_buffer.height, visual_buffer.pixels, false, 4));
 
-		//calculate percentage of the render samples, pass is done samples
-		const unsigned int pass = stats.Get("stats.renderengine.pass").Get<unsigned int>();
-		m_render_context.ProgressUpdate("Rendering...", "Rendering...", int((float)pass * 100.0f / (float)40));
-
-		std::this_thread::sleep_for(100ms);
+		//after render is finish, copy all rendered pixels from film to output_pixels
+		//next in post_render (before post_render_engine) we save it into images
+		copy_film_to_output_pixels(film, output_pixels, output_channels);
 	}
-
-	session->Stop();
-
-	//after render fill the buffer at last time
-	read_visual_buffer(film, lux_visual_output_type, visual_buffer);
-	m_render_context.NewFragment(RenderTile(visual_buffer.corner_x, visual_buffer.corner_y, visual_buffer.width, visual_buffer.height, visual_buffer.pixels, false, 4));
-
-	//after render is finish, copy all rendered pixels from film to output_pixels
-	//next in post_render (before post_render_engine) we save it into images
-	copy_film_to_output_pixels(film, output_pixels, output_channels);
 }
 
 XSI::CStatus RenderEngineLux::post_render_engine()
@@ -588,7 +596,14 @@ XSI::CStatus RenderEngineLux::post_render_engine()
 	double time = (finish_render_time - start_prepare_render_time) / CLOCKS_PER_SEC;
 	if (render_type != RenderType_Shaderball)
 	{
-		log_message("Render time: " + XSI::CString(time) + " sec.");
+		if (render_type == RenderType_Export)
+		{
+			log_message("Export time: " + XSI::CString(time) + " sec.");
+		}
+		else
+		{
+			log_message("Render time: " + XSI::CString(time) + " sec.");
+		}
 	}
 
 	return XSI::CStatus::OK;

@@ -1907,8 +1907,14 @@ std::string add_shape(luxcore::Scene* scene, std::string& input_shape_name, XSI:
 	XSI::CString prog_id = node.GetProgID();
 	XSI::CParameterRefArray parameters = node.GetParameters();
 	luxrays::Properties shape_props;
-	if (!ignore_subdivision && prog_id == "LUXShadersPlugin.ShapeSubdivision.1.0")
+	if (prog_id == "LUXShadersPlugin.ShapeSubdivision.1.0")
 	{
+		if (ignore_subdivision)
+		{
+			log_message("Subdivision shape is not supported for the mesh with vertex color. Skip subdividing.", XSI::siWarningMsg);
+			return input_shape_name;
+		}
+
 		std::string subshape_name = iterate_shape(scene, input_shape_name, parameters, exported_nodes_map, ignore_subdivision, eval_time);
 		std::string shape_name = subshape_name + "_subdivision";
 		std::string prefix = "scene.shapes." + shape_name;

@@ -179,3 +179,24 @@ bool create_dir(const std::string& file_path)
 
 	return true;
 }
+
+bool is_extension_ldr(const XSI::CString& ext)
+{
+	return ext == "png" ||
+		ext == "jpg" ||
+		ext == "bmp" ||
+		ext == "tga" ||
+		ext == "ppm";
+}
+
+bool is_extension_hdr(const XSI::CString& ext)
+{
+	return ext == "exr" ||
+		ext == "hdr";
+}
+
+XSI::CString get_file_extension(const XSI::CString& file_path)
+{
+	ULONG i = file_path.ReverseFindString(".");
+	return file_path.GetSubString(i + 1);
+}

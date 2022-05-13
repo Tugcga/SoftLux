@@ -531,7 +531,7 @@ XSI::CStatus RenderEngineLux::post_scene()
 	if (!is_session)
 	{
 		session = sync_render_config(scene, render_type, m_render_property, eval_time,
-			lux_visual_output_type, output_channels,
+			lux_visual_output_type, output_channels, output_paths,
 			image_corner_x, image_corner_x + image_size_width, image_corner_y, image_corner_y + image_size_height,
 			image_full_size_width, image_full_size_height);
 		is_session = true;

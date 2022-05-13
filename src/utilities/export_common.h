@@ -21,3 +21,7 @@ std::vector<std::string> xsi_object_id_string(XSI::ProjectItem& xsi_item);
 XSI::CString resolve_path(const XSI::CString& input_path);
 
 bool create_dir(const std::string& file_path);
+
+bool is_extension_ldr(const XSI::CString &ext);
+bool is_extension_hdr(const XSI::CString& ext);
+XSI::CString get_file_extension(const XSI::CString &file_path);

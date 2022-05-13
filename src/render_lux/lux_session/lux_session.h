@@ -44,7 +44,7 @@ bool is_lux_output_ldr(luxcore::Film::FilmOutputType output_type);
 
 void sync_imagepipline(luxrays::Properties& render_props, const XSI::CTime& eval_time);
 luxcore::RenderSession* sync_render_config(luxcore::Scene* scene, const RenderType render_type, const XSI::Property &render_property, const XSI::CTime &eval_time,
-	luxcore::Film::FilmOutputType lux_visual_output_type, const XSI::CStringArray& output_channels,
+	luxcore::Film::FilmOutputType lux_visual_output_type, const XSI::CStringArray& output_channels, const XSI::CStringArray& output_paths,
 	const int image_x_start, const int image_x_end, const int image_y_start, const int image_y_end,
 	const int image_width, const int image_height);
 

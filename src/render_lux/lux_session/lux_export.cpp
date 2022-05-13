@@ -4,7 +4,7 @@
 
 void export_scene(luxcore::RenderSession *session, XSI::RendererContext &render_context, const XSI::CString &archive_folder)
 {
-	std::string folder_path_str = std::string(replace_symbols(archive_folder, ".", "_").GetAsciiString()) + "\\";
+	std::string folder_path_str = std::string(archive_folder.GetAsciiString()) + "\\";
 	if (create_dir(folder_path_str))
 	{
 		//at first export text-base files

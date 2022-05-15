@@ -137,6 +137,8 @@ bool sync_instance(luxcore::Scene* scene,
 	const XSI::CTime& eval_time);
 
 void sync_shaderball_lights(luxcore::Scene* scene);
+void sync_shaderball_imagepipline(luxrays::Properties& render_props, const XSI::CTime& eval_time);
+
 bool sync_xsi_light(luxcore::Scene* scene, XSI::Light& xsi_light, const XSI::CTime& eval_time);
 bool update_light_object(luxcore::Scene* scene, XSI::X3DObject& xsi_object, const XSI::CTime& eval_time);
 void sync_ambient(luxcore::Scene* scene, const XSI::CTime& eval_time);

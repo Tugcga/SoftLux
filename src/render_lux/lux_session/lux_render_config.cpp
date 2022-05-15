@@ -3,6 +3,8 @@
 #include "../../utilities/xsi_shaders.h"
 #include "../../utilities/export_common.h"
 
+#include "../lux_scene/lux_scene.h"
+
 #include <set>
 
 //return true if the output must be ldr
@@ -59,6 +61,10 @@ luxcore::RenderSession* sync_render_config(luxcore::Scene* scene, const RenderTy
 	if (render_type != RenderType_Shaderball)
 	{
 		sync_imagepipline(render_props, eval_time);
+	}
+	else
+	{
+		sync_shaderball_imagepipline(render_props, eval_time);
 	}
 	
 	//outputs

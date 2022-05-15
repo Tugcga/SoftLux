@@ -200,3 +200,8 @@ XSI::CString get_file_extension(const XSI::CString& file_path)
 	ULONG i = file_path.ReverseFindString(".");
 	return file_path.GetSubString(i + 1);
 }
+
+bool is_file_exists(const XSI::CString& file_path)
+{
+	return std::filesystem::exists(file_path.GetAsciiString());
+}

@@ -447,6 +447,20 @@ vectordisplacement_axis_enum = [
     "2, 1, 0", "210"
 ]
 
+light_color_mode_enum = [
+    "RGB Color", "rgb",
+    "Temperature", "temperatur"
+]
+
+light_type_enum = [
+    "Point", "point",
+    "Distant", "distant",
+    "Spot", "spot",
+    "Projection", "projection",
+    "Area", "area",
+    "Laser", "laser"
+]
+
 def XSILoadPlugin(in_reg):
     in_reg.Author = "Shekn Itrch"
     in_reg.Name = "LUXShadersPlugin"
@@ -567,6 +581,9 @@ def XSILoadPlugin(in_reg):
     in_reg.RegisterShader("PassInfinite", 1, 0)
     in_reg.RegisterShader("PassSky", 1, 0)
     in_reg.RegisterShader("PassSun", 1, 0)
+
+    # light node
+    in_reg.RegisterShader("LightLuxcore", 1, 0)
 
     return true
 
@@ -3580,7 +3597,7 @@ def LUXShadersPlugin_Emission_1_0_Define(in_ctxt):
     ppg_layout.AddItem("importance", "Importance")
     ppg_layout.AddItem("theta", "Spread Angle")
     ppg_layout.AddItem("color", "Color")
-    ppg_layout.AddItem("lightgroup_id", "ID")
+    ppg_layout.AddItem("lightgroup_id", "Lightgroup")
     ppg_layout.AddEnumControl("dls_type", emission_dlstypes_enum, "DLS")
     ppg_layout.EndGroup()
 
@@ -5758,9 +5775,9 @@ def LUXShadersPlugin_TextureOpenVDB_1_0_Define(in_ctxt):
     # parameters
     add_input_string(nonport_param_options(), params, "", "file")
     add_input_string(nonport_param_options(), params, "half", "precision")
-    add_input_integer(nonport_param_options(), params, 1, "nx", 1, 1024)
-    add_input_integer(nonport_param_options(), params, 1, "ny", 1, 1024)
-    add_input_integer(nonport_param_options(), params, 1, "nz", 1, 1024)
+    add_input_integer(nonport_param_options(), params, 16, "nx", 1, 1024)
+    add_input_integer(nonport_param_options(), params, 16, "ny", 1, 1024)
+    add_input_integer(nonport_param_options(), params, 16, "nz", 1, 1024)
     add_input_string(nonport_param_options(), params, "density", "grid")
     add_input_3dmapping(standart_param_options(), params, None, "mapping_3d")
     # Output Parameter
@@ -5807,7 +5824,7 @@ def setup_default_volume_ppg(ppg_layout):
     ppg_layout.AddItem("absorption", "Absorption")
     ppg_layout.AddItem("ior", "IOR")
     ppg_layout.AddItem("emission", "Emission")
-    ppg_layout.AddItem("emission_id", "Emission ID")
+    ppg_layout.AddItem("emission_id", "Emission Lightgroup")
 
 #---------------------clear----------------------------------
 def LUXShadersPlugin_VolumeClear_1_0_DefineInfo(in_ctxt):
@@ -6226,5 +6243,195 @@ def LUXShadersPlugin_ShapeBevel_1_0_Define(in_ctxt):
     # Renderer definition
     rendererDef = shaderDef.AddRendererDef("LuxCore")
     rendererDef.SymbolName = "ShapeBevel"
+
+    return True
+
+#-------------------------------------------------------------------
+def LUXShadersPlugin_LightLuxcore_1_0_DefineInfo(in_ctxt):
+    in_ctxt.SetAttribute("Category", "LuxCore/Light")
+    in_ctxt.SetAttribute("DisplayName", "luxLight")
+    return True
+
+
+def LUXShadersPlugin_LightLuxcore_1_0_Define(in_ctxt):
+    shaderDef = in_ctxt.GetAttribute("Definition")
+    shaderDef.AddShaderFamily(c.siShaderFamilyLight)
+
+    # Input Parameter: input
+    params = shaderDef.InputParamDefs
+
+    # parameters
+    add_input_string(nonport_param_options(), params, "rgb", "color_mode")
+    add_input_color(nonport_param_options(), params, [1.0, 1.0, 1.0], "color")
+    add_input_float(nonport_param_options(), params, 6500.0, "temperature", 250.0, 10000.0)
+    add_input_string(nonport_param_options(), params, "artistic", "unit")
+    # artistic
+    add_input_float(nonport_param_options(), params, 1.0, "gain", 0.0, 4.0)
+    add_input_float(nonport_param_options(), params, 0.0, "exposure", -5.0, 5.0)
+    # power
+    add_input_float(nonport_param_options(), params, 100.0, "power", 1.0, 256.0)
+    add_input_float(nonport_param_options(), params, 17.0, "efficency", 1.0, 64.0)
+    # lumen
+    add_input_float(nonport_param_options(), params, 1000.0, "lumen", 256.0, 4096.0)
+    # candela
+    add_input_float(nonport_param_options(), params, 80.0, "candela", 1.0, 256.0)
+
+    add_input_boolean(nonport_param_options(), params, False, "normalized")
+    add_input_string(nonport_param_options(), params, "point", "light_type")
+    add_input_float(nonport_param_options(), params, 0.1, "point_size", 0.0, 2.0)
+    add_input_float(nonport_param_options(), params, 5.0, "spot_delta_angle", 0.0, 30.0)
+    add_input_image(standart_param_options(), params, "", "map")
+    add_input_string(nonport_param_options(), params, "", "ies_file")
+    add_input_float(nonport_param_options(), params, 45.0, "projection_fov", 0.0, 90.0)
+    add_input_float(nonport_param_options(), params, 2.2, "gamma", 1.0, 4.0)
+    add_input_float(nonport_param_options(), params, 90.0, "theta", 0.0, 90.0)
+    add_input_float(nonport_param_options(), params, 1.0, "importance", 0.0, 2.0)
+    add_input_integer(nonport_param_options(), params, 0, "lightgroup_id", 0, 7)
+    # Output Parameter
+    add_output_closure(shaderDef, "light")
+
+    # next init ppg
+    ppg_layout = shaderDef.PPGLayout
+    ppg_layout.AddGroup("Color")
+    ppg_layout.AddEnumControl("color_mode", light_color_mode_enum, "Color Mode")
+    ppg_layout.AddItem("color", "Color")
+    ppg_layout.AddItem("temperature", "Temperature")
+    ppg_layout.EndGroup()
+    ppg_layout.AddGroup("Intencity")
+    ppg_layout.AddEnumControl("unit", emission_units_enum, "Unit")
+    ppg_layout.AddItem("gain", "Gain")
+    ppg_layout.AddItem("exposure", "Exposure")
+    ppg_layout.AddItem("power", "Power")
+    ppg_layout.AddItem("efficency", "Efficency")
+    ppg_layout.AddItem("lumen", "Lumen")
+    ppg_layout.AddItem("candela", "Candela")
+    ppg_layout.AddItem("normalized", "Normalized by Color Luminancy")
+    ppg_layout.EndGroup()
+    ppg_layout.AddGroup("Parameters")
+    ppg_layout.AddEnumControl("light_type", light_type_enum, "Type")
+    ppg_layout.AddItem("point_size", "Size")  # for point this is a radius, for distant this is the theta angle in radians
+    file_item = ppg_layout.AddItem("ies_file", "IES File", c.siControlFilePath)
+    file_item.SetAttribute(c.siUIOpenFile, True)
+    file_item.SetAttribute(c.siUIFileFilter, "IES file (*.ies)|*.ies|")
+    file_item.SetAttribute(c.siUIFileMustExist, True)
+    ppg_layout.AddItem("spot_delta_angle", "Fade Angle")
+    ppg_layout.AddItem("projection_fov", "FOV")
+    ppg_layout.AddItem("theta", "Area Spread")
+    ppg_layout.AddItem("gamma", "Gamma")
+    ppg_layout.AddItem("map", "Map")
+    ppg_layout.AddItem("importance", "Importance")
+    ppg_layout.AddItem("lightgroup_id", "Lightgroup")
+    ppg_layout.EndGroup()
+
+    ppg_layout.Language = "Python"
+    ppg_layout.Logic = '''
+def update(prop):
+    color_mode = prop.Parameters("color_mode").Value
+    if color_mode == "rgb":
+        prop.Parameters("color").ReadOnly = False
+        prop.Parameters("temperature").ReadOnly = True
+    else:
+        prop.Parameters("color").ReadOnly = True
+        prop.Parameters("temperature").ReadOnly = False
+
+    unit = prop.Parameters("unit").Value
+    if unit == "artistic":
+        prop.Parameters("gain").ReadOnly = False
+        prop.Parameters("exposure").ReadOnly = False
+        prop.Parameters("power").ReadOnly = True
+        prop.Parameters("efficency").ReadOnly = True
+        prop.Parameters("lumen").ReadOnly = True
+        prop.Parameters("candela").ReadOnly = True
+        prop.Parameters("normalized").ReadOnly = True
+    elif unit == "power":
+        prop.Parameters("gain").ReadOnly = True
+        prop.Parameters("exposure").ReadOnly = True
+        prop.Parameters("power").ReadOnly = False
+        prop.Parameters("efficency").ReadOnly = False
+        prop.Parameters("lumen").ReadOnly = True
+        prop.Parameters("candela").ReadOnly = True
+        prop.Parameters("normalized").ReadOnly = False
+    elif unit == "lumen":
+        prop.Parameters("gain").ReadOnly = True
+        prop.Parameters("exposure").ReadOnly = True
+        prop.Parameters("power").ReadOnly = True
+        prop.Parameters("efficency").ReadOnly = True
+        prop.Parameters("lumen").ReadOnly = False
+        prop.Parameters("candela").ReadOnly = True
+        prop.Parameters("normalized").ReadOnly = False
+    elif unit == "candela":
+        prop.Parameters("gain").ReadOnly = True
+        prop.Parameters("exposure").ReadOnly = True
+        prop.Parameters("power").ReadOnly = True
+        prop.Parameters("efficency").ReadOnly = True
+        prop.Parameters("lumen").ReadOnly = True
+        prop.Parameters("candela").ReadOnly = False
+        prop.Parameters("normalized").ReadOnly = False
+
+    light_type = prop.Parameters("light_type").Value
+    if light_type == "point" or light_type == "distant" or light_type == "laser":
+        prop.Parameters("point_size").ReadOnly = False
+        prop.Parameters("spot_delta_angle").ReadOnly = True
+        prop.Parameters("projection_fov").ReadOnly = True
+        prop.Parameters("theta").ReadOnly = True
+    elif light_type == "spot":
+        prop.Parameters("point_size").ReadOnly = True
+        prop.Parameters("spot_delta_angle").ReadOnly = False
+        prop.Parameters("projection_fov").ReadOnly = True
+        prop.Parameters("theta").ReadOnly = True
+    elif light_type == "projection":
+        prop.Parameters("point_size").ReadOnly = True
+        prop.Parameters("spot_delta_angle").ReadOnly = True
+        prop.Parameters("projection_fov").ReadOnly = False
+        prop.Parameters("theta").ReadOnly = True
+    elif light_type == "area":
+        prop.Parameters("point_size").ReadOnly = True
+        prop.Parameters("spot_delta_angle").ReadOnly = True
+        prop.Parameters("projection_fov").ReadOnly = True
+        prop.Parameters("theta").ReadOnly = False
+
+    if light_type == "point" or light_type == "projection" or light_type == "area":
+        prop.Parameters("map").ReadOnly = False
+        prop.Parameters("gamma").ReadOnly = False
+    else:
+        prop.Parameters("map").ReadOnly = True
+        prop.Parameters("gamma").ReadOnly = True
+
+    if light_type == "point":
+        prop.Parameters("ies_file").ReadOnly = False
+    else:
+        prop.Parameters("ies_file").ReadOnly = True
+
+    if light_type == "distant":
+        prop.Parameters("unit").ReadOnly = True
+        prop.Parameters("power").ReadOnly = True
+        prop.Parameters("efficency").ReadOnly = True
+        prop.Parameters("lumen").ReadOnly = True
+        prop.Parameters("candela").ReadOnly = True
+        prop.Parameters("gain").ReadOnly = False
+        prop.Parameters("exposure").ReadOnly = False
+    else:
+        prop.Parameters("unit").ReadOnly = False
+
+def OnInit():
+    prop = PPG.Inspected(0)
+    update(prop)
+
+def color_mode_OnChanged():
+    prop = PPG.Inspected(0)
+    update(prop)
+
+def unit_OnChanged():
+    prop = PPG.Inspected(0)
+    update(prop)
+
+def light_type_OnChanged():
+    prop = PPG.Inspected(0)
+    update(prop)
+'''
+
+    # Renderer definition
+    rendererDef = shaderDef.AddRendererDef("LuxCore")
+    rendererDef.SymbolName = "LightLuxcore"
 
     return True

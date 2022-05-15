@@ -8,6 +8,210 @@
 #include "xsi_pass.h"
 #include "xsi_imageclip2.h"
 
+#include <cmath>
+
+void set_light_intencity(luxrays::Properties &light_props, std::string prefix,
+	const XSI::CString& color_mode,
+	const XSI::CString &unit,
+	bool is_spot,
+	float spot_size,
+	float color_r, float color_g, float color_b,
+	float temperature,
+	float gain,
+	float power,
+	float efficency,
+	float lumen,
+	float candela,
+	bool normalized)
+{
+	if (color_mode == "rgb")
+	{
+		light_props.Set(luxrays::Property(prefix + ".color")(color_r, color_g, color_b));
+	}
+	else
+	{
+		light_props.Set(luxrays::Property(prefix + ".color")(1.0f, 1.0f, 1.0f));
+		light_props.Set(luxrays::Property(prefix + ".temperature")(temperature));
+		light_props.Set(luxrays::Property(prefix + ".temperature.normalize")(true));
+	}
+
+	if (unit == "power")
+	{
+		if (power < 0.0001f || efficency < 0.0001f)
+		{
+			gain = 0.0f;
+		}
+		else
+		{
+			gain = 1.0f;
+		}
+	}
+	else if (unit == "lumen")
+	{
+		efficency = 1.0f;
+		power = lumen;
+		if (lumen < 0.0001f)
+		{
+			gain = 0.0f;
+		}
+		else
+		{
+			gain = 1.0f;
+		}
+	}
+	else if (unit == "candela")
+	{
+		efficency = 1.0f;
+		if (is_spot)
+		{
+			power = candela * 2.0f * M_PI * (1.0f - cos(DEG2RADF(spot_size) / 2));
+		}
+		else
+		{
+			power = candela * 4.0f * M_PI;
+		}
+		if (candela < 0.0001f)
+		{
+			gain = 0.0f;
+		}
+		else
+		{
+			gain = 1.0f;
+		}
+	}
+	else
+	{
+		efficency = 0.0f;
+		power = 0.0f;
+		normalized = false;
+	}
+
+	//set calculated values of gain, power, efficency and normalized
+	light_props.Set(luxrays::Property(prefix + ".efficency")(efficency));
+	light_props.Set(luxrays::Property(prefix + ".power")(power));
+	light_props.Set(luxrays::Property(prefix + ".normalizebycolor")(normalized));
+	light_props.Set(luxrays::Property(prefix + ".gain")(gain, gain, gain));
+}
+
+XSI::CString get_map_path(XSI::ShaderParameter &map_parameter)
+{
+	XSI::Parameter tex_param_finall = get_source_parameter(map_parameter);
+	XSI::CRef tex_source = tex_param_finall.GetSource();
+	if (tex_source.IsValid())
+	{
+		XSI::ImageClip2 clip(tex_source);
+		XSI::CString file_path = clip.GetFileName();
+		if (is_file_exists(file_path))
+		{
+			return file_path;
+		}
+		else
+		{
+			return "";
+		}
+	}
+	else
+	{
+		return "";
+	}
+}
+
+void setup_area_light(luxcore::Scene *scene, luxrays::Properties &light_props, const std::string &prefix, const std::string & light_name,
+	bool is_visible,
+	float color_r, float color_g, float color_b,
+	float gain, float power, float efficency, float lumen, float candela,
+	float spread_angle,
+	const XSI::CString &unit,
+	bool normalized,
+	const XSI::CString &map_file, float gamma,
+	float size_x, float size_y,
+	float rotation_x, float rotation_y, float rotation_z,
+	XSI::MATH::CTransformation &xsi_transform,
+	int lightgroup, float importance)
+{
+	//export are shape
+	std::string area_shape_name = "area_light";
+	if (!scene->IsMeshDefined(area_shape_name))
+	{
+		define_area_light_mesh(scene, area_shape_name);
+	}
+	//add object to the scene
+	light_props.Set(luxrays::Property(prefix + ".shape")(area_shape_name));
+	//set it visible/invisible for the camera
+	light_props.Set(luxrays::Property(prefix + ".camerainvisible")(!is_visible));
+	//define emission material
+	std::string mat_name = light_name + "_emission";
+	std::string material_prefix = "scene.materials." + mat_name + ".emission";
+	luxrays::Properties material_props;
+	material_props.Set(luxrays::Property("scene.materials." + mat_name + ".type")("matte"));
+	material_props.Set(luxrays::Property("scene.materials." + mat_name + ".kd")(0.0, 0.0, 0.0));
+	material_props.Set(luxrays::Property("scene.materials." + mat_name + ".emission")(color_r, color_g, color_b));
+
+	if (unit == "power")
+	{
+		material_props.Set(luxrays::Property(material_prefix + ".power")(power / (2.0f * M_PI * (1.0f - cos(DEG2RADF(spread_angle) / 2.0f)))));
+		material_props.Set(luxrays::Property(material_prefix + ".efficency")(efficency));
+		material_props.Set(luxrays::Property(material_prefix + ".normalizebycolor")(normalized));
+
+		if (power < 0.0001f || efficency < 0.0001f) { material_props.Set(luxrays::Property(material_prefix + ".gain")(0.0, 0.0, 0.0)); }
+		else { material_props.Set(luxrays::Property(material_prefix + ".gain")(1.0, 1.0, 1.0)); }
+	}
+	else if (unit == "lumen")
+	{
+		material_props.Set(luxrays::Property(material_prefix + ".power")(lumen / (2.0f * M_PI * (1.0f - cos(DEG2RADF(spread_angle) / 2.0f)))));
+		material_props.Set(luxrays::Property(material_prefix + ".efficency")(1.0));
+		material_props.Set(luxrays::Property(material_prefix + ".normalizebycolor")(normalized));
+		if (lumen < 0.0001f) { material_props.Set(luxrays::Property(material_prefix + ".gain")(0.0, 0.0, 0.0)); }
+		else { material_props.Set(luxrays::Property(material_prefix + ".gain")(1.0, 1.0, 1.0)); }
+	}
+	else if (unit == "candela")
+	{
+		material_props.Set(luxrays::Property(material_prefix + ".power")(0));
+		material_props.Set(luxrays::Property(material_prefix + ".efficency")(0));
+		material_props.Set(luxrays::Property(material_prefix + ".gain")(candela, candela, candela));
+		material_props.Set(luxrays::Property(material_prefix + ".normalizebycolor")(normalized));
+	}
+	else
+	{
+		material_props.Set(luxrays::Property(material_prefix + ".power")(0));
+		material_props.Set(luxrays::Property(material_prefix + ".efficency")(0));
+		material_props.Set(luxrays::Property(material_prefix + ".gain")(gain, gain, gain));
+		material_props.Set(luxrays::Property(material_prefix + ".normalizebycolor")(false));
+		material_props.Set(luxrays::Property(material_prefix + ".gain.normalizebycolor")(false));
+	}
+	material_props.Set(luxrays::Property(material_prefix + ".theta")(spread_angle));
+	material_props.Set(luxrays::Property(material_prefix + ".id")(lightgroup));
+	material_props.Set(luxrays::Property(material_prefix + ".importance")(importance));
+	if (map_file.Length() > 0)
+	{
+		material_props.Set(luxrays::Property(material_prefix + ".mapfile")(map_file.GetAsciiString()));
+		material_props.Set(luxrays::Property(material_prefix + ".gamma")(gamma));
+	}
+	scene->Parse(material_props);
+
+	light_props.Set(luxrays::Property(prefix + ".material")(mat_name));
+	//set transform
+	XSI::MATH::CMatrix4 xsi_matrix = xsi_transform.GetMatrix4();
+	XSI::MATH::CMatrix4 scale_matrix;
+	scale_matrix.SetIdentity();
+	scale_matrix.SetValue(0, 0, size_x * 0.5 / xsi_transform.GetSclX());
+	scale_matrix.SetValue(1, 1, size_y * 0.5 / xsi_transform.GetSclY());
+	scale_matrix.SetValue(2, 2, 1.0 / xsi_transform.GetSclZ());
+
+	//also we should rotate the light source
+	XSI::MATH::CTransformation rotate_tfm;
+	rotate_tfm.SetIdentity();
+	rotate_tfm.SetRotX(rotation_x);
+	rotate_tfm.SetRotY(rotation_y);
+	rotate_tfm.SetRotZ(rotation_z);
+	XSI::MATH::CMatrix4 rotate_matrix = rotate_tfm.GetMatrix4();
+	rotate_matrix.MulInPlace(xsi_matrix);
+	scale_matrix.MulInPlace(rotate_matrix);
+
+	std::vector<double> lux_matrix = xsi_to_lux_matrix(scale_matrix);
+	light_props.Set(luxrays::Property(prefix + ".transformation")(lux_matrix));
+}
+
 //here we convert built-in XSI lights
 bool sync_xsi_light(luxcore::Scene* scene, XSI::Light &xsi_light, const XSI::CTime &eval_time)
 {
@@ -16,8 +220,20 @@ bool sync_xsi_light(luxcore::Scene* scene, XSI::Light &xsi_light, const XSI::CTi
 		//get light type
 		int light_type = xsi_light.GetParameterValue("Type", eval_time);
 		bool is_area = xsi_light.GetParameterValue("LightArea", eval_time);
+		//and other parameters from XSI primitives
+		bool is_visible = xsi_light.GetParameterValue("LightAreaVisible", eval_time);
+		//area light params
+		float size_x = xsi_light.GetParameterValue("LightAreaXformSX", eval_time);
+		float size_y = xsi_light.GetParameterValue("LightAreaXformSY", eval_time);
+		float rotation_x = xsi_light.GetParameterValue("LightAreaXformRX", eval_time);
+		float rotation_y = xsi_light.GetParameterValue("LightAreaXformRY", eval_time);
+		float rotation_z = xsi_light.GetParameterValue("LightAreaXformRZ", eval_time);
 
-		//try to get soft light shader
+		//get cone parameter
+		float cone = (float)xsi_light.GetParameterValue("LightCone", eval_time);
+		XSI::MATH::CTransformation xsi_transform = xsi_light.GetKinematics().GetGlobal().GetTransform();
+
+		//try to get light shader
 		XSI::CRefArray light_shaders = xsi_light.GetShaders();
 		std::vector<XSI::ShaderParameter> root_parameter_array = get_root_shader_parameter(light_shaders, GRSPM_ParameterName, "LightShader", false, "", "");
 		if (root_parameter_array.size() > 0)
@@ -49,59 +265,14 @@ bool sync_xsi_light(luxcore::Scene* scene, XSI::Light &xsi_light, const XSI::CTi
 				if (is_area)
 				{
 					//if area is active, then interpret this light as are light
-					//export are shape
-					std::string area_shape_name = "area_light";
-					if (!scene->IsMeshDefined(area_shape_name))
-					{
-						define_area_light_mesh(scene, area_shape_name);
-					}
-					//add object to the scene
 					luxrays::Properties light_props;
-					light_props.Set(luxrays::Property("scene.objects." + light_name + ".shape")(area_shape_name));
-					//set it visible/invisible for the camera
-					bool is_visible = xsi_light.GetParameterValue("LightAreaVisible", eval_time);
-					light_props.Set(luxrays::Property("scene.objects." + light_name + ".camerainvisible")(!is_visible));
-					//define emission material
-					std::string mat_name = light_name + "_emission";
-					luxrays::Properties material_props;
-					material_props.Set(luxrays::Property("scene.materials." + mat_name + ".type")("matte"));
-					material_props.Set(luxrays::Property("scene.materials." + mat_name + ".kd")(0.0, 0.0, 0.0));
-					material_props.Set(luxrays::Property("scene.materials." + mat_name + ".emission")(color_r, color_g, color_b));
-					//apply scale along x and y axis
-					float size_x = xsi_light.GetParameterValue("LightAreaXformSX", eval_time);
-					float size_y = xsi_light.GetParameterValue("LightAreaXformSY", eval_time);
-					material_props.Set(luxrays::Property("scene.materials." + mat_name + ".emission.gain")(intensity, intensity, intensity));
-					//set spread = 90.0
-					material_props.Set(luxrays::Property("scene.materials." + mat_name + ".emission.theta")(90.0));
-					scene->Parse(material_props);
+					setup_area_light(scene, light_props, "scene.objects." + light_name, light_name, is_visible, color_r, color_g, color_b, 
+						intensity, 0.0, 0.0, 0.0, 0.0,
+						90.0f, "artistic", false, "", 2.2f,
+						size_x, size_y, rotation_x, rotation_y, rotation_z, xsi_transform,
+						0, 1.0f);
 
-					light_props.Set(luxrays::Property("scene.objects." + light_name + ".material")(mat_name));
-					//set transform
-					XSI::MATH::CTransformation xsi_transform = xsi_light.GetKinematics().GetGlobal().GetTransform();
-					XSI::MATH::CMatrix4 xsi_matrix = xsi_transform.GetMatrix4();
-					XSI::MATH::CMatrix4 scale_matrix;
-					scale_matrix.SetIdentity();
-					scale_matrix.SetValue(0, 0, size_x * 0.5 / xsi_transform.GetSclX());
-					scale_matrix.SetValue(1, 1, size_y * 0.5 / xsi_transform.GetSclY());
-					scale_matrix.SetValue(2, 2, 1.0 / xsi_transform.GetSclZ());
-
-					//also we should rotate the light source
-					XSI::MATH::CTransformation rotate_tfm;
-					rotate_tfm.SetIdentity();
-					float rotation_x = xsi_light.GetParameterValue("LightAreaXformRX", eval_time);
-					float rotation_y = xsi_light.GetParameterValue("LightAreaXformRY", eval_time);
-					float rotation_z = xsi_light.GetParameterValue("LightAreaXformRZ", eval_time);
-					rotate_tfm.SetRotX(rotation_x);
-					rotate_tfm.SetRotY(rotation_y);
-					rotate_tfm.SetRotZ(rotation_z);
-					XSI::MATH::CMatrix4 rotate_matrix = rotate_tfm.GetMatrix4();
-					rotate_matrix.MulInPlace(xsi_matrix);
-					scale_matrix.MulInPlace(rotate_matrix);
-					
-					std::vector<double> lux_matrix = xsi_to_lux_matrix(scale_matrix);
-					light_props.Set(luxrays::Property("scene.objects." + light_name + ".transformation")(lux_matrix));
 					scene->Parse(light_props);
-
 					return true;
 				}
 				else
@@ -110,7 +281,7 @@ bool sync_xsi_light(luxcore::Scene* scene, XSI::Light &xsi_light, const XSI::CTi
 					{//this is point light
 						luxrays::Properties light_props;
 						light_props.Set(luxrays::Property("scene.lights." + light_name + ".type")("point"));
-						std::array<float, 3> position = xsi_to_lux_vector(xsi_light.GetKinematics().GetGlobal().GetTransform().GetTranslation());
+						std::array<float, 3> position = xsi_to_lux_vector(xsi_transform.GetTranslation());
 						light_props.Set(luxrays::Property("scene.lights." + light_name + ".position")(position[0], position[1], position[2]));
 						light_props.Set(luxrays::Property("scene.lights." + light_name + ".color")(color_r, color_g, color_b));
 						light_props.Set(luxrays::Property("scene.lights." + light_name + ".gain")(intensity, intensity, intensity));
@@ -134,7 +305,7 @@ bool sync_xsi_light(luxcore::Scene* scene, XSI::Light &xsi_light, const XSI::CTi
 						}
 						
 						//direction is local z-direction
-						XSI::MATH::CMatrix4 tfm_matrix = xsi_light.GetKinematics().GetGlobal().GetTransform().GetMatrix4();
+						XSI::MATH::CMatrix4 tfm_matrix = xsi_transform.GetMatrix4();
 						//set direction z-row of the matrix, but swap values (x, y, z) -> (z, x, y)
 						light_props.Set(luxrays::Property("scene.lights." + light_name + ".direction")(-tfm_matrix.GetValue(2, 2), -tfm_matrix.GetValue(2, 0), -tfm_matrix.GetValue(2, 1)));
 						light_props.Set(luxrays::Property("scene.lights." + light_name + ".gain")(intensity, intensity, intensity));
@@ -145,14 +316,11 @@ bool sync_xsi_light(luxcore::Scene* scene, XSI::Light &xsi_light, const XSI::CTi
 					}
 					else if (light_type == 2)
 					{//this is spot light
-						//get cone parameter
-						float cone = (float)xsi_light.GetParameterValue("LightCone", eval_time);
-
 						luxrays::Properties light_props;
 						light_props.Set(luxrays::Property("scene.lights." + light_name + ".type")("spot"));
 						//set position
-						XSI::MATH::CMatrix4 xsi_matrix = xsi_light.GetKinematics().GetGlobal().GetTransform().GetMatrix4();
-						std::array<float, 3> position = xsi_to_lux_vector(xsi_light.GetKinematics().GetGlobal().GetTransform().GetTranslation());
+						XSI::MATH::CMatrix4 xsi_matrix = xsi_transform.GetMatrix4();
+						std::array<float, 3> position = xsi_to_lux_vector(xsi_transform.GetTranslation());
 						light_props.Set(luxrays::Property("scene.lights." + light_name + ".position")(position[0], position[1], position[2]));
 						//spot target is default (0, 0, 1)
 						//set transform
@@ -171,6 +339,219 @@ bool sync_xsi_light(luxcore::Scene* scene, XSI::Light &xsi_light, const XSI::CTi
 					}
 					else
 					{//unknown light type
+						return false;
+					}
+				}
+			}
+			else if (light_node.IsValid() && light_node.GetProgID() == "LUXShadersPlugin.LightLuxcore.1.0")
+			{
+				//this is custom light shader
+				XSI::CParameterRefArray all_params = light_node.GetParameters();
+				XSI::MATH::CColor4f color = get_color_parameter_value(all_params, "color", eval_time);
+				float color_r = color.GetR();
+				float color_g = color.GetG();
+				float color_b = color.GetB();
+				float temperature = get_float_parameter_value(all_params, "temperature", eval_time);
+				XSI::CString color_mode = get_string_parameter_value(all_params, "color_mode", eval_time);
+
+				//next values for different intencity modes
+				float gain = get_float_parameter_value(all_params, "gain", eval_time);
+				float exposure = get_float_parameter_value(all_params, "exposure", eval_time);
+				float power = get_float_parameter_value(all_params, "power", eval_time);
+				float efficency = get_float_parameter_value(all_params, "efficency", eval_time);
+				float lumen = get_float_parameter_value(all_params, "lumen", eval_time);
+				float candela = get_float_parameter_value(all_params, "candela", eval_time);
+				bool normalized = get_float_parameter_value(all_params, "normalized", eval_time);
+
+				//light type
+				XSI::CString light_type = get_string_parameter_value(all_params, "light_type", eval_time);
+				XSI::CString unit = get_string_parameter_value(all_params, "unit", eval_time);
+
+				float importance = get_float_parameter_value(all_params, "importance", eval_time);
+				int lightgroup_id = get_int_parameter_value(all_params, "lightgroup_id", eval_time);
+
+				root_parameter_array.clear();
+				
+				//setup light object common parameters
+				std::string light_name = xsi_object_id_string(xsi_light)[0];
+				if (light_type == "area")
+				{
+					//for area light we should create an object and setup emission material for it
+					luxrays::Properties light_props;
+					float theta = get_float_parameter_value(all_params, "theta", eval_time);
+					float gamma = get_float_parameter_value(all_params, "gamma", eval_time);
+
+					XSI::ShaderParameter map_param = all_params.GetItem("map");
+					setup_area_light(scene, light_props, "scene.objects." + light_name, light_name, is_visible, color_r, color_g, color_b, 
+						gain* powf(2, exposure), power, efficency, lumen, candela, theta, unit, normalized, get_map_path(map_param), gamma,
+						size_x, size_y, rotation_x, rotation_y, rotation_z, xsi_transform,
+						lightgroup_id, importance);
+
+					scene->Parse(light_props);
+					return true;
+				}
+				else
+				{
+					luxrays::Properties light_props;
+					light_props.Set(luxrays::Property("scene.lights." + light_name + ".id")(lightgroup_id));
+					light_props.Set(luxrays::Property("scene.lights." + light_name + ".importance")(importance));
+					//also transform
+					XSI::MATH::CMatrix4 xsi_matrix = xsi_transform.GetMatrix4();
+					std::vector<double> lux_matrix = xsi_to_lux_matrix(xsi_matrix);
+					if (light_type != "distant")
+					{
+						light_props.Set(luxrays::Property("scene.lights." + light_name + ".transformation")(lux_matrix));
+					}
+					
+					//next setup color and intencity
+					float gain_exposure = gain * powf(2, exposure);
+					float point_size = get_float_parameter_value(all_params, "point_size", eval_time);
+					if (light_type != "distant")
+					{
+						//for all lights except distante set color amd intensity
+						set_light_intencity(light_props, "scene.lights." + light_name, color_mode, unit, light_type == "spot", cone, color_r, color_g, color_b, temperature, gain_exposure, power, efficency, lumen, candela, normalized);
+					}
+					else
+					{
+						//for distant light we should set only the color
+						if (point_size > 0.1f)
+						{
+							gain_exposure *= get_distant_light_normalization_factor(point_size);
+						}
+						light_props.Set(luxrays::Property("scene.lights." + light_name + ".gain")(gain_exposure, gain_exposure, gain_exposure));
+						light_props.Set(luxrays::Property("scene.lights." + light_name + ".color")(color_r, color_g, color_b));
+					}
+
+					//next set type of the light and all other parameters
+					if (light_type == "point")
+					{
+						//if the size is small then the light source is point or mappoint
+						//is the size is not very small, then this is sphere or mapsphere
+						XSI::ShaderParameter map_param = all_params.GetItem("map");
+						XSI::CString map_path = get_map_path(map_param);
+						XSI::CString ies_file = get_string_parameter_value(all_params, "ies_file", eval_time);
+						bool is_ies = ies_file.Length() > 0 && is_file_exists(ies_file) && get_file_extension(ies_file) == "ies";
+						bool is_map = map_path.Length() > 0;
+						bool is_map_light = is_map || is_ies;
+						float gamma = get_float_parameter_value(all_params, "gamma", eval_time);
+						bool try_setup_ies = false;
+						if (point_size < 0.0001f)
+						{//point
+							if (is_map_light)
+							{//mappoint
+								light_props.Set(luxrays::Property("scene.lights." + light_name + ".type")("mappoint"));
+								if (is_ies)
+								{
+									light_props.Set(luxrays::Property("scene.lights." + light_name + ".iesfile")(ies_file.GetAsciiString()));
+									light_props.Set(luxrays::Property("scene.lights." + light_name + ".flipz")(true));
+								}
+								if (is_map)
+								{
+									light_props.Set(luxrays::Property("scene.lights." + light_name + ".mapfile")(map_path.GetAsciiString()));
+									light_props.Set(luxrays::Property("scene.lights." + light_name + ".gamma")(gamma));
+								}
+							}
+							else
+							{//point
+								light_props.Set(luxrays::Property("scene.lights." + light_name + ".type")("point"));
+							}
+						}
+						else
+						{//sphere
+							if (is_map_light)
+							{//mapsphere
+								light_props.Set(luxrays::Property("scene.lights." + light_name + ".type")("mapsphere"));
+								light_props.Set(luxrays::Property("scene.lights." + light_name + ".radius")(point_size));
+								if (is_ies)
+								{
+									light_props.Set(luxrays::Property("scene.lights." + light_name + ".iesfile")(ies_file.GetAsciiString()));
+									light_props.Set(luxrays::Property("scene.lights." + light_name + ".flipz")(true));
+								}
+								if (is_map)
+								{
+									light_props.Set(luxrays::Property("scene.lights." + light_name + ".mapfile")(map_path.GetAsciiString()));
+									light_props.Set(luxrays::Property("scene.lights." + light_name + ".gamma")(gamma));
+								}
+							}
+							else
+							{//sphere
+								light_props.Set(luxrays::Property("scene.lights." + light_name + ".type")("sphere"));
+								light_props.Set(luxrays::Property("scene.lights." + light_name + ".radius")(point_size));
+							}
+						}
+
+						scene->Parse(light_props);
+						return true;
+					}
+					else if (light_type == "distant")
+					{
+						if (point_size < 0.1f)
+						{
+							light_props.Set(luxrays::Property("scene.lights." + light_name + ".type")("sharpdistant"));
+						}
+						else
+						{
+							light_props.Set(luxrays::Property("scene.lights." + light_name + ".type")("distant"));
+							light_props.Set(luxrays::Property("scene.lights." + light_name + ".theta")(point_size));
+						}
+
+						//direction is local z-direction
+						XSI::MATH::CMatrix4 tfm_matrix = xsi_transform.GetMatrix4();
+						light_props.Set(luxrays::Property("scene.lights." + light_name + ".direction")(-tfm_matrix.GetValue(2, 2), -tfm_matrix.GetValue(2, 0), -tfm_matrix.GetValue(2, 1)));
+						
+						scene->Parse(light_props);
+						return true;
+					}
+					else if (light_type == "spot")
+					{
+						light_props.Set(luxrays::Property("scene.lights." + light_name + ".type")("spot"));
+						light_props.Set(luxrays::Property("scene.lights." + light_name + ".position")(0.0f, 0.0f, 0.0f));
+						light_props.Set(luxrays::Property("scene.lights." + light_name + ".target")(0.0f, 0.0f, -1.0f));
+
+						light_props.Set(luxrays::Property("scene.lights." + light_name + ".coneangle")(cone));
+						float spot_delta_angle = get_float_parameter_value(all_params, "spot_delta_angle", eval_time);
+						light_props.Set(luxrays::Property("scene.lights." + light_name + ".conedeltaangle")(spot_delta_angle));
+
+						scene->Parse(light_props);
+						return true;
+					}
+					else if (light_type == "projection")
+					{
+						light_props.Set(luxrays::Property("scene.lights." + light_name + ".type")("projection"));
+						light_props.Set(luxrays::Property("scene.lights." + light_name + ".position")(0.0f, 0.0f, 0.0f));
+						light_props.Set(luxrays::Property("scene.lights." + light_name + ".target")(0.0f, 0.0f, -1.0f));
+
+						//set fov and gamma
+						float projection_fov = get_float_parameter_value(all_params, "projection_fov", eval_time);
+						float gamma = get_float_parameter_value(all_params, "gamma", eval_time);
+						light_props.Set(luxrays::Property("scene.lights." + light_name + ".fov")(projection_fov));
+						light_props.Set(luxrays::Property("scene.lights." + light_name + ".gamma")(gamma));
+						//try to get the image
+						XSI::ShaderParameter map_param = all_params.GetItem("map");
+						XSI::CString map_path = get_map_path(map_param);
+						if (map_path.Length() > 0)
+						{
+							light_props.Set(luxrays::Property("scene.lights." + light_name + ".mapfile")(map_path.GetAsciiString()));
+						}
+
+						scene->Parse(light_props);
+						return true;
+					}
+					else if (light_type == "laser")
+					{
+						light_props.Set(luxrays::Property("scene.lights." + light_name + ".type")("laser"));
+						light_props.Set(luxrays::Property("scene.lights." + light_name + ".radius")(point_size));
+						std::array<float, 3> position = xsi_to_lux_vector(xsi_transform.GetTranslation());
+						//position and target defined by transforms
+						light_props.Set(luxrays::Property("scene.lights." + light_name + ".position")(0.0f, 0.0f, 0.0f));
+						light_props.Set(luxrays::Property("scene.lights." + light_name + ".target")(0.0f, 0.0f, -1.0f));
+
+						scene->Parse(light_props);
+						return true;
+					}
+					else
+					{
+						//unknown light type
 						return false;
 					}
 				}

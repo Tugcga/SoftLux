@@ -174,6 +174,10 @@ XSI::CStatus RenderEngineBase::pre_render(XSI::RendererContext &render_context)
 	//get pathes to save images
 	output_paths.Clear();
 	bool is_skip = m_render_context.GetAttribute("SkipExistingFiles");
+	if (render_type != RenderType_Pass)
+	{
+		is_skip = false;  // ignore skip for export mode, for other modes this parameter does not used, because for other modes output pathes are empty
+	}
 	bool file_output = m_render_context.GetAttribute("FileOutput");
 
 	XSI::CRefArray frame_buffers = render_context.GetFramebuffers();

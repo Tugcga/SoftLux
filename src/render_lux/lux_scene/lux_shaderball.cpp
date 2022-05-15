@@ -20,21 +20,11 @@ void sync_shaderball_lights(luxcore::Scene* scene)
 	main_material_props.Set(luxrays::Property("scene.materials." + main_mat_name + ".type")("matte"));
 	main_material_props.Set(luxrays::Property("scene.materials." + main_mat_name + ".kd")(0.0, 0.0, 0.0));
 	main_material_props.Set(luxrays::Property("scene.materials." + main_mat_name + ".emission")(1.0, 1.0, 1.0));
-	float main_intensity = 0.75 * 4;
+	float main_intensity = 2.0 * 4.0;
 	main_material_props.Set(luxrays::Property("scene.materials." + main_mat_name + ".emission.gain")(main_intensity, main_intensity, main_intensity));
+	main_material_props.Set(luxrays::Property("scene.materials." + main_mat_name + ".emission.gain.normalizebycolor")(false));
 	main_material_props.Set(luxrays::Property("scene.materials." + main_mat_name + ".emission.theta")(90.0));
 	scene->Parse(main_material_props);
-
-	//additional light material
-	std::string secondary_mat_name = "shaderball_secondary_lights_emission";
-	luxrays::Properties secondary_material_props;
-	secondary_material_props.Set(luxrays::Property("scene.materials." + secondary_mat_name + ".type")("matte"));
-	secondary_material_props.Set(luxrays::Property("scene.materials." + secondary_mat_name + ".kd")(0.0, 0.0, 0.0));
-	secondary_material_props.Set(luxrays::Property("scene.materials." + secondary_mat_name + ".emission")(1.0, 1.0, 1.0));
-	float secondary_intensity = 0.5 * 4;
-	secondary_material_props.Set(luxrays::Property("scene.materials." + secondary_mat_name + ".emission.gain")(secondary_intensity, secondary_intensity, secondary_intensity));
-	secondary_material_props.Set(luxrays::Property("scene.materials." + secondary_mat_name + ".emission.theta")(90.0));
-	scene->Parse(secondary_material_props);
 
 	//names
 	std::string light_left = "shaderball_light_left";
@@ -48,9 +38,9 @@ void sync_shaderball_lights(luxcore::Scene* scene)
 	light_left_props.Set(luxrays::Property("scene.objects." + light_left + ".material")(main_mat_name));
 	//left light transform
 	XSI::MATH::CTransformation left_tfm;
-	left_tfm.SetTranslationFromValues(-0.2587, 4.496, 4.5072);
-	left_tfm.SetScalingFromValues(1.5, 1.5, 1.5);
-	left_tfm.SetRotationFromXYZAnglesValues(-0.427, 0.3483, 0.992);
+	left_tfm.SetTranslationFromValues(-2.5964931262794675, 4.039242331862714, 4.595899118735658);
+	left_tfm.SetScalingFromValues(2.0 / 2.0, 5.0 / 2.0, 1.0);
+	left_tfm.SetRotationFromXYZAnglesValues(-0.7068358901451051, -0.19623749179258382, 0.078830645911904);
 	XSI::MATH::CMatrix4 left_matrix = left_tfm.GetMatrix4();
 	std::vector<double> left_lux_matrix = xsi_to_lux_matrix(left_matrix);
 	light_left_props.Set(luxrays::Property("scene.objects." + light_left + ".transformation")(left_lux_matrix));
@@ -61,25 +51,26 @@ void sync_shaderball_lights(luxcore::Scene* scene)
 	light_right_props.Set(luxrays::Property("scene.objects." + light_right + ".camerainvisible")(true));
 	light_right_props.Set(luxrays::Property("scene.objects." + light_right + ".material")(main_mat_name));
 	XSI::MATH::CTransformation right_tfm;
-	right_tfm.SetTranslationFromValues(4.901, 4.901, 0.194);
-	right_tfm.SetScalingFromValues(1.5, 1.5, 1.5);
-	right_tfm.SetRotationFromXYZAnglesValues(-0.636, 1.379, -0.229);
+	right_tfm.SetTranslationFromValues(4.644535965136069, 3.067626226128539, -0.23915000635285066);
+	right_tfm.SetScalingFromValues(2.0 / 2.0, 5.0 / 2.0, 1.0);
+	right_tfm.SetRotationFromXYZAnglesValues(-0.3622397944431281, 1.378697515150677, -0.02467863588945624);
 	XSI::MATH::CMatrix4 right_matrix = right_tfm.GetMatrix4();
 	std::vector<double> right_lux_matrix = xsi_to_lux_matrix(right_matrix);
 	light_right_props.Set(luxrays::Property("scene.objects." + light_right + ".transformation")(right_lux_matrix));
 
 	//secondary center light
 	luxrays::Properties center_right_props;
-	center_right_props.Set(luxrays::Property("scene.objects." + light_bottom + ".shape")(area_shape_name));
-	center_right_props.Set(luxrays::Property("scene.objects." + light_bottom + ".camerainvisible")(true));
-	center_right_props.Set(luxrays::Property("scene.objects." + light_bottom + ".material")(secondary_mat_name));
+	float center_intensity = 160.0f;
+	center_right_props.Set(luxrays::Property("scene.lights." + light_bottom + ".type")("point"));
+	center_right_props.Set(luxrays::Property("scene.lights." + light_bottom + ".color")(1.0, 1.0, 1.0));
+	center_right_props.Set(luxrays::Property("scene.lights." + light_bottom + ".gain")(center_intensity, center_intensity, center_intensity));
+	center_right_props.Set(luxrays::Property("scene.lights." + light_bottom + ".gain.normalizebycolor")(false));
 	XSI::MATH::CTransformation center_tfm;
-	center_tfm.SetTranslationFromValues(3.310, -0.411, 5.178);
-	center_tfm.SetScalingFromValues(1.5, 1.5, 1.5);
-	center_tfm.SetRotationFromXYZAnglesValues(-0.765, -0.765, 3.857);
+	center_tfm.SetIdentity();
+	center_tfm.SetTranslationFromValues(3.894809255704702, 4.537520430543698, 2.6626367336073176);
 	XSI::MATH::CMatrix4 center_matrix = center_tfm.GetMatrix4();
 	std::vector<double> center_lux_matrix = xsi_to_lux_matrix(center_matrix);
-	center_right_props.Set(luxrays::Property("scene.objects." + light_bottom + ".transformation")(center_lux_matrix));
+	center_right_props.Set(luxrays::Property("scene.lights." + light_bottom + ".transformation")(center_lux_matrix));
 
 	scene->Parse(light_left_props);
 	scene->Parse(light_right_props);
@@ -172,12 +163,18 @@ void sync_shaderball(luxcore::Scene* scene,
 				{
 					//override material to the background material
 					override_material(scene, xsi_object, "background_material");
-					//xsi_objects_in_lux.insert(xsi_object.GetObjectID());
 					xsi_id_to_lux_names_map[xsi_object.GetObjectID()] = xsi_object_id_string(xsi_object);
 				}
 			}
 		}
 	}
+}
+
+void sync_shaderball_imagepipline(luxrays::Properties& render_props, const XSI::CTime& eval_time)
+{
+	render_props.Set(luxrays::Property("film.imagepipeline.0.type")("TONEMAP_LINEAR"));
+	render_props.Set(luxrays::Property("film.imagepipeline.0.scale")(0.4f));
+	render_props.Set(luxrays::Property("film.imagepipeline.1.type")("GAMMA_CORRECTION"));
 }
 
 void sync_camera_shaderball(luxcore::Scene* scene)

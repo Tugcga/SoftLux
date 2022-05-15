@@ -573,6 +573,7 @@ void RenderEngineLux::render()
 
 			//calculate percentage of the render samples, pass is done samples
 			const unsigned int pass = stats.Get("stats.renderengine.pass").Get<unsigned int>();
+			//log_message("render pass: " + XSI::CString((int)pass) + " " + XSI::CString(elapsedTime) + " " + XSI::CString(convergence));
 			m_render_context.ProgressUpdate("Rendering...", "Rendering...", int((float)pass * 100.0f / (float)40));
 
 			std::this_thread::sleep_for(100ms);

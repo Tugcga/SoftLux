@@ -25,3 +25,4 @@ bool create_dir(const std::string& file_path);
 bool is_extension_ldr(const XSI::CString &ext);
 bool is_extension_hdr(const XSI::CString& ext);
 XSI::CString get_file_extension(const XSI::CString &file_path);
+bool is_file_exists(const XSI::CString &file_path);

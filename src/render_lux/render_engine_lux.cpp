@@ -531,7 +531,7 @@ XSI::CStatus RenderEngineLux::post_scene()
 	if (!is_session)
 	{
 		session = sync_render_config(scene, render_type, m_render_property, eval_time,
-			lux_visual_output_type, output_channels, output_paths,
+			lux_visual_output_type, output_channels, output_paths, archive_folder, XSI::Application().GetActiveProject().GetActiveScene().GetName(),
 			image_corner_x, image_corner_x + image_size_width, image_corner_y, image_corner_y + image_size_height,
 			image_full_size_width, image_full_size_height);
 		is_session = true;
@@ -545,20 +545,13 @@ void RenderEngineLux::render()
 	log_message("call render type " + XSI::CString(render_type));
 	if (render_type == RenderType_Export)
 	{
-		export_scene(session, m_render_context, archive_folder);
+		export_scene(session, m_render_context, archive_folder, m_render_property.GetParameterValue("export_mode", eval_time), XSI::Application().GetActiveProject().GetActiveScene().GetName());
 	}
 	else
 	{
 		m_render_context.ProgressUpdate("Rendering...", "Rendering...", 0);
 
-		//session->GetRenderConfig().Export("D:\\Graphic\\For Softimage\\_addons\\AddonDevelopWorkgroup\\Addons\\SoftLux\\Application\\Plugins\\bin\\nt-x86-64\\output\\");
-		//return;
-
 		session->Start();
-
-		//session->Pause();
-		//session->SaveResumeFile("D:\\Graphic\\For Softimage\\_addons\\AddonDevelopWorkgroup\\Addons\\SoftLux\\Application\\Plugins\\bin\\nt-x86-64\\render_session.rsm");
-		//session->Resume();
 
 		const luxrays::Properties& stats = session->GetStats();
 		luxcore::Film& film = session->GetFilm();

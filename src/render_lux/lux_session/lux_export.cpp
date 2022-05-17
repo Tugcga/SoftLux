@@ -2,20 +2,32 @@
 #include "../../utilities/export_common.h"
 #include "../../utilities/logs.h"
 
-void export_scene(luxcore::RenderSession *session, XSI::RendererContext &render_context, const XSI::CString &archive_folder)
+#include <chrono>
+#include <thread>
+using namespace std::chrono_literals;
+
+void export_scene(luxcore::RenderSession *session, XSI::RendererContext &render_context, const XSI::CString &archive_folder, const int export_mode, const XSI::CString &scene_name)
 {
 	std::string folder_path_str = std::string(archive_folder.GetAsciiString()) + "\\";
 	if (create_dir(folder_path_str))
 	{
-		//at first export text-base files
-		session->GetRenderConfig().Export(folder_path_str);
-
-		//next also export *.rsm
-		session->Start();
-		session->Pause();
-		session->SaveResumeFile(folder_path_str + "session.rsm");
-		session->Resume();
-		session->Stop();
+		if (export_mode == 0 || export_mode == 1)
+		{//use filesaver
+			session->Start();
+			while (!session->HasDone())
+			{
+				std::this_thread::sleep_for(100ms);
+			}
+			session->Stop();
+		}
+		else
+		{
+			session->Start();
+			session->Pause();
+			session->SaveResumeFile(folder_path_str + scene_name.GetAsciiString() + ".rsm");
+			session->Resume();
+			session->Stop();
+		}
 	}
 	else
 	{

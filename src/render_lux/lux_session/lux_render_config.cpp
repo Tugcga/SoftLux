@@ -44,10 +44,11 @@ bool is_lux_output_hdr(luxcore::Film::FilmOutputType output_type)
 }
 
 luxcore::RenderSession* sync_render_config(luxcore::Scene* scene, const RenderType render_type, const XSI::Property& render_property, const XSI::CTime& eval_time,
-	luxcore::Film::FilmOutputType lux_visual_output_type, const XSI::CStringArray& output_channels, const XSI::CStringArray &output_paths,
+	luxcore::Film::FilmOutputType lux_visual_output_type, const XSI::CStringArray& output_channels, const XSI::CStringArray &output_paths, const XSI::CString &archive_folder, const XSI::CString &scene_name,
 	const int image_x_start, const int image_x_end, const int image_y_start, const int image_y_end,
 	const int image_width, const int image_height)
 {
+	XSI::CParameterRefArray render_params = render_property.GetParameters();
 	luxrays::Properties render_props;
 	//render settings
 	render_props.Set(luxrays::Property("renderengine.type")("PATHCPU"));
@@ -56,6 +57,28 @@ luxcore::RenderSession* sync_render_config(luxcore::Scene* scene, const RenderTy
 	render_props.Set(luxrays::Property("film.width")(image_width));
 	render_props.Set(luxrays::Property("film.height")(image_height));
 	render_props.Set(luxrays::Property("film.subregion")(image_x_start, image_x_end, image_y_start, image_y_end));
+
+	//if we export the scene, then we should reassign render engine to filesaver
+	if (render_type == RenderType_Export)
+	{
+		int export_mode = render_params.GetValue("export_mode", eval_time);
+		if (export_mode == 0 || export_mode == 1)
+		{
+			render_props.Set(luxrays::Property("renderengine.type")("FILESAVER"));
+			render_props.Set(luxrays::Property("filesaver.renderengine.type")("PATHCPU"));  // set engine from the render settings
+			if (export_mode == 0)
+			{//text-based mode
+				render_props.Set(luxrays::Property("filesaver.format")("TXT"));
+				render_props.Set(luxrays::Property("filesaver.directory")(archive_folder.GetAsciiString()));
+			}
+			else
+			{//binary
+				render_props.Set(luxrays::Property("filesaver.format")("BIN"));
+				render_props.Set(luxrays::Property("filesaver.filename")((archive_folder + "\\" + scene_name + ".bcf").GetAsciiString()));
+			}
+		}
+		//for rsm mode we does not use filesaver, but export resume file for regular render
+	}
  
 	//image piplines
 	if (render_type != RenderType_Shaderball)

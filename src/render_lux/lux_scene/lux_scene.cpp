@@ -183,7 +183,7 @@ void sync_scene_objects(luxcore::Scene* scene,
 	for (ULONG i = 0; i < xsi_scene_lights.GetCount(); i++)
 	{
 		XSI::Light xsi_light(xsi_scene_lights.GetItem(i));
-		sync_xsi_light(scene, xsi_light, eval_time);
+		sync_xsi_light(scene, xsi_light, motion, eval_time);
 	}
 
 	std::set<std::string>::iterator it;

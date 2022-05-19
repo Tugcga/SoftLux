@@ -231,7 +231,7 @@ XSI::CStatus RenderEngineLux::update_scene(XSI::X3DObject& xsi_object, const Upd
 				XSI::CString xsi_type = xsi_object.GetType();
 				if (xsi_type == "light")
 				{
-					bool is_sync = update_light_object(scene, xsi_object, eval_time);
+					bool is_sync = update_light_object(scene, xsi_object, prev_motion, eval_time);
 					if (is_sync)
 					{
 						updated_xsi_ids.push_back(xsi_object.GetObjectID());
@@ -276,7 +276,7 @@ XSI::CStatus RenderEngineLux::update_scene(XSI::X3DObject& xsi_object, const Upd
 				if (xsi_type == "light")
 				{
 					//completely update the light
-					bool is_sync = update_light_object(scene, xsi_object, eval_time);
+					bool is_sync = update_light_object(scene, xsi_object, prev_motion, eval_time);
 					if (is_sync)
 					{
 						updated_xsi_ids.push_back(xsi_object.GetObjectID());
@@ -319,7 +319,7 @@ XSI::CStatus RenderEngineLux::update_scene(XSI::X3DObject& xsi_object, const Upd
 			}
 			else if (update_type == UpdateType_XsiLight)
 			{
-				bool is_sync = update_light_object(scene, xsi_object, eval_time);
+				bool is_sync = update_light_object(scene, xsi_object, prev_motion, eval_time);
 				if (is_sync)
 				{
 					updated_xsi_ids.push_back(xsi_object.GetObjectID());

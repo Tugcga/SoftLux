@@ -228,10 +228,12 @@ void sync_shaderball_imagepipline(luxrays::Properties& render_props,
 
 bool sync_xsi_light(luxcore::Scene* scene,
 	XSI::Light& xsi_light,
+	const MotionParameters &motion,
 	const XSI::CTime& eval_time);
 
 bool update_light_object(luxcore::Scene* scene,
 	XSI::X3DObject& xsi_object,
+	const MotionParameters& motion,
 	const XSI::CTime& eval_time);
 
 void sync_ambient(luxcore::Scene* scene, 

@@ -69,7 +69,8 @@ bool sync_motion(luxrays::Properties& lux_props,
 	const std::string& prefix,
 	const MotionParameters& motion,
 	const XSI::KinematicState& xsi_kinematic,
-	const XSI::CTime& eval_time);
+	const XSI::CTime& eval_time,
+	const bool set_only_position = false);
 
 bool sync_instance_motion(luxrays::Properties& lux_props,
 	const std::string& prefix,

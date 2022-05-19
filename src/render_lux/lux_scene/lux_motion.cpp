@@ -11,8 +11,10 @@ bool sync_motion(luxrays::Properties &lux_props,
 	const std::string &prefix,
 	const MotionParameters &motion,
 	const XSI::KinematicState &xsi_kinematic,
-	const XSI::CTime &eval_time)
+	const XSI::CTime &eval_time,
+	const bool set_only_position)
 {
+	//if set_only_position is true, then use identity transform materix and set only position (but also swap axis)
 	if (motion.motion_objects)
 	{
 		//camera is open from 0 to shutter time
@@ -28,9 +30,27 @@ bool sync_motion(luxrays::Properties &lux_props,
 			const float xsi_time = eval_time.GetTime() - shift_time + step * one_step_time;
 			//get transform at the time point
 			XSI::MATH::CTransformation xsi_time_tfm = xsi_kinematic.GetTransform(xsi_time);
-			XSI::MATH::CMatrix4 xsi_matrix = xsi_time_tfm.GetMatrix4();
-			std::vector<double> lux_matrix = xsi_to_lux_matrix(xsi_matrix);
-			lux_props.Set(luxrays::Property(prefix + ".motion." + std::to_string(step) + ".transformation")(lux_matrix));
+			if (set_only_position)
+			{
+				//set transform only with position
+				double x; double y; double z;
+				xsi_time_tfm.GetTranslationValues(x, y, z);
+				std::vector<double> lux_matrix = 
+				{
+					1.0, 0.0, 0.0, 0.0,
+					0.0, 1.0, 0.0, 0.0,
+					0.0, 0.0, 1.0, 0.0,
+					z, x, y, 1.0
+				};
+				lux_props.Set(luxrays::Property(prefix + ".motion." + std::to_string(step) + ".transformation")(lux_matrix));
+			}
+			else
+			{
+				//set full transform
+				XSI::MATH::CMatrix4 xsi_matrix = xsi_time_tfm.GetMatrix4();
+				std::vector<double> lux_matrix = xsi_to_lux_matrix(xsi_matrix);
+				lux_props.Set(luxrays::Property(prefix + ".motion." + std::to_string(step) + ".transformation")(lux_matrix));
+			}
 		}
 
 		return true;

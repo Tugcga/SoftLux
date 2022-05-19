@@ -167,6 +167,7 @@ XSI::CStatus RenderEngineBase::pre_render(XSI::RendererContext &render_context)
 	//save render context
 	m_render_context = render_context;
 	m_render_property = m_render_context.GetRendererProperty(eval_time);
+	m_render_parameters = m_render_property.GetParameters();
 	//current time
 	eval_time = render_context.GetTime();
 	start_render_time = clock();

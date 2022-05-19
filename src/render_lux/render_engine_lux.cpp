@@ -436,12 +436,11 @@ XSI::CStatus RenderEngineLux::update_scene(XSI::Material& xsi_material, bool mat
 
 MotionParameters RenderEngineLux::read_motion_params()
 {
-	XSI::CParameterRefArray render_params = m_render_property.GetParameters();
 	MotionParameters motion =
 	{
-		render_params.GetValue("motion_objects", eval_time),
-		render_params.GetValue("motion_shutter_time", eval_time),
-		render_params.GetValue("motion_steps", eval_time)
+		m_render_parameters.GetValue("motion_objects", eval_time),
+		m_render_parameters.GetValue("motion_shutter_time", eval_time),
+		m_render_parameters.GetValue("motion_steps", eval_time)
 	};
 	return motion;
 }

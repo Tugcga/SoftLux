@@ -454,7 +454,7 @@ XSI::CStatus RenderEngineLux::render_option_define(XSI::CustomProperty& property
 
 	//motion tab
 	property.AddParameter("motion_objects", XSI::CValue::siBool, caps, "", "", false, param);
-	property.AddParameter("motion_shutter_time", XSI::CValue::siFloat, caps, "", "", 1.0, 0.0, FLT_MAX, 0.0, 2.0, param);
+	property.AddParameter("motion_shutter_time", XSI::CValue::siFloat, caps, "", "", 1.0, 0.001, FLT_MAX, 0.0, 2.0, param);
 	property.AddParameter("motion_steps", XSI::CValue::siInt4, caps, "", "", 2, 2, 128, 2, 8, param);
 
 	//light strategy tab

@@ -46,6 +46,7 @@ public:
 	XSI::CRefArray m_isolation_list;
 	XSI::CString archive_folder;  // full path to the folder for archive export. Non-empty only if the user call export scene
 	XSI::Property m_render_property;
+	XSI::CParameterRefArray m_render_parameters;
 	XSI::CTime eval_time;
 	RenderVisualBuffer visual_buffer;
 	//output data arrays

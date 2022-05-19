@@ -205,3 +205,30 @@ bool is_file_exists(const XSI::CString& file_path)
 {
 	return std::filesystem::exists(file_path.GetAsciiString());
 }
+
+int get_key_by_value(std::unordered_map<ULONG, std::vector<std::string>>& map, const std::string& value)
+{
+	for (const auto& [key, map_value] : map)
+	{
+		if (std::find(map_value.begin(), map_value.end(), value) != map_value.end()) 
+		{
+			return key;
+		}
+	}
+	return -1;
+}
+
+bool is_isolation_list_contaons_object(const XSI::CRefArray& xsi_isolation_list, const XSI::X3DObject& xsi_object)
+{
+	ULONG xsi_id = xsi_object.GetObjectID();
+	for (ULONG i = 0; i < xsi_isolation_list.GetCount(); i++)
+	{
+		XSI::X3DObject in_list_object = XSI::X3DObject(xsi_isolation_list[i]);
+		if (in_list_object.GetObjectID() == xsi_id)
+		{
+			return true;
+		}
+	}
+
+	return false;
+}

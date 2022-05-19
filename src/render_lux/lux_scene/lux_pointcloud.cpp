@@ -9,10 +9,14 @@
 
 bool sync_pointcloud(luxcore::Scene* scene, 
 	XSI::X3DObject& xsi_object, 
+	MotionParameters& motion,
 	std::unordered_map<ULONG, std::vector<std::string>>& xsi_id_to_lux_names_map,
 	std::set<ULONG>& xsi_materials_in_lux,
 	std::unordered_map<ULONG, std::vector<ULONG>>& master_to_instance_map,
 	std::unordered_map<ULONG, std::set<ULONG>>& material_with_shape_to_polymesh_map,
+	std::set<std::string>& names_to_delete,
+	std::unordered_map<std::string, std::string>& object_name_to_shape_name,
+	std::unordered_map<std::string, std::string>& object_name_to_material_name,
 	const XSI::CTime& eval_time)
 {
 	ULONG xsi_id = xsi_object.GetObjectID();
@@ -48,6 +52,9 @@ bool sync_pointcloud(luxcore::Scene* scene,
 		bool is_scale_define = scale_attr.IsDefined();
 		ULONG shape_data_count = shape_data.GetCount();
 		ULONG position_data_count = position_data.GetCount();
+
+		//next read motion SRT
+		std::vector<XSI::MATH::CTransformation> time_transforms = build_time_points_transforms(xsi_object, motion, eval_time);
 		for (ULONG i = 0; i < shape_data_count; i++)
 		{
 			XSI::MATH::CVector3f position = position_data[i];
@@ -81,7 +88,9 @@ bool sync_pointcloud(luxcore::Scene* scene,
 				point_tfm.MulInPlace(particles_tfm);
 
 				std::string point_name = std::to_string(xsi_id) + "_" + std::to_string(i);
-				sync_instance(scene, xsi_id, point_name, master_root, point_tfm, xsi_id_to_lux_names_map, xsi_materials_in_lux, master_to_instance_map, material_with_shape_to_polymesh_map, eval_time, true, is_branch_selected);
+
+				//here we should create transforms from point data in different times
+				sync_instance(scene, xsi_id, point_name, master_root, motion, point_tfm, xsi_id_to_lux_names_map, xsi_materials_in_lux, master_to_instance_map, material_with_shape_to_polymesh_map, names_to_delete, object_name_to_shape_name, object_name_to_material_name, eval_time, true, is_branch_selected, time_transforms, motion.motion_objects ? i * motion.motion_steps : 0);
 			}
 		}
 	}

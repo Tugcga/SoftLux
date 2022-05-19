@@ -13,7 +13,10 @@ void set_lux_camera_positions(luxrays::Properties &camera_props, const XSI::MATH
 	camera_props.Set(luxrays::Property("scene.camera.lookat.target")(lux_target_position[0], lux_target_position[1], lux_target_position[2]));
 }
 
-void sync_camera_scene(luxcore::Scene* scene, const XSI::Camera& xsi_camera, const XSI::CTime& eval_time)
+void sync_camera_scene(luxcore::Scene* scene,
+	const XSI::Camera& xsi_camera, 
+	MotionParameters& motion,
+	const XSI::CTime& eval_time)
 {
 	XSI::MATH::CTransformation xsi_tfm = xsi_camera.GetKinematics().GetGlobal().GetTransform();
 	XSI::MATH::CVector3 xsi_position = xsi_tfm.GetTranslation();
@@ -160,13 +163,18 @@ void sync_camera_scene(luxcore::Scene* scene, const XSI::Camera& xsi_camera, con
 	camera_props.Set(luxrays::Property("scene.camera.cliphither")(near_clip));
 	camera_props.Set(luxrays::Property("scene.camera.clipyon")(far_clip));
 
+	//we assume that camera is open from 0 to the shutter time
 	camera_props.Set(luxrays::Property("scene.camera.shutteropen")(0.0f));
-	camera_props.Set(luxrays::Property("scene.camera.shutterclose")(1.0f));
+	camera_props.Set(luxrays::Property("scene.camera.shutterclose")(motion.motion_objects ? motion.motion_shutter_time : 1.0f));
 
 	scene->Parse(camera_props);
 }
 
-void sync_camera(luxcore::Scene* scene, const RenderType render_type, XSI::RendererContext& xsi_render_context, const XSI::CTime &eval_time)
+void sync_camera(luxcore::Scene* scene, 
+	const RenderType render_type,
+	XSI::RendererContext& xsi_render_context, 
+	MotionParameters& motion,
+	const XSI::CTime &eval_time)
 {
 	if (render_type == RenderType_Shaderball)
 	{
@@ -177,6 +185,6 @@ void sync_camera(luxcore::Scene* scene, const RenderType render_type, XSI::Rende
 		XSI::Primitive camera_prim(xsi_render_context.GetAttribute("Camera"));
 		XSI::X3DObject camera_obj = camera_prim.GetOwners()[0];
 		XSI::Camera	xsi_camera(camera_obj);
-		sync_camera_scene(scene, xsi_camera, eval_time);
+		sync_camera_scene(scene, xsi_camera, motion, eval_time);
 	}
 }

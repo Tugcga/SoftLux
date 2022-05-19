@@ -2,7 +2,6 @@
 #include "../utilities/logs.h"
 #include "../utilities/export_common.h"
 #include "../utilities/arrays.h"
-#include "lux_scene/lux_scene.h"
 #include "lux_session/lux_session.h"
 
 #include "xsi_primitive.h"
@@ -41,6 +40,10 @@ RenderEngineLux::RenderEngineLux()
 	xsi_id_to_lux_names_map.clear();
 	master_to_instance_map.clear();
 	material_with_shape_to_polymesh_map.clear();
+	object_name_to_shape_name.clear();
+	object_name_to_material_name.clear();
+
+	prev_motion = { false, 1.0f, 2};
 
 	RenderEngineLux::is_log = false;
 }
@@ -88,6 +91,8 @@ void RenderEngineLux::clear_scene()
 	xsi_id_to_lux_names_map.clear();
 	master_to_instance_map.clear();
 	material_with_shape_to_polymesh_map.clear();
+	object_name_to_shape_name.clear();
+	object_name_to_material_name.clear();
 }
 
 //here we clear session and render config
@@ -182,7 +187,8 @@ void RenderEngineLux::update_object(XSI::X3DObject& xsi_object)
 	//sync object again
 	if (is_xsi_object_visible(eval_time, xsi_object))
 	{
-		bool is_sync = sync_object(scene, xsi_object, xsi_materials_in_lux, xsi_id_to_lux_names_map, master_to_instance_map, material_with_shape_to_polymesh_map, eval_time);
+		std::set<std::string> names_to_delete;
+		bool is_sync = sync_object(scene, xsi_object, prev_motion, xsi_materials_in_lux, xsi_id_to_lux_names_map, master_to_instance_map, material_with_shape_to_polymesh_map, names_to_delete, object_name_to_shape_name, object_name_to_material_name, eval_time);
 		if (is_sync)
 		{
 			ULONG xsi_id = xsi_object.GetObjectID();
@@ -196,13 +202,24 @@ void RenderEngineLux::update_object(XSI::X3DObject& xsi_object)
 //return OK, if object successfully updates, Abort in other case
 XSI::CStatus RenderEngineLux::update_scene(XSI::X3DObject& xsi_object, const UpdateType update_type)
 {
+	if (m_isolation_list.GetCount() > 0)
+	{
+		//check that updated object in the isolation view
+		//if so, update it, otherwise - return abort
+		if (!is_isolation_list_contaons_object(m_isolation_list, xsi_object))
+		{
+			//or may we should simply ignore this update call?
+			return XSI::CStatus::Abort;
+		}
+	}
+
 	if (is_scene_create)
 	{
 		if (!is_contains(updated_xsi_ids, xsi_object.GetObjectID()))
 		{
 			if (update_type == UpdateType_Camera)
 			{
-				sync_camera(scene, render_type, m_render_context, eval_time);
+				sync_camera(scene, render_type, m_render_context, prev_motion, eval_time);
 				is_update_camera = true;
 
 				return XSI::CStatus::OK;
@@ -244,6 +261,14 @@ XSI::CStatus RenderEngineLux::update_scene(XSI::X3DObject& xsi_object, const Upd
 			}
 			else if(update_type == UpdateType_Transform)
 			{
+				//if motion blur is active, recreate the scene
+				//because we can change the position not only of the object, but master of the instance
+				//in this case we should reassign new motion for all instances, but there are some problems with this
+				//update transform reset motion transforms and update motion crash the render
+				if (prev_motion.motion_objects)
+				{
+					return XSI::CStatus::Abort;
+				}
 				//does not remember the object, because we can update mesh of the object later
 				//here we only change it transform
 				ULONG xsi_id = xsi_object.GetObjectID();
@@ -275,8 +300,10 @@ XSI::CStatus RenderEngineLux::update_scene(XSI::X3DObject& xsi_object, const Upd
 						std::vector<std::string> object_names = xsi_id_to_lux_names_map[xsi_object.GetObjectID()];
 						for (ULONG i = 0; i < object_names.size(); i++)
 						{
-							sync_transform(scene, object_names[i], xsi_object.GetKinematics().GetGlobal().GetTransform(), eval_time);
+							log_message("start update transform " + XSI::CString(object_names[i].c_str()));
+							sync_transform(scene, object_names[i], prev_motion, xsi_object.GetKinematics().GetGlobal(), eval_time);
 						}
+						log_message("sync transform done");
 						object_names.clear();
 						object_names.shrink_to_fit();
 
@@ -407,11 +434,34 @@ XSI::CStatus RenderEngineLux::update_scene(XSI::Material& xsi_material, bool mat
 	
 }
 
+MotionParameters RenderEngineLux::read_motion_params()
+{
+	XSI::CParameterRefArray render_params = m_render_property.GetParameters();
+	MotionParameters motion =
+	{
+		render_params.GetValue("motion_objects", eval_time),
+		render_params.GetValue("motion_shutter_time", eval_time),
+		render_params.GetValue("motion_steps", eval_time)
+	};
+	return motion;
+}
+
 XSI::CStatus RenderEngineLux::update_scene_render()
 {
 	//if we change render parameters, then we should recreate the session
 	//we clear it, and in post_scene() call we recreate it 
 	clear_session();
+
+	//if we change one of motion properties, then we should recreate the scene from scratch
+	//because we should setup motion for all object in the scene (or disable it)
+	MotionParameters current_motion = read_motion_params();
+	if (prev_motion.is_changed(current_motion))
+	{
+		prev_motion = current_motion;
+		return XSI::CStatus::Abort;
+	}
+
+	prev_motion = current_motion;
 
 	return XSI::CStatus::OK;
 }
@@ -425,9 +475,10 @@ XSI::CStatus RenderEngineLux::create_scene()
 	scene = luxcore::Scene::Create();
 	is_scene_create = true;
 	reinit_environments = false;
+	prev_motion = read_motion_params();
 
 	//always update the camera
-	sync_camera(scene, render_type, m_render_context, eval_time);
+	sync_camera(scene, render_type, m_render_context, prev_motion, eval_time);
 	is_update_camera = true;
 
 	if (render_type == RenderType_Shaderball)
@@ -457,7 +508,7 @@ XSI::CStatus RenderEngineLux::create_scene()
 		sync_ambient(scene, eval_time);
 
 		//sync scene objects
-		sync_scene_objects(scene, m_render_context, xsi_materials_in_lux, xsi_id_to_lux_names_map, master_to_instance_map, material_with_shape_to_polymesh_map, eval_time);
+		sync_scene_objects(scene, m_render_context, prev_motion, xsi_materials_in_lux, xsi_id_to_lux_names_map, master_to_instance_map, material_with_shape_to_polymesh_map, object_name_to_shape_name, object_name_to_material_name, eval_time);
 
 		//environment light (hdri, sky, sun)
 		xsi_environment_in_lux = sync_environment(scene, eval_time);
@@ -478,9 +529,9 @@ XSI::CStatus RenderEngineLux::create_scene()
 	for (const auto& [key, value] : xsi_id_to_lux_names_map)
 	{
 		log_message("\t" + XSI::CString(key) + ": " + to_string(value));
-	}
+	}*/
 
-	log_message("update_instances:");
+	/*log_message("update_instances:");
 	std::set<unsigned long>::iterator it;
 	for (it = update_instances.begin(); it != update_instances.end(); ++it)
 	{
@@ -497,7 +548,7 @@ XSI::CStatus RenderEngineLux::post_scene()
 	//update camera, if we did not do it earlier
 	if (!is_update_camera)
 	{
-		sync_camera(scene, render_type, m_render_context, eval_time);
+		sync_camera(scene, render_type, m_render_context, prev_motion, eval_time);
 		is_update_camera = true;
 	}
 
@@ -518,10 +569,18 @@ XSI::CStatus RenderEngineLux::post_scene()
 
 		//next create it again
 		XSI::X3DObject xsi_instance(XSI::Application().GetObjectFromID(xsi_id));
-		bool is_sync = sync_object(scene, xsi_instance, xsi_materials_in_lux, xsi_id_to_lux_names_map, master_to_instance_map, material_with_shape_to_polymesh_map, eval_time);
+		std::set<std::string> names_to_delete;
+		bool is_sync = sync_object(scene, xsi_instance, prev_motion, xsi_materials_in_lux, xsi_id_to_lux_names_map, master_to_instance_map, material_with_shape_to_polymesh_map, names_to_delete, object_name_to_shape_name, object_name_to_material_name, eval_time);
 		if (is_sync)
 		{
 			xsi_id_to_lux_names_map[xsi_instance.GetObjectID()] = xsi_object_id_string(xsi_instance);
+		}
+		//remove names to delete
+		std::set<std::string>::iterator names_it;
+		for (names_it = names_to_delete.begin(); names_it != names_to_delete.end(); ++names_it)
+		{
+			std::string name = *names_it;
+			scene->DeleteObject(name);
 		}
 	}
 

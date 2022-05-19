@@ -26,26 +26,31 @@ void sync_instance(luxcore::Scene* scene,
 	ULONG model_id,
 	std::string &model_id_str,
 	XSI::X3DObject &master, 
-	XSI::MATH::CTransformation &model_tfm, 
+	MotionParameters& motion,
+	XSI::MATH::CTransformation& model_tfm,
 	std::unordered_map<ULONG, std::vector<std::string>>& xsi_id_to_lux_names_map,
 	std::set<ULONG>& xsi_materials_in_lux,
 	std::unordered_map<ULONG, std::vector<ULONG>>& master_to_instance_map,
 	std::unordered_map<ULONG, std::set<ULONG>>& material_with_shape_to_polymesh_map,
+	std::set<std::string>& names_to_delete,
+	std::unordered_map<std::string, std::string>& object_name_to_shape_name,
+	std::unordered_map<std::string, std::string>& object_name_to_material_name,
 	const XSI::CTime& eval_time,
 	const bool ignore_master_visibility,
-	const bool is_branch)
+	const bool is_branch,
+	const std::vector<XSI::MATH::CTransformation>& time_transforms,
+	const ULONG time_transforms_start)
 {
+	//time_transforms_start is a start index in the time_transforms array
+	//for pointcloud this array contains time transforms for all point, so we should use transformations only for the given point
 	XSI::CRefArray children;
 	if (is_branch)
 	{
 		XSI::CStringArray str_families_subobject;
 		children = master.FindChildren2("", "", str_families_subobject);
 	}
-	else
-	{
-		children.Add(master);
-	}
-	
+	children.Add(master);
+
 	XSI::MATH::CTransformation root_tfm = master.GetKinematics().GetGlobal().GetTransform();
 	for (ULONG i = 0; i < children.GetCount(); i++)
 	{
@@ -65,20 +70,16 @@ void sync_instance(luxcore::Scene* scene,
 				//this is because it outside of the isolation view, because in non-isolation mode we at first export geometry and only then - instances
 				if (ignore_master_visibility || is_xsi_object_visible(eval_time, object))
 				{
-					bool is_sync = sync_object(scene, object, xsi_materials_in_lux, xsi_id_to_lux_names_map, master_to_instance_map, material_with_shape_to_polymesh_map, eval_time);
+					bool is_sync = sync_object(scene, object, motion, xsi_materials_in_lux, xsi_id_to_lux_names_map, master_to_instance_map, material_with_shape_to_polymesh_map, names_to_delete, object_name_to_shape_name, object_name_to_material_name, eval_time);
 					if (is_sync)
 					{
 						xsi_id_to_lux_names_map[xsi_id] = xsi_object_id_string(object);
 
-						//set zero transform for the exported object
-						//may be later we will reset it, but if object outside isolation view, then it will be invisible
 						std::vector<std::string> names = xsi_id_to_lux_names_map[xsi_id];
-						XSI::MATH::CTransformation tfm;
-						tfm.SetIdentity();
-						tfm.SetScalingFromValues(0.0, 0.0, 0.0);
+						//may these objects should not be exported
 						for (ULONG j = 0; j < names.size(); j++)
 						{
-							sync_transform(scene, names[j], tfm, eval_time);
+							names_to_delete.insert(names[j]);
 						}
 
 						names.clear();
@@ -97,7 +98,21 @@ void sync_instance(luxcore::Scene* scene,
 				{
 					for (ULONG j = 0; j < object_names.size(); j++)
 					{
-						scene->DuplicateObject(object_names[j], model_id_str + "_" + object_names[j], &lux_matrix[0]);  //does we need generate new id for the instance, or use id from the instance?
+						std::string lux_name = object_names[j];
+						std::string new_object_name = model_id_str + "_" + object_names[j];
+						if (object_name_to_shape_name.contains(lux_name) && object_name_to_material_name.contains(lux_name))
+						{
+							//create new instance object by usng already created shape and material
+							luxrays::Properties lux_props;
+							lux_props.Set(luxrays::Property("scene.objects." + new_object_name + ".shape")(object_name_to_shape_name[lux_name]));
+							lux_props.Set(luxrays::Property("scene.objects." + new_object_name + ".material")(object_name_to_material_name[lux_name]));
+							//next sync transform
+							lux_props.Set(luxrays::Property("scene.objects." + new_object_name + ".transformation")(lux_matrix));
+							//and then sync motion
+							bool is_motion = sync_instance_motion(lux_props, "scene.objects." + new_object_name, motion, time_transforms, time_transforms_start, master.GetKinematics().GetGlobal(), object.GetKinematics().GetGlobal(), eval_time);
+
+							scene->Parse(lux_props);
+						}
 					}
 				}
 			}
@@ -116,11 +131,16 @@ void sync_instance(luxcore::Scene* scene,
 	}
 }
 
-bool sync_instance(luxcore::Scene* scene, XSI::Model &xsi_model, 
+bool sync_instance(luxcore::Scene* scene,
+	XSI::Model &xsi_model, 
+	MotionParameters& motion,
 	std::unordered_map<ULONG, std::vector<std::string>>& xsi_id_to_lux_names_map, 
 	std::set<ULONG>& xsi_materials_in_lux,
 	std::unordered_map<ULONG, std::vector<ULONG>>& master_to_instance_map,
 	std::unordered_map<ULONG, std::set<ULONG>>& material_with_shape_to_polymesh_map,
+	std::set<std::string>& names_to_delete,
+	std::unordered_map<std::string, std::string>& object_name_to_shape_name,
+	std::unordered_map<std::string, std::string>& object_name_to_material_name,
 	const XSI::CTime& eval_time)
 {
 	ULONG model_id = xsi_model.GetObjectID();
@@ -130,9 +150,11 @@ bool sync_instance(luxcore::Scene* scene, XSI::Model &xsi_model,
 
 	//get names of the master objects
 	XSI::Model master = xsi_model.GetInstanceMaster();
-	XSI::MATH::CTransformation model_tfm = xsi_model.GetKinematics().GetGlobal().GetTransform();
+	XSI::MATH::CTransformation model_tfm = xsi_model.GetKinematics().GetGlobal().GetTransform(eval_time);
 	std::string model_id_str = std::to_string(model_id);
-	sync_instance(scene, model_id, model_id_str, master, model_tfm, xsi_id_to_lux_names_map, xsi_materials_in_lux, master_to_instance_map, material_with_shape_to_polymesh_map, eval_time);
+
+	std::vector<XSI::MATH::CTransformation> time_transforms = build_time_transforms(xsi_model.GetKinematics().GetGlobal(), motion, eval_time);
+	sync_instance(scene, model_id, model_id_str, master, motion, model_tfm, xsi_id_to_lux_names_map, xsi_materials_in_lux, master_to_instance_map, material_with_shape_to_polymesh_map, names_to_delete, object_name_to_shape_name, object_name_to_material_name, eval_time, false, true, time_transforms);
 
 	return true;
 }

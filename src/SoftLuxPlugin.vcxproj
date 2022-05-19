@@ -73,6 +73,7 @@
     <ClCompile Include="render_lux\lux_scene\lux_instance.cpp" />
     <ClCompile Include="render_lux\lux_scene\lux_light.cpp" />
     <ClCompile Include="render_lux\lux_scene\lux_material.cpp" />
+    <ClCompile Include="render_lux\lux_scene\lux_motion.cpp" />
     <ClCompile Include="render_lux\lux_scene\lux_pointcloud.cpp" />
     <ClCompile Include="render_lux\lux_scene\lux_polymesh.cpp" />
     <ClCompile Include="render_lux\lux_scene\lux_scene.cpp" />

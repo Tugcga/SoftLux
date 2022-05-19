@@ -318,6 +318,9 @@ XSI::CStatus RenderEngineBase::scene_process()
 		output_pixels = std::vector<float>(size, 0.0f);
 	}
 
+	//memorize isolation list
+	m_isolation_list = m_render_context.GetArrayAttribute("ObjectList");
+
 	//next all other general staff for the engine
 	XSI::CStatus status = pre_scene_process();
 	if (render_type != prev_render_type)
@@ -540,7 +543,7 @@ XSI::CStatus RenderEngineBase::scene_process()
 						}
 						break;
 					}
-					case XSI::siSIObjectID:
+					case XSI::siSIObjectID:  //call this when we delete the cluster, for example
 					case XSI::siX3DObjectID:
 					{
 						//ignore this update

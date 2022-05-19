@@ -8,7 +8,13 @@
 #include "xsi_iceattributedataarray.h"
 #include "xsi_iceattributedataarray2D.h"
 
-bool sync_pointcloud_strands(luxcore::Scene* scene, XSI::X3DObject& xsi_object, std::set<ULONG>& xsi_materials_in_lux, const XSI::CTime &eval_time)
+bool sync_pointcloud_strands(luxcore::Scene* scene, 
+	XSI::X3DObject& xsi_object,
+	MotionParameters& motion,
+	std::set<ULONG>& xsi_materials_in_lux, 
+	std::unordered_map<std::string, std::string>& object_name_to_shape_name,
+	std::unordered_map<std::string, std::string>& object_name_to_material_name,
+	const XSI::CTime &eval_time)
 {
 	//get attributes
 	XSI::Geometry xsi_geometry = xsi_object.GetActivePrimitive(eval_time).GetGeometry(eval_time);
@@ -120,8 +126,13 @@ bool sync_pointcloud_strands(luxcore::Scene* scene, XSI::X3DObject& xsi_object, 
 	XSI::MATH::CMatrix4 xsi_matrix = xsi_object.GetKinematics().GetGlobal().GetTransform().GetMatrix4();
 	std::vector<double> lux_matrix = xsi_to_lux_matrix(xsi_matrix);
 	strands_props.Set(luxrays::Property("scene.objects." + object_name + ".transformation")(lux_matrix));
+	
+	bool is_motion = sync_motion(strands_props, "scene.objects." + object_name, motion, xsi_object.GetKinematics().GetGlobal(), eval_time);
 
 	scene->Parse(strands_props);
+
+	object_name_to_shape_name[object_name] = shape_name;
+	object_name_to_material_name[object_name] = mat_name;
 
 	points.clear();
 	points.shrink_to_fit();

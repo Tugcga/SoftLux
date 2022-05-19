@@ -43,6 +43,7 @@ public:
 	//these public variables can be used from render engine
 	RenderType render_type;
 	XSI::RendererContext m_render_context;  // save it in the pre_render method
+	XSI::CRefArray m_isolation_list;
 	XSI::CString archive_folder;  // full path to the folder for archive export. Non-empty only if the user call export scene
 	XSI::Property m_render_property;
 	XSI::CTime eval_time;

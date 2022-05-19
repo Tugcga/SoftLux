@@ -123,8 +123,11 @@ void define_area_light_mesh(luxcore::Scene* scene, const std::string &shape_name
 //use use_default_material for background of the shaderball
 bool sync_polymesh(luxcore::Scene* scene, 
 	XSI::X3DObject& xsi_object, 
+	MotionParameters& motion,
 	std::set<ULONG>& xsi_materials_in_lux, 
 	std::unordered_map<ULONG, std::set<ULONG>> &material_with_shape_to_polymesh_map,
+	std::unordered_map<std::string, std::string>& object_name_to_shape_name,
+	std::unordered_map<std::string, std::string>& object_name_to_material_name,
 	const XSI::CTime& eval_time, 
 	const ULONG override_material, 
 	const bool use_default_material)
@@ -368,6 +371,7 @@ bool sync_polymesh(luxcore::Scene* scene,
 	//define Luxcore meshes
 	std::string mesh_name = xsi_object_id_string(xsi_primitive)[0];
 	std::vector<std::string> object_names = xsi_object_id_string(xsi_object);
+	luxrays::Properties subobject_props;
 	for (ULONG i = 0; i < submeshes_count; i++)
 	{
 		std::string submesh_name = mesh_name + "_" + xsi_material_names[i];
@@ -450,21 +454,24 @@ bool sync_polymesh(luxcore::Scene* scene,
 		}
 
 		//add mesh to the scene
-		luxrays::Properties submobject_props;
-		submobject_props.Set(luxrays::Property("scene.objects." + subobject_name + ".shape")(shape_name));
+		subobject_props.Set(luxrays::Property("scene.objects." + subobject_name + ".shape")(shape_name));
 		//get mesh material
 		std::string material_name = use_default_material ? "default_material" : (override_material == 0 ? xsi_material_names[i] : std::string(XSI::CString(override_material).GetAsciiString()));
-		submobject_props.Set(luxrays::Property("scene.objects." + subobject_name + ".material")(material_name));
-		submobject_props.Set(luxrays::Property("scene.objects." + subobject_name + ".id")(static_cast<unsigned int>(xsi_object.GetObjectID())));
-		submobject_props.Set(luxrays::Property("scene.objects." + subobject_name + ".camerainvisible")(false));
+		subobject_props.Set(luxrays::Property("scene.objects." + subobject_name + ".material")(material_name));
+		subobject_props.Set(luxrays::Property("scene.objects." + subobject_name + ".id")(static_cast<unsigned int>(xsi_object.GetObjectID())));
+		subobject_props.Set(luxrays::Property("scene.objects." + subobject_name + ".camerainvisible")(false));
+
+		object_name_to_shape_name[subobject_name] = shape_name;
+		object_name_to_material_name[subobject_name] = material_name;
 
 		//set transform
 		XSI::MATH::CMatrix4 xsi_matrix = xsi_object.GetKinematics().GetGlobal().GetTransform().GetMatrix4();
 		std::vector<double> lux_matrix = xsi_to_lux_matrix(xsi_matrix);
-		submobject_props.Set(luxrays::Property("scene.objects." + subobject_name + ".transformation")(lux_matrix));
-
-		scene->Parse(submobject_props);
+		subobject_props.Set(luxrays::Property("scene.objects." + subobject_name + ".transformation")(lux_matrix));
+		//motion
+		bool is_motion = sync_motion(subobject_props, "scene.objects." + subobject_name, motion, xsi_object.GetKinematics().GetGlobal(), eval_time);
 	}
+	scene->Parse(subobject_props);
 
 	//clear temporary arrays
 	points.clear();

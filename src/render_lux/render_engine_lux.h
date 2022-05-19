@@ -1,10 +1,12 @@
 #pragma once
 
 #include "../render_base/render_engine_base.h"
+#include "lux_scene/lux_scene.h"
 
 #include <luxcore/luxcore.h>
 
 #include <set>
+#include <string>
 #include <unordered_map>
 
 class RenderEngineLux : public RenderEngineBase 
@@ -47,6 +49,7 @@ private:
 	void try_to_init();
 	void clear_scene();
 	void clear_session();
+	MotionParameters read_motion_params();
 
 	void update_object(XSI::X3DObject& xsi_object);
 	void update_instance_masters(ULONG xsi_id);
@@ -92,7 +95,14 @@ private:
 	//this map to each material with active shape node corresponds ids (in XSI) of polygonmeshes which use this material
 	//when we change material in the keys list, then we should reexport all polygonmeshes
 	std::unordered_map<ULONG, std::set<ULONG>> material_with_shape_to_polymesh_map;
+	//contains map from object name to used shape name
+	//this map should be used in the instance export to define objects with the same shape
+	std::unordered_map<std::string, std::string> object_name_to_shape_name;
+	//also we need the same map from object to the material name
+	//to define instance with the same material
+	std::unordered_map<std::string, std::string> object_name_to_material_name;
 
 	luxcore::Film::FilmOutputType lux_visual_output_type;
 	luxcore::Film::FilmOutputType last_lux_visual_output_type;
+	MotionParameters prev_motion;
 };

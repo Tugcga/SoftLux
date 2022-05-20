@@ -8,7 +8,7 @@
 
 bool sync_hair(luxcore::Scene* scene, 
 	XSI::X3DObject& xsi_object, 
-	MotionParameters& motion,
+	const XSI::CParameterRefArray& render_params,
 	std::set<ULONG>& xsi_materials_in_lux,
 	std::unordered_map<std::string, std::string>& object_name_to_shape_name,
 	std::unordered_map<std::string, std::string>& object_name_to_material_name,
@@ -194,7 +194,7 @@ bool sync_hair(luxcore::Scene* scene,
 	std::vector<double> lux_matrix = xsi_to_lux_matrix(xsi_matrix);
 	strands_props.Set(luxrays::Property("scene.objects." + object_name + ".transformation")(lux_matrix));
 
-	bool is_motion = sync_motion(strands_props, "scene.objects." + object_name, motion, xsi_object.GetKinematics().GetGlobal(), eval_time);
+	bool is_motion = sync_motion(strands_props, "scene.objects." + object_name, render_params, xsi_object.GetKinematics().GetGlobal(), eval_time);
 
 	scene->Parse(strands_props);
 

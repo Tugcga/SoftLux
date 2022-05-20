@@ -44,6 +44,7 @@ RenderEngineLux::RenderEngineLux()
 	object_name_to_material_name.clear();
 
 	prev_motion = { false, 1.0f, 2};
+	prev_service_aov = { false, false};
 
 	RenderEngineLux::is_log = false;
 }
@@ -188,7 +189,7 @@ void RenderEngineLux::update_object(XSI::X3DObject& xsi_object)
 	if (is_xsi_object_visible(eval_time, xsi_object))
 	{
 		std::set<std::string> names_to_delete;
-		bool is_sync = sync_object(scene, xsi_object, prev_motion, xsi_materials_in_lux, xsi_id_to_lux_names_map, master_to_instance_map, material_with_shape_to_polymesh_map, names_to_delete, object_name_to_shape_name, object_name_to_material_name, eval_time);
+		bool is_sync = sync_object(scene, xsi_object, m_render_parameters, xsi_materials_in_lux, xsi_id_to_lux_names_map, master_to_instance_map, material_with_shape_to_polymesh_map, names_to_delete, object_name_to_shape_name, object_name_to_material_name, eval_time);
 		if (is_sync)
 		{
 			ULONG xsi_id = xsi_object.GetObjectID();
@@ -219,7 +220,7 @@ XSI::CStatus RenderEngineLux::update_scene(XSI::X3DObject& xsi_object, const Upd
 		{
 			if (update_type == UpdateType_Camera)
 			{
-				sync_camera(scene, render_type, m_render_context, prev_motion, eval_time);
+				sync_camera(scene, render_type, m_render_context, m_render_parameters, eval_time);
 				is_update_camera = true;
 
 				return XSI::CStatus::OK;
@@ -231,7 +232,7 @@ XSI::CStatus RenderEngineLux::update_scene(XSI::X3DObject& xsi_object, const Upd
 				XSI::CString xsi_type = xsi_object.GetType();
 				if (xsi_type == "light")
 				{
-					bool is_sync = update_light_object(scene, xsi_object, prev_motion, eval_time);
+					bool is_sync = update_light_object(scene, xsi_object, m_render_parameters, eval_time);
 					if (is_sync)
 					{
 						updated_xsi_ids.push_back(xsi_object.GetObjectID());
@@ -276,7 +277,7 @@ XSI::CStatus RenderEngineLux::update_scene(XSI::X3DObject& xsi_object, const Upd
 				if (xsi_type == "light")
 				{
 					//completely update the light
-					bool is_sync = update_light_object(scene, xsi_object, prev_motion, eval_time);
+					bool is_sync = update_light_object(scene, xsi_object, m_render_parameters, eval_time);
 					if (is_sync)
 					{
 						updated_xsi_ids.push_back(xsi_object.GetObjectID());
@@ -301,7 +302,7 @@ XSI::CStatus RenderEngineLux::update_scene(XSI::X3DObject& xsi_object, const Upd
 						for (ULONG i = 0; i < object_names.size(); i++)
 						{
 							log_message("start update transform " + XSI::CString(object_names[i].c_str()));
-							sync_transform(scene, object_names[i], prev_motion, xsi_object.GetKinematics().GetGlobal(), eval_time);
+							sync_transform(scene, object_names[i], m_render_parameters, xsi_object.GetKinematics().GetGlobal(), eval_time);
 						}
 						log_message("sync transform done");
 						object_names.clear();
@@ -319,7 +320,7 @@ XSI::CStatus RenderEngineLux::update_scene(XSI::X3DObject& xsi_object, const Upd
 			}
 			else if (update_type == UpdateType_XsiLight)
 			{
-				bool is_sync = update_light_object(scene, xsi_object, prev_motion, eval_time);
+				bool is_sync = update_light_object(scene, xsi_object, m_render_parameters, eval_time);
 				if (is_sync)
 				{
 					updated_xsi_ids.push_back(xsi_object.GetObjectID());
@@ -445,6 +446,16 @@ MotionParameters RenderEngineLux::read_motion_params()
 	return motion;
 }
 
+ServiceAOVParameters RenderEngineLux::read_service_aov_params()
+{
+	ServiceAOVParameters service_aov =
+	{
+		m_render_parameters.GetValue("service_export_pointness", eval_time),
+		m_render_parameters.GetValue("service_export_random_islands", eval_time)
+	};
+	return service_aov;
+}
+
 XSI::CStatus RenderEngineLux::update_scene_render()
 {
 	//if we change render parameters, then we should recreate the session
@@ -459,9 +470,16 @@ XSI::CStatus RenderEngineLux::update_scene_render()
 		prev_motion = current_motion;
 		return XSI::CStatus::Abort;
 	}
-
 	prev_motion = current_motion;
 
+	ServiceAOVParameters current_service_aov = read_service_aov_params();
+	if (prev_service_aov.is_changed(current_service_aov))
+	{
+		prev_service_aov = current_service_aov;
+		return XSI::CStatus::Abort;
+	}
+	prev_service_aov = current_service_aov;
+	
 	return XSI::CStatus::OK;
 }
 
@@ -475,9 +493,10 @@ XSI::CStatus RenderEngineLux::create_scene()
 	is_scene_create = true;
 	reinit_environments = false;
 	prev_motion = read_motion_params();
+	prev_service_aov = read_service_aov_params();
 
 	//always update the camera
-	sync_camera(scene, render_type, m_render_context, prev_motion, eval_time);
+	sync_camera(scene, render_type, m_render_context, m_render_parameters, eval_time);
 	is_update_camera = true;
 
 	if (render_type == RenderType_Shaderball)
@@ -489,7 +508,7 @@ XSI::CStatus RenderEngineLux::create_scene()
 		{
 			XSI::Material shaderball_material(shaderball_item);
 			sync_material(scene, shaderball_material, xsi_materials_in_lux, eval_time);
-			sync_shaderball(scene, m_render_context, xsi_id_to_lux_names_map, material_with_shape_to_polymesh_map, eval_time, shaderball_material.GetObjectID());
+			sync_shaderball(scene, m_render_context, m_render_parameters, xsi_id_to_lux_names_map, material_with_shape_to_polymesh_map, eval_time, shaderball_material.GetObjectID());
 		}
 		else
 		{
@@ -507,7 +526,7 @@ XSI::CStatus RenderEngineLux::create_scene()
 		sync_ambient(scene, eval_time);
 
 		//sync scene objects
-		sync_scene_objects(scene, m_render_context, prev_motion, xsi_materials_in_lux, xsi_id_to_lux_names_map, master_to_instance_map, material_with_shape_to_polymesh_map, object_name_to_shape_name, object_name_to_material_name, eval_time);
+		sync_scene_objects(scene, m_render_context, m_render_parameters, xsi_materials_in_lux, xsi_id_to_lux_names_map, master_to_instance_map, material_with_shape_to_polymesh_map, object_name_to_shape_name, object_name_to_material_name, eval_time);
 
 		//environment light (hdri, sky, sun)
 		xsi_environment_in_lux = sync_environment(scene, eval_time);
@@ -547,7 +566,7 @@ XSI::CStatus RenderEngineLux::post_scene()
 	//update camera, if we did not do it earlier
 	if (!is_update_camera)
 	{
-		sync_camera(scene, render_type, m_render_context, prev_motion, eval_time);
+		sync_camera(scene, render_type, m_render_context, m_render_parameters, eval_time);
 		is_update_camera = true;
 	}
 
@@ -569,7 +588,7 @@ XSI::CStatus RenderEngineLux::post_scene()
 		//next create it again
 		XSI::X3DObject xsi_instance(XSI::Application().GetObjectFromID(xsi_id));
 		std::set<std::string> names_to_delete;
-		bool is_sync = sync_object(scene, xsi_instance, prev_motion, xsi_materials_in_lux, xsi_id_to_lux_names_map, master_to_instance_map, material_with_shape_to_polymesh_map, names_to_delete, object_name_to_shape_name, object_name_to_material_name, eval_time);
+		bool is_sync = sync_object(scene, xsi_instance, m_render_parameters, xsi_materials_in_lux, xsi_id_to_lux_names_map, master_to_instance_map, material_with_shape_to_polymesh_map, names_to_delete, object_name_to_shape_name, object_name_to_material_name, eval_time);
 		if (is_sync)
 		{
 			xsi_id_to_lux_names_map[xsi_instance.GetObjectID()] = xsi_object_id_string(xsi_instance);

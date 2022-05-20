@@ -108,6 +108,7 @@ XSI::CRefArray gather_all_subobjects(const XSI::Model& root)
 
 void sync_shaderball(luxcore::Scene* scene, 
 	XSI::RendererContext& xsi_render_context, 
+	const XSI::CParameterRefArray& render_params,
 	std::unordered_map<ULONG, std::vector<std::string>>& xsi_id_to_lux_names_map, 
 	std::unordered_map<ULONG, std::set<ULONG>>& material_with_shape_to_polymesh_map,
 	const XSI::CTime& eval_time, 
@@ -116,7 +117,6 @@ void sync_shaderball(luxcore::Scene* scene,
 	//shaderball secene export
 	sync_default_material(scene);
 	std::set<ULONG> empty_set;
-	MotionParameters empty_motion = { false, 1.0, 2 };
 	std::unordered_map<std::string, std::string> empty_map_shapes;
 	std::unordered_map<std::string, std::string> empty_map_materials;
 	XSI::CRefArray models = xsi_render_context.GetAttribute("Scene");
@@ -133,7 +133,7 @@ void sync_shaderball(luxcore::Scene* scene,
 			{
 				//here we should override material of the object
 				//because in the model it contains local model material instead of editor one
-				bool is_sync = sync_polymesh(scene, xsi_object, empty_motion, empty_set, material_with_shape_to_polymesh_map, empty_map_shapes, empty_map_materials, eval_time, override_material_id);
+				bool is_sync = sync_polymesh(scene, xsi_object, render_params, empty_set, material_with_shape_to_polymesh_map, empty_map_shapes, empty_map_materials, eval_time, override_material_id);
 				if (is_sync)
 				{
 					xsi_id_to_lux_names_map[xsi_object.GetObjectID()] = xsi_object_id_string(xsi_object);
@@ -161,7 +161,7 @@ void sync_shaderball(luxcore::Scene* scene,
 			if (xsi_object.GetType() == "polymsh")
 			{
 				//add object as background
-				bool is_sync = sync_polymesh(scene, xsi_object, empty_motion, empty_set, material_with_shape_to_polymesh_map, empty_map_shapes, empty_map_materials, eval_time, 0, true);
+				bool is_sync = sync_polymesh(scene, xsi_object, render_params, empty_set, material_with_shape_to_polymesh_map, empty_map_shapes, empty_map_materials, eval_time, 0, true);
 				if (is_sync)
 				{
 					//override material to the background material

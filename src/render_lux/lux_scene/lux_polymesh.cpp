@@ -123,7 +123,7 @@ void define_area_light_mesh(luxcore::Scene* scene, const std::string &shape_name
 //use use_default_material for background of the shaderball
 bool sync_polymesh(luxcore::Scene* scene, 
 	XSI::X3DObject& xsi_object, 
-	MotionParameters& motion,
+	const XSI::CParameterRefArray& render_params,
 	std::set<ULONG>& xsi_materials_in_lux, 
 	std::unordered_map<ULONG, std::set<ULONG>> &material_with_shape_to_polymesh_map,
 	std::unordered_map<std::string, std::string>& object_name_to_shape_name,
@@ -368,6 +368,9 @@ bool sync_polymesh(luxcore::Scene* scene,
 		submesh_triangle_index[submesh_index] += polygon_sizes[i] - 2;
 	}
 
+	bool is_pointess = render_params.GetValue("service_export_pointness", eval_time);
+	bool is_island_aov = render_params.GetValue("service_export_random_islands", eval_time);
+
 	//define Luxcore meshes
 	std::string mesh_name = xsi_object_id_string(xsi_primitive)[0];
 	std::vector<std::string> object_names = xsi_object_id_string(xsi_object);
@@ -424,32 +427,40 @@ bool sync_polymesh(luxcore::Scene* scene,
 
 			//if we select this in the render settings, then add default shapes
 			//add pointness
-			std::string p_shape_name = shape_name + "_pointness";
-			std::string p_prefix = "scene.shapes." + p_shape_name;
-			luxrays::Properties p_shape_props;
-			p_shape_props.Set(luxrays::Property(p_prefix + ".type")("pointiness"));
-			p_shape_props.Set(luxrays::Property(p_prefix + ".source")(shape_name));
-			scene->Parse(p_shape_props);
-
+			std::string p_shape_name = shape_name;
+			if (is_pointess)
+			{
+				p_shape_name = shape_name + "_pointness";
+				std::string p_prefix = "scene.shapes." + p_shape_name;
+				luxrays::Properties p_shape_props;
+				p_shape_props.Set(luxrays::Property(p_prefix + ".type")("pointiness"));
+				p_shape_props.Set(luxrays::Property(p_prefix + ".source")(shape_name));
+				scene->Parse(p_shape_props);
+			}
+			
+			std::string random_shape_name = p_shape_name;
 			//also add islandaov
-			std::string island_shape_name = p_shape_name + "_island_aov";
-			std::string island_prefix = "scene.shapes." + island_shape_name;
-			luxrays::Properties island_shape_props;
-			island_shape_props.Set(luxrays::Property(island_prefix + ".type")("islandaov"));
-			island_shape_props.Set(luxrays::Property(island_prefix + ".source")(p_shape_name));
-			island_shape_props.Set(luxrays::Property(island_prefix + ".dataindex")(0));
-			scene->Parse(island_shape_props);
+			if (is_island_aov)
+			{
+				std::string island_shape_name = p_shape_name + "_island_aov";
+				std::string island_prefix = "scene.shapes." + island_shape_name;
+				luxrays::Properties island_shape_props;
+				island_shape_props.Set(luxrays::Property(island_prefix + ".type")("islandaov"));
+				island_shape_props.Set(luxrays::Property(island_prefix + ".source")(p_shape_name));
+				island_shape_props.Set(luxrays::Property(island_prefix + ".dataindex")(0));
+				scene->Parse(island_shape_props);
 
-			//and randomtriangleaov
-			std::string random_shape_name = island_shape_name + "_random_tri_aov_shape";
-			std::string random_prefix = "scene.shapes." + random_shape_name;
-			luxrays::Properties random_shape_props;
-			random_shape_props.Set(luxrays::Property(random_prefix + ".type")("randomtriangleaov"));
-			random_shape_props.Set(luxrays::Property(random_prefix + ".source")(island_shape_name));
-			random_shape_props.Set(luxrays::Property(random_prefix + ".srcdataindex")(0));
-			random_shape_props.Set(luxrays::Property(random_prefix + ".dstdataindex")(1));
-			scene->Parse(random_shape_props);
-
+				//and randomtriangleaov
+				random_shape_name = island_shape_name + "_random_tri_aov_shape";
+				std::string random_prefix = "scene.shapes." + random_shape_name;
+				luxrays::Properties random_shape_props;
+				random_shape_props.Set(luxrays::Property(random_prefix + ".type")("randomtriangleaov"));
+				random_shape_props.Set(luxrays::Property(random_prefix + ".source")(island_shape_name));
+				random_shape_props.Set(luxrays::Property(random_prefix + ".srcdataindex")(0));
+				random_shape_props.Set(luxrays::Property(random_prefix + ".dstdataindex")(1));
+				scene->Parse(random_shape_props);
+			}
+			
 			shape_name = random_shape_name;
 		}
 
@@ -469,7 +480,7 @@ bool sync_polymesh(luxcore::Scene* scene,
 		std::vector<double> lux_matrix = xsi_to_lux_matrix(xsi_matrix);
 		subobject_props.Set(luxrays::Property("scene.objects." + subobject_name + ".transformation")(lux_matrix));
 		//motion
-		bool is_motion = sync_motion(subobject_props, "scene.objects." + subobject_name, motion, xsi_object.GetKinematics().GetGlobal(), eval_time);
+		bool is_motion = sync_motion(subobject_props, "scene.objects." + subobject_name, render_params, xsi_object.GetKinematics().GetGlobal(), eval_time);
 	}
 	scene->Parse(subobject_props);
 

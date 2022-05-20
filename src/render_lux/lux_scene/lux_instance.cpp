@@ -26,7 +26,7 @@ void sync_instance(luxcore::Scene* scene,
 	ULONG model_id,
 	std::string &model_id_str,
 	XSI::X3DObject &master, 
-	MotionParameters& motion,
+	const XSI::CParameterRefArray& render_params,
 	XSI::MATH::CTransformation& model_tfm,
 	std::unordered_map<ULONG, std::vector<std::string>>& xsi_id_to_lux_names_map,
 	std::set<ULONG>& xsi_materials_in_lux,
@@ -70,7 +70,7 @@ void sync_instance(luxcore::Scene* scene,
 				//this is because it outside of the isolation view, because in non-isolation mode we at first export geometry and only then - instances
 				if (ignore_master_visibility || is_xsi_object_visible(eval_time, object))
 				{
-					bool is_sync = sync_object(scene, object, motion, xsi_materials_in_lux, xsi_id_to_lux_names_map, master_to_instance_map, material_with_shape_to_polymesh_map, names_to_delete, object_name_to_shape_name, object_name_to_material_name, eval_time);
+					bool is_sync = sync_object(scene, object, render_params, xsi_materials_in_lux, xsi_id_to_lux_names_map, master_to_instance_map, material_with_shape_to_polymesh_map, names_to_delete, object_name_to_shape_name, object_name_to_material_name, eval_time);
 					if (is_sync)
 					{
 						xsi_id_to_lux_names_map[xsi_id] = xsi_object_id_string(object);
@@ -109,7 +109,7 @@ void sync_instance(luxcore::Scene* scene,
 							//next sync transform
 							lux_props.Set(luxrays::Property("scene.objects." + new_object_name + ".transformation")(lux_matrix));
 							//and then sync motion
-							bool is_motion = sync_instance_motion(lux_props, "scene.objects." + new_object_name, motion, time_transforms, time_transforms_start, master.GetKinematics().GetGlobal(), object.GetKinematics().GetGlobal(), eval_time);
+							bool is_motion = sync_instance_motion(lux_props, "scene.objects." + new_object_name, render_params, time_transforms, time_transforms_start, master.GetKinematics().GetGlobal(), object.GetKinematics().GetGlobal(), eval_time);
 
 							scene->Parse(lux_props);
 						}
@@ -133,7 +133,7 @@ void sync_instance(luxcore::Scene* scene,
 
 bool sync_instance(luxcore::Scene* scene,
 	XSI::Model &xsi_model, 
-	MotionParameters& motion,
+	const XSI::CParameterRefArray& render_params,
 	std::unordered_map<ULONG, std::vector<std::string>>& xsi_id_to_lux_names_map, 
 	std::set<ULONG>& xsi_materials_in_lux,
 	std::unordered_map<ULONG, std::vector<ULONG>>& master_to_instance_map,
@@ -153,8 +153,8 @@ bool sync_instance(luxcore::Scene* scene,
 	XSI::MATH::CTransformation model_tfm = xsi_model.GetKinematics().GetGlobal().GetTransform(eval_time);
 	std::string model_id_str = std::to_string(model_id);
 
-	std::vector<XSI::MATH::CTransformation> time_transforms = build_time_transforms(xsi_model.GetKinematics().GetGlobal(), motion, eval_time);
-	sync_instance(scene, model_id, model_id_str, master, motion, model_tfm, xsi_id_to_lux_names_map, xsi_materials_in_lux, master_to_instance_map, material_with_shape_to_polymesh_map, names_to_delete, object_name_to_shape_name, object_name_to_material_name, eval_time, false, true, time_transforms);
+	std::vector<XSI::MATH::CTransformation> time_transforms = build_time_transforms(xsi_model.GetKinematics().GetGlobal(), render_params, eval_time);
+	sync_instance(scene, model_id, model_id_str, master, render_params, model_tfm, xsi_id_to_lux_names_map, xsi_materials_in_lux, master_to_instance_map, material_with_shape_to_polymesh_map, names_to_delete, object_name_to_shape_name, object_name_to_material_name, eval_time, false, true, time_transforms);
 
 	return true;
 }

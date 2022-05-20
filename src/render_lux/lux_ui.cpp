@@ -154,6 +154,10 @@ void build_layout(XSI::PPGLayout& layout)
 	layout.AddItem("service_instances", "Instances");
 	layout.EndGroup();
 
+	layout.AddGroup("Shape AOV");
+	layout.AddItem("service_export_pointness", "Include Pointness");
+	layout.AddItem("service_export_random_islands", "Include Island AOV");
+	layout.EndGroup();
 	//--------------------------------------------------------------
 	layout.AddTab("Export");
 	layout.AddGroup("Parameters");

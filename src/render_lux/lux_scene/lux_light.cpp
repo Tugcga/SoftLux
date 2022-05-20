@@ -128,7 +128,7 @@ void setup_area_light(luxcore::Scene *scene, luxrays::Properties &light_props, c
 	float rotation_x, float rotation_y, float rotation_z,
 	XSI::MATH::CTransformation &xsi_transform,
 	int lightgroup, float importance,
-	const MotionParameters& motion,
+	const XSI::CParameterRefArray& render_params,
 	const XSI::KinematicState &xsi_kine,
 	const XSI::CTime &eval_time)
 {
@@ -213,13 +213,13 @@ void setup_area_light(luxcore::Scene *scene, luxrays::Properties &light_props, c
 
 	std::vector<double> lux_matrix = xsi_to_lux_matrix(scale_matrix);
 	light_props.Set(luxrays::Property(prefix + ".transformation")(lux_matrix));
-	bool is_motion = sync_motion(light_props, prefix, motion, xsi_kine, eval_time);
+	bool is_motion = sync_motion(light_props, prefix, render_params, xsi_kine, eval_time);
 }
 
 //here we convert built-in XSI lights
 bool sync_xsi_light(luxcore::Scene* scene, 
 	XSI::Light &xsi_light, 
-	const MotionParameters& motion, 
+	const XSI::CParameterRefArray& render_params,
 	const XSI::CTime &eval_time)
 {
 	if (is_xsi_object_visible(eval_time, xsi_light))
@@ -278,7 +278,7 @@ bool sync_xsi_light(luxcore::Scene* scene,
 						90.0f, "artistic", false, "", 2.2f,
 						size_x, size_y, rotation_x, rotation_y, rotation_z, xsi_transform,
 						0, 1.0f,
-						motion, xsi_light.GetKinematics().GetGlobal(), eval_time);
+						render_params, xsi_light.GetKinematics().GetGlobal(), eval_time);
 
 					scene->Parse(light_props);
 					return true;
@@ -393,7 +393,7 @@ bool sync_xsi_light(luxcore::Scene* scene,
 					setup_area_light(scene, light_props, "scene.objects." + light_name, light_name, is_visible, color_r, color_g, color_b, 
 						gain * powf(2, exposure), power, efficency, lumen, candela, theta, unit, normalized, get_map_path(map_param), gamma,
 						size_x, size_y, rotation_x, rotation_y, rotation_z, xsi_transform,
-						lightgroup_id, importance, motion, xsi_light.GetKinematics().GetGlobal(), eval_time);
+						lightgroup_id, importance, render_params, xsi_light.GetKinematics().GetGlobal(), eval_time);
 
 					scene->Parse(light_props);
 					return true;
@@ -585,7 +585,7 @@ bool sync_xsi_light(luxcore::Scene* scene,
 
 bool update_light_object(luxcore::Scene* scene, 
 	XSI::X3DObject& xsi_object, 
-	const MotionParameters& motion,
+	const XSI::CParameterRefArray& render_params,
 	const XSI::CTime& eval_time)
 {
 	if (xsi_object.GetType() == "light")
@@ -597,7 +597,7 @@ bool update_light_object(luxcore::Scene* scene,
 		scene->DeleteObject(object_name);
 		scene->DeleteLight(object_name);
 		
-		return sync_xsi_light(scene, xsi_light, motion, eval_time);
+		return sync_xsi_light(scene, xsi_light, render_params, eval_time);
 	}
 	else
 	{

@@ -137,7 +137,7 @@ void setup_camera(luxrays::Properties &lux_props,
 
 void sync_camera_scene(luxcore::Scene* scene,
 	const XSI::Camera& xsi_camera, 
-	MotionParameters& motion,
+	const XSI::CParameterRefArray& render_params,
 	const XSI::CTime& eval_time)
 {
 	XSI::MATH::CTransformation xsi_tfm = xsi_camera.GetKinematics().GetGlobal().GetTransform();
@@ -188,13 +188,15 @@ void sync_camera_scene(luxcore::Scene* scene,
 	luxrays::Properties camera_props;
 	set_lux_camera_positions(camera_props, xsi_position, xsi_target_position);
 	
-	if (motion.motion_objects)
+	bool is_motion = render_params.GetValue("motion_objects", eval_time);
+	float motion_shutter_time = render_params.GetValue("motion_shutter_time", eval_time);
+	if (is_motion)
 	{
 		camera_props.Set(luxrays::Property("scene.camera.up")(0.0, 1.0, 0.0));
 		scene->Parse(camera_props);
 
 		luxrays::Properties motion_props;
-		bool is_motion = sync_motion(motion_props, "scene.camera", motion, xsi_camera.GetKinematics().GetGlobal(), eval_time);
+		bool is_motion = sync_motion(motion_props, "scene.camera", render_params, xsi_camera.GetKinematics().GetGlobal(), eval_time);
 		
 		motion_props.Set(luxrays::Property("scene.camera.up")(0.0, 1.0, 0.0));
 		motion_props.Set(luxrays::Property("scene.camera.lookat.orig")(0.0, 0.0, 0.0));
@@ -205,7 +207,7 @@ void sync_camera_scene(luxcore::Scene* scene,
 			get_distance(xsi_position, xsi_target_position),
 			false,
 			xsi_position, xsi_target_position,
-			motion.motion_objects ? motion.motion_shutter_time : 1.0f);
+			is_motion ? motion_shutter_time : 1.0f);
 
 		scene->Parse(motion_props);
 	}
@@ -215,7 +217,7 @@ void sync_camera_scene(luxcore::Scene* scene,
 			get_distance(xsi_position, xsi_target_position),
 			false,
 			xsi_position, xsi_target_position,
-			motion.motion_objects ? motion.motion_shutter_time : 1.0f);
+			is_motion ? motion_shutter_time : 1.0f);
 
 		scene->Parse(camera_props);
 	}
@@ -224,7 +226,7 @@ void sync_camera_scene(luxcore::Scene* scene,
 void sync_camera(luxcore::Scene* scene, 
 	const RenderType render_type,
 	XSI::RendererContext& xsi_render_context, 
-	MotionParameters& motion,
+	const XSI::CParameterRefArray& render_params,
 	const XSI::CTime &eval_time)
 {
 	if (render_type == RenderType_Shaderball)
@@ -236,6 +238,6 @@ void sync_camera(luxcore::Scene* scene,
 		XSI::Primitive camera_prim(xsi_render_context.GetAttribute("Camera"));
 		XSI::X3DObject camera_obj = camera_prim.GetOwners()[0];
 		XSI::Camera	xsi_camera(camera_obj);
-		sync_camera_scene(scene, xsi_camera, motion, eval_time);
+		sync_camera_scene(scene, xsi_camera, render_params, eval_time);
 	}
 }

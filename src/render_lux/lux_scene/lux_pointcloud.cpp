@@ -9,7 +9,7 @@
 
 bool sync_pointcloud(luxcore::Scene* scene, 
 	XSI::X3DObject& xsi_object, 
-	MotionParameters& motion,
+	const XSI::CParameterRefArray& render_params,
 	std::unordered_map<ULONG, std::vector<std::string>>& xsi_id_to_lux_names_map,
 	std::set<ULONG>& xsi_materials_in_lux,
 	std::unordered_map<ULONG, std::vector<ULONG>>& master_to_instance_map,
@@ -27,6 +27,8 @@ bool sync_pointcloud(luxcore::Scene* scene,
 	XSI::Geometry pc_geometry = pc_primitive.GetGeometry(eval_time);
 
 	XSI::ICEAttribute position_attr = pc_geometry.GetICEAttributeFromName("PointPosition");
+	bool is_motion = render_params.GetValue("motion_objects", eval_time);
+	int motion_steps = render_params.GetValue("motion_steps", eval_time);
 	if (position_attr.GetElementCount() > 0)
 	{
 		XSI::CICEAttributeDataArrayVector3f position_data;
@@ -54,7 +56,7 @@ bool sync_pointcloud(luxcore::Scene* scene,
 		ULONG position_data_count = position_data.GetCount();
 
 		//next read motion SRT
-		std::vector<XSI::MATH::CTransformation> time_transforms = build_time_points_transforms(xsi_object, motion, eval_time);
+		std::vector<XSI::MATH::CTransformation> time_transforms = build_time_points_transforms(xsi_object, render_params, eval_time);
 		for (ULONG i = 0; i < shape_data_count; i++)
 		{
 			XSI::MATH::CVector3f position = position_data[i];
@@ -90,7 +92,7 @@ bool sync_pointcloud(luxcore::Scene* scene,
 				std::string point_name = std::to_string(xsi_id) + "_" + std::to_string(i);
 
 				//here we should create transforms from point data in different times
-				sync_instance(scene, xsi_id, point_name, master_root, motion, point_tfm, xsi_id_to_lux_names_map, xsi_materials_in_lux, master_to_instance_map, material_with_shape_to_polymesh_map, names_to_delete, object_name_to_shape_name, object_name_to_material_name, eval_time, true, is_branch_selected, time_transforms, motion.motion_objects ? i * motion.motion_steps : 0);
+				sync_instance(scene, xsi_id, point_name, master_root, render_params, point_tfm, xsi_id_to_lux_names_map, xsi_materials_in_lux, master_to_instance_map, material_with_shape_to_polymesh_map, names_to_delete, object_name_to_shape_name, object_name_to_material_name, eval_time, true, is_branch_selected, time_transforms, is_motion ? i * motion_steps : 0);
 			}
 		}
 	}

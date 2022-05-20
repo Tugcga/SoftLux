@@ -9,19 +9,22 @@
 
 bool sync_motion(luxrays::Properties &lux_props,
 	const std::string &prefix,
-	const MotionParameters &motion,
+	const XSI::CParameterRefArray& render_params,
 	const XSI::KinematicState &xsi_kinematic,
 	const XSI::CTime &eval_time,
 	const bool set_only_position)
 {
 	//if set_only_position is true, then use identity transform materix and set only position (but also swap axis)
-	if (motion.motion_objects)
+	bool is_motion = render_params.GetValue("motion_objects", eval_time);
+	int motion_steps = render_params.GetValue("motion_steps", eval_time);
+	float motion_shutter_time = render_params.GetValue("motion_shutter_time", eval_time);
+	if (is_motion)
 	{
 		//camera is open from 0 to shutter time
 		//so, we should devide the interval of the length = shutter_time into steps and find transforms of the object at each time point
-		float one_step_time = motion.motion_shutter_time / (float)(motion.motion_steps - 1);
-		const float shift_time = motion.motion_shutter_time / 2;
-		for (ULONG step = 0; step < motion.motion_steps; step++)
+		float one_step_time = motion_shutter_time / (float)(motion_steps - 1);
+		const float shift_time = motion_shutter_time / 2;
+		for (ULONG step = 0; step < motion_steps; step++)
 		{
 			float s_time = step * one_step_time;
 			lux_props.Set(luxrays::Property(prefix + ".motion." + std::to_string(step) + ".time")(s_time));
@@ -61,18 +64,21 @@ bool sync_motion(luxrays::Properties &lux_props,
 
 bool sync_instance_motion(luxrays::Properties& lux_props,
 	const std::string& prefix,
-	const MotionParameters& motion,
+	const XSI::CParameterRefArray& render_params,
 	const std::vector<XSI::MATH::CTransformation>& time_transforms,
 	const ULONG time_start_index,
 	const XSI::KinematicState &master_root_kine,
 	const XSI::KinematicState& master_object_kine,
 	const XSI::CTime& eval_time)
 {
-	if (motion.motion_objects)
+	bool is_motion = render_params.GetValue("motion_objects", eval_time);
+	int motion_steps = render_params.GetValue("motion_steps", eval_time);
+	float motion_shutter_time = render_params.GetValue("motion_shutter_time", eval_time);
+	if (is_motion)
 	{
-		float one_step_time = motion.motion_shutter_time / (float)(motion.motion_steps - 1);
-		const float shift_time = motion.motion_shutter_time / 2;
-		for (ULONG step = 0; step < motion.motion_steps; step++)
+		float one_step_time = motion_shutter_time / (float)(motion_steps - 1);
+		const float shift_time = motion_shutter_time / 2;
+		for (ULONG step = 0; step < motion_steps; step++)
 		{
 			float s_time = step * one_step_time;
 			lux_props.Set(luxrays::Property(prefix + ".motion." + std::to_string(step) + ".time")(s_time));
@@ -102,15 +108,18 @@ bool sync_instance_motion(luxrays::Properties& lux_props,
 }
 
 std::vector<XSI::MATH::CTransformation> build_time_transforms(const XSI::KinematicState &xsi_kine,
-	const MotionParameters &motion,
+	const XSI::CParameterRefArray& render_params,
 	const XSI::CTime &eval_time)
 {
-	if (motion.motion_objects)
+	bool is_motion = render_params.GetValue("motion_objects", eval_time);
+	int motion_steps = render_params.GetValue("motion_steps", eval_time);
+	float motion_shutter_time = render_params.GetValue("motion_shutter_time", eval_time);
+	if (is_motion)
 	{
-		std::vector<XSI::MATH::CTransformation> to_return(motion.motion_steps);
-		float one_step_time = motion.motion_shutter_time / (float)(motion.motion_steps - 1);
-		const float shift_time = motion.motion_shutter_time / 2;
-		for (ULONG step = 0; step < motion.motion_steps; step++)
+		std::vector<XSI::MATH::CTransformation> to_return(motion_steps);
+		float one_step_time = motion_shutter_time / (float)(motion_steps - 1);
+		const float shift_time = motion_shutter_time / 2;
+		for (ULONG step = 0; step < motion_steps; step++)
 		{
 			const float xsi_time = eval_time.GetTime() - shift_time + step * one_step_time;
 			XSI::MATH::CTransformation xsi_time_tfm = xsi_kine.GetTransform(xsi_time);
@@ -165,7 +174,7 @@ void put_transform(const XSI::MATH::CVector3f &position,
 }
 
 std::vector<XSI::MATH::CTransformation> build_time_points_transforms(const XSI::X3DObject& particles,
-	const MotionParameters& motion,
+	const XSI::CParameterRefArray& render_params,
 	const XSI::CTime& eval_time)
 {
 	XSI::Primitive pc_primitive = particles.GetActivePrimitive();
@@ -208,17 +217,20 @@ std::vector<XSI::MATH::CTransformation> build_time_points_transforms(const XSI::
 	bool is_scale_define = scale_attr.IsDefined();
 
 	std::vector<XSI::MATH::CTransformation> time_transforms;
-	if (motion.motion_objects && shape_data_count > 0 && valid_points_count > 0)
+	bool is_motion = render_params.GetValue("motion_objects", eval_time);
+	int motion_steps = render_params.GetValue("motion_steps", eval_time);
+	float motion_shutter_time = render_params.GetValue("motion_shutter_time", eval_time);
+	if (is_motion && shape_data_count > 0 && valid_points_count > 0)
 	{
 		//we should save transforms of all points in the particle
 		//save all transformations for the first point, then for the second and so on
 		//so, the size of this array is steps * points
-		time_transforms.resize(motion.motion_steps * valid_points_count);  // we should ignore point type and other types of particles
+		time_transforms.resize(motion_steps * valid_points_count);  // we should ignore point type and other types of particles
 
 		//next read all these transforms
-		float one_step_time = motion.motion_shutter_time / (float)(motion.motion_steps - 1);
-		const float shift_time = motion.motion_shutter_time / 2;
-		for (ULONG step = 0; step < motion.motion_steps; step++)
+		float one_step_time = motion_shutter_time / (float)(motion_steps - 1);
+		const float shift_time = motion_shutter_time / 2;
+		for (ULONG step = 0; step < motion_steps; step++)
 		{
 			const float xsi_time = eval_time.GetTime() - shift_time + step * one_step_time;
 			XSI::MATH::CTransformation pc_time_tfm = particles_kine.GetTransform(xsi_time);
@@ -249,7 +261,7 @@ std::vector<XSI::MATH::CTransformation> build_time_points_transforms(const XSI::
 				for (size_t i = 0; i < valid_points_count; i++)
 				{
 					ULONG p_index = point_valid_indices[i];
-					put_transform(time_position_data[p_index], time_orientation_data[p_index], i, is_scale_define, scale_count, time_scale_data[p_index], time_size_data[p_index], pc_time_tfm, step, shape_data_count, motion.motion_steps, time_transforms);
+					put_transform(time_position_data[p_index], time_orientation_data[p_index], i, is_scale_define, scale_count, time_scale_data[p_index], time_size_data[p_index], pc_time_tfm, step, shape_data_count, motion_steps, time_transforms);
 				}
 			}
 			else
@@ -257,7 +269,7 @@ std::vector<XSI::MATH::CTransformation> build_time_points_transforms(const XSI::
 				for (size_t i = 0; i < valid_points_count; i++)
 				{
 					ULONG p_index = point_valid_indices[i];
-					put_transform(position_data[p_index], rotation_data[p_index], i, is_scale_define, scale_count, scale_data[p_index], size_data[p_index], pc_time_tfm, step, shape_data_count, motion.motion_steps, time_transforms);
+					put_transform(position_data[p_index], rotation_data[p_index], i, is_scale_define, scale_count, scale_data[p_index], size_data[p_index], pc_time_tfm, step, shape_data_count, motion_steps, time_transforms);
 				}
 			}
 		}

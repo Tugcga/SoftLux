@@ -123,13 +123,36 @@ bool add_mapping(luxrays::Properties &texture_props, const std::string &prefix, 
 
 					XSI::MATH::CTransformation tfm_translate;
 					tfm_translate.SetIdentity();
-					tfm_translate.SetTranslationFromValues(translate_x, translate_y, translate_z);
+					if (mapping_type == "globalmapping3d")
+					{
+						tfm_translate.SetTranslationFromValues(translate_z, translate_x, translate_y);
+					}
+					else
+					{
+						tfm_translate.SetTranslationFromValues(translate_x, translate_y, translate_z);
+					}
 					XSI::MATH::CTransformation tfm_rotate;
 					tfm_rotate.SetIdentity();
-					tfm_rotate.SetRotationFromXYZAnglesValues(rotate_x, rotate_y, rotate_z);
+					if (mapping_type == "globalmapping3d")
+					{
+						tfm_rotate.SetRotationFromXYZAnglesValues(rotate_z, rotate_x, rotate_y);
+					}
+					else
+					{
+						tfm_rotate.SetRotationFromXYZAnglesValues(rotate_x, rotate_y, rotate_z);
+					}
+					
 					XSI::MATH::CTransformation tfm_scale;
 					tfm_scale.SetIdentity();
-					tfm_scale.SetScalingFromValues(scale_x, scale_y, scale_z);
+					if (mapping_type == "globalmapping3d")
+					{
+						tfm_scale.SetScalingFromValues(scale_z, scale_x, scale_y);
+					}
+					else
+					{
+						tfm_scale.SetScalingFromValues(scale_x, scale_y, scale_z);
+					}
+					
 					XSI::MATH::CTransformation tfm;
 					tfm.SetIdentity();
 					tfm.MulInPlace(tfm_scale);
@@ -158,7 +181,7 @@ bool add_mapping(luxrays::Properties &texture_props, const std::string &prefix, 
 						rotate_max_y = rotate_y;
 						rotate_max_z = rotate_z;
 					}
-					texture_props.Set(luxrays::Property(prefix + ".xrotation")(rotate_z, rotate_max_x));
+					texture_props.Set(luxrays::Property(prefix + ".xrotation")(rotate_x, rotate_max_x));
 					texture_props.Set(luxrays::Property(prefix + ".yrotation")(rotate_y, rotate_max_y));
 					texture_props.Set(luxrays::Property(prefix + ".zrotation")(rotate_z, rotate_max_z));
 

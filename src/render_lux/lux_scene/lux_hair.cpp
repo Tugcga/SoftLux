@@ -176,7 +176,19 @@ bool sync_hair(luxcore::Scene* scene,
 
 	XSI::Primitive xsi_primitive = xsi_object.GetActivePrimitive(eval_time);
 	std::string shape_name = xsi_object_id_string(xsi_primitive)[0];
-	scene->DefineStrands(shape_name, lux_hairs, luxcore::Scene::TESSEL_SOLID, 1, 0.1f, 12, true, true, true);
+	int service_strands_type = render_params.GetValue("service_strands_type", eval_time);
+	bool service_strands_use_camera = render_params.GetValue("service_strands_use_camera", eval_time);
+	int service_strands_sidecount = render_params.GetValue("service_strands_sidecount", eval_time);
+	bool service_strands_cap_top = render_params.GetValue("service_strands_cap_top", eval_time);
+	bool service_strands_cap_bottom = render_params.GetValue("service_strands_cap_bottom", eval_time);
+	int service_strands_adaptive_maxdepth = render_params.GetValue("service_strands_adaptive_maxdepth", eval_time);
+	float service_strands_adaptive_error = render_params.GetValue("service_strands_adaptive_error", eval_time);
+	luxcore::Scene::StrandsTessellationType tessel_type = 
+		service_strands_type == 0 ? luxcore::Scene::TESSEL_RIBBON :
+		(service_strands_type == 1 ? luxcore::Scene::TESSEL_RIBBON_ADAPTIVE : 
+		(service_strands_type == 2 ? luxcore::Scene::TESSEL_SOLID : luxcore::Scene::TESSEL_SOLID_ADAPTIVE));
+
+	scene->DefineStrands(shape_name, lux_hairs, tessel_type, service_strands_adaptive_maxdepth, service_strands_adaptive_error, service_strands_sidecount, service_strands_cap_bottom, service_strands_cap_top, service_strands_use_camera);
 
 	luxrays::Properties strands_props;
 	std::string object_name = xsi_object_id_string(xsi_object)[0];

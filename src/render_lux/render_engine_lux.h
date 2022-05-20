@@ -51,6 +51,7 @@ private:
 	void clear_session();
 	MotionParameters read_motion_params();
 	ServiceAOVParameters read_service_aov_params();
+	ServiceStrandsParameters read_service_strands_params();
 
 	void update_object(XSI::X3DObject& xsi_object);
 	void update_instance_masters(ULONG xsi_id);
@@ -107,4 +108,5 @@ private:
 	luxcore::Film::FilmOutputType last_lux_visual_output_type;
 	MotionParameters prev_motion;
 	ServiceAOVParameters prev_service_aov;
+	ServiceStrandsParameters prev_service_strands;
 };

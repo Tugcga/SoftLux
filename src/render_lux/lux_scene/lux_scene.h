@@ -44,6 +44,28 @@ struct ServiceAOVParameters
 	}
 };
 
+struct ServiceStrandsParameters
+{
+	int service_strands_type;
+	bool service_strands_use_camera;
+	int service_strands_sidecount;
+	bool service_strands_cap_top;
+	bool service_strands_cap_bottom;
+	int service_strands_adaptive_maxdepth;
+	float service_strands_adaptive_error;
+
+	bool is_changed(ServiceStrandsParameters& other)
+	{
+		return service_strands_type != other.service_strands_type ||
+			service_strands_use_camera != other.service_strands_use_camera ||
+			service_strands_sidecount != other.service_strands_sidecount ||
+			service_strands_cap_top != other.service_strands_cap_top ||
+			service_strands_cap_bottom != other.service_strands_cap_bottom ||
+			service_strands_adaptive_maxdepth != other.service_strands_adaptive_maxdepth ||
+			service_strands_adaptive_error != other.service_strands_adaptive_error;
+	}
+};
+
 void set_lux_camera_positions(luxrays::Properties& camera_props, const XSI::MATH::CVector3& xsi_position, const XSI::MATH::CVector3& xsi_target_position);
 
 //return true if we add the object to the scene, and false in other case (unsupported object, for example)

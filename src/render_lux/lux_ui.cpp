@@ -158,6 +158,24 @@ void build_layout(XSI::PPGLayout& layout)
 	layout.AddItem("service_export_pointness", "Include Pointness");
 	layout.AddItem("service_export_random_islands", "Include Island AOV");
 	layout.EndGroup();
+
+	layout.AddGroup("Strands Shape");
+	XSI::CValueArray strands_combo(8);
+	strands_combo[0] = "Ribbon"; strands_combo[1] = 0;
+	strands_combo[2] = "Ribbon Adaptive"; strands_combo[3] = 1;
+	strands_combo[4] = "Solid"; strands_combo[5] = 2;
+	strands_combo[6] = "Solid Adaptive"; strands_combo[7] = 3;
+	layout.AddEnumControl("service_strands_type", strands_combo, "Type", XSI::siControlCombo);
+	layout.AddItem("service_strands_use_camera", "Face to Camera");
+	layout.AddItem("service_strands_sidecount", "Sides");
+	layout.AddItem("service_strands_cap_top", "Cap Top");
+	layout.AddItem("service_strands_cap_bottom", "Cap Bottom");
+	layout.AddGroup("Adaptive");
+	layout.AddItem("service_strands_adaptive_maxdepth", "Max Depth");
+	layout.AddItem("service_strands_adaptive_error", "Max Error");
+	layout.EndGroup();
+	layout.EndGroup();
+
 	//--------------------------------------------------------------
 	layout.AddTab("Export");
 	layout.AddGroup("Parameters");
@@ -311,6 +329,28 @@ void set_light_strategy(XSI::CustomProperty& prop, const int light_stretagy)
 	lightstrategy_maxsamplescount.PutCapabilityFlag(block_mode, !(light_stretagy == 3));
 }
 
+void set_strands(XSI::CustomProperty& prop, const int strands_type)
+{
+	XSI::CParameterRefArray prop_array = prop.GetParameters();
+	XSI::Parameter service_strands_use_camera = prop_array.GetItem("service_strands_use_camera");
+	service_strands_use_camera.PutCapabilityFlag(block_mode, !(strands_type == 0 || strands_type == 1));
+
+	XSI::Parameter service_strands_adaptive_maxdepth = prop_array.GetItem("service_strands_adaptive_maxdepth");
+	service_strands_adaptive_maxdepth.PutCapabilityFlag(block_mode, !(strands_type == 1 || strands_type == 3));
+
+	XSI::Parameter service_strands_adaptive_error = prop_array.GetItem("service_strands_adaptive_error");
+	service_strands_adaptive_error.PutCapabilityFlag(block_mode, !(strands_type == 1 || strands_type == 3));
+
+	XSI::Parameter service_strands_sidecount = prop_array.GetItem("service_strands_sidecount");
+	service_strands_sidecount.PutCapabilityFlag(block_mode, !(strands_type == 2 || strands_type == 3));
+
+	XSI::Parameter service_strands_cap_top = prop_array.GetItem("service_strands_cap_top");
+	service_strands_cap_top.PutCapabilityFlag(block_mode, !(strands_type == 2 || strands_type == 3));
+
+	XSI::Parameter service_strands_cap_bottom = prop_array.GetItem("service_strands_cap_bottom");
+	service_strands_cap_bottom.PutCapabilityFlag(block_mode, !(strands_type == 2 || strands_type == 3));
+}
+
 XSI::CStatus RenderEngineLux::render_options_update(XSI::PPGEventContext& event_context) 
 {
 	XSI::PPGEventContext::PPGEvent event_id = event_context.GetEventID();
@@ -336,6 +376,9 @@ XSI::CStatus RenderEngineLux::render_options_update(XSI::PPGEventContext& event_
 
 		XSI::Parameter motion_objects = cp_source.GetParameters().GetItem("motion_objects");
 		set_motion(cp_source, motion_objects.GetValue());
+
+		XSI::Parameter service_strands_type = cp_source.GetParameters().GetItem("service_strands_type");
+		set_strands(cp_source, service_strands_type.GetValue());
 	}
 	else if (event_id == XSI::PPGEventContext::siParameterChange) 
 	{
@@ -382,6 +425,14 @@ XSI::CStatus RenderEngineLux::render_options_update(XSI::PPGEventContext& event_
 		{
 			XSI::Parameter motion_objects = prop.GetParameters().GetItem("motion_objects");
 			set_motion(prop, motion_objects.GetValue());
+
+			is_refresh = block_mode == XSI::siNotInspectable;
+		}
+
+		else if (param_name == "service_strands_type")
+		{
+			XSI::Parameter service_strands_type = prop.GetParameters().GetItem("service_strands_type");
+			set_strands(prop, service_strands_type.GetValue());
 
 			is_refresh = block_mode == XSI::siNotInspectable;
 		}
@@ -483,6 +534,17 @@ XSI::CStatus RenderEngineLux::render_option_define(XSI::CustomProperty& property
 	property.AddParameter("service_seed", XSI::CValue::siInt4, caps, "", "", 1, 1, INT_MAX, 1, 16, param);
 	property.AddParameter("service_accelerator", XSI::CValue::siInt4, caps, "", "", 0, 0, 3, 0, 3, param);
 	property.AddParameter("service_instances", XSI::CValue::siBool, caps, "", "", true, param);
+	//aov
+	property.AddParameter("service_export_pointness", XSI::CValue::siBool, caps, "", "", false, param);
+	property.AddParameter("service_export_random_islands", XSI::CValue::siBool, caps, "", "", false, param);
+	//hair shape
+	property.AddParameter("service_strands_type", XSI::CValue::siInt4, caps, "", "", 2, 0, 3, 0, 3, param);
+	property.AddParameter("service_strands_use_camera", XSI::CValue::siBool, caps, "", "", true, param);
+	property.AddParameter("service_strands_adaptive_maxdepth", XSI::CValue::siInt4, caps, "", "", 8, 0, INT_MAX, 4, 12, param);
+	property.AddParameter("service_strands_adaptive_error", XSI::CValue::siFloat, caps, "", "", 0.01, 0.0, FLT_MAX, 0.005, 0.02, param);
+	property.AddParameter("service_strands_sidecount", XSI::CValue::siInt4, caps, "", "", 12, 0, INT_MAX, 8, 16, param);
+	property.AddParameter("service_strands_cap_top", XSI::CValue::siBool, caps, "", "", true, param);
+	property.AddParameter("service_strands_cap_bottom", XSI::CValue::siBool, caps, "", "", false, param);
 
 	return XSI::CStatus::OK;
 }

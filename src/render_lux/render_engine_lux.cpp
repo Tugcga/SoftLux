@@ -43,8 +43,9 @@ RenderEngineLux::RenderEngineLux()
 	object_name_to_shape_name.clear();
 	object_name_to_material_name.clear();
 
-	prev_motion = { false, 1.0f, 2};
-	prev_service_aov = { false, false};
+	prev_motion = { false, 1.0f, 2 };
+	prev_service_aov = { false, false };
+	prev_service_strands = { 3, true, 12, true, false, 8, 0.1f };
 
 	RenderEngineLux::is_log = false;
 }
@@ -456,6 +457,22 @@ ServiceAOVParameters RenderEngineLux::read_service_aov_params()
 	return service_aov;
 }
 
+ServiceStrandsParameters RenderEngineLux::read_service_strands_params()
+{
+	ServiceStrandsParameters service_strands =
+	{
+		m_render_parameters.GetValue("service_strands_type", eval_time),
+		m_render_parameters.GetValue("service_strands_use_camera", eval_time),
+		m_render_parameters.GetValue("service_strands_sidecount", eval_time),
+		m_render_parameters.GetValue("service_strands_cap_top", eval_time),
+		m_render_parameters.GetValue("service_strands_cap_bottom", eval_time),
+		m_render_parameters.GetValue("service_strands_adaptive_maxdepth", eval_time),
+		m_render_parameters.GetValue("service_strands_adaptive_error", eval_time)
+	};
+
+	return service_strands;
+}
+
 XSI::CStatus RenderEngineLux::update_scene_render()
 {
 	//if we change render parameters, then we should recreate the session
@@ -479,6 +496,14 @@ XSI::CStatus RenderEngineLux::update_scene_render()
 		return XSI::CStatus::Abort;
 	}
 	prev_service_aov = current_service_aov;
+
+	ServiceStrandsParameters current_service_strands = read_service_strands_params();
+	if (prev_service_strands.is_changed(current_service_strands))
+	{
+		prev_service_strands = current_service_strands;
+		return XSI::CStatus::Abort;
+	}
+	prev_service_strands = current_service_strands;
 	
 	return XSI::CStatus::OK;
 }
@@ -494,6 +519,7 @@ XSI::CStatus RenderEngineLux::create_scene()
 	reinit_environments = false;
 	prev_motion = read_motion_params();
 	prev_service_aov = read_service_aov_params();
+	prev_service_strands = read_service_strands_params();
 
 	//always update the camera
 	sync_camera(scene, render_type, m_render_context, m_render_parameters, eval_time);

@@ -133,6 +133,14 @@ void build_layout(XSI::PPGLayout& layout)
 	layout.AddTab("Service");
 	layout.AddGroup("Logging");
 	layout.AddItem("service_log_luxcore", "Luxcore Log");
+	layout.AddGroup("Luxcore Logging");
+	layout.AddRow();
+	layout.AddItem("service_log_luxcore_luxrays", "Luxrays");
+	layout.AddItem("service_log_luxcore_sdl", "SDL");
+	layout.AddItem("service_log_luxcore_slg", "SLG");
+	layout.AddItem("service_log_luxcore_api", "API");
+	layout.EndRow();
+	layout.EndGroup();
 	layout.AddItem("service_log_rendertime", "Rendertime");
 	layout.EndGroup();
 
@@ -351,6 +359,22 @@ void set_strands(XSI::CustomProperty& prop, const int strands_type)
 	service_strands_cap_bottom.PutCapabilityFlag(block_mode, !(strands_type == 2 || strands_type == 3));
 }
 
+void set_luxcore_logs(XSI::CustomProperty& prop, const bool service_log_luxcore)
+{
+	XSI::CParameterRefArray prop_array = prop.GetParameters();
+	XSI::Parameter service_log_luxcore_luxrays = prop_array.GetItem("service_log_luxcore_luxrays");
+	service_log_luxcore_luxrays.PutCapabilityFlag(block_mode, !(service_log_luxcore));
+
+	XSI::Parameter service_log_luxcore_sdl = prop_array.GetItem("service_log_luxcore_sdl");
+	service_log_luxcore_sdl.PutCapabilityFlag(block_mode, !(service_log_luxcore));
+
+	XSI::Parameter service_log_luxcore_slg = prop_array.GetItem("service_log_luxcore_slg");
+	service_log_luxcore_slg.PutCapabilityFlag(block_mode, !(service_log_luxcore));
+
+	XSI::Parameter service_log_luxcore_api = prop_array.GetItem("service_log_luxcore_api");
+	service_log_luxcore_api.PutCapabilityFlag(block_mode, !(service_log_luxcore));
+}
+
 XSI::CStatus RenderEngineLux::render_options_update(XSI::PPGEventContext& event_context) 
 {
 	XSI::PPGEventContext::PPGEvent event_id = event_context.GetEventID();
@@ -379,6 +403,9 @@ XSI::CStatus RenderEngineLux::render_options_update(XSI::PPGEventContext& event_
 
 		XSI::Parameter service_strands_type = cp_source.GetParameters().GetItem("service_strands_type");
 		set_strands(cp_source, service_strands_type.GetValue());
+
+		XSI::Parameter service_log_luxcore = cp_source.GetParameters().GetItem("service_log_luxcore");
+		set_luxcore_logs(cp_source, service_log_luxcore.GetValue());
 	}
 	else if (event_id == XSI::PPGEventContext::siParameterChange) 
 	{
@@ -433,6 +460,13 @@ XSI::CStatus RenderEngineLux::render_options_update(XSI::PPGEventContext& event_
 		{
 			XSI::Parameter service_strands_type = prop.GetParameters().GetItem("service_strands_type");
 			set_strands(prop, service_strands_type.GetValue());
+
+			is_refresh = block_mode == XSI::siNotInspectable;
+		}
+		else if (param_name == "service_log_luxcore")
+		{
+			XSI::Parameter service_log_luxcore = prop.GetParameters().GetItem("service_log_luxcore");
+			set_luxcore_logs(prop, service_log_luxcore.GetValue());
 
 			is_refresh = block_mode == XSI::siNotInspectable;
 		}
@@ -528,8 +562,15 @@ XSI::CStatus RenderEngineLux::render_option_define(XSI::CustomProperty& property
 	property.AddParameter("export_mode", XSI::CValue::siInt4, caps, "", "", 0, 0, 2, 0, 2, param);
 
 	//service tab
+	//logging
 	property.AddParameter("service_log_luxcore", XSI::CValue::siBool, caps, "", "", false, param);
+	property.AddParameter("service_log_luxcore_luxrays", XSI::CValue::siBool, caps, "", "", false, param);
+	property.AddParameter("service_log_luxcore_sdl", XSI::CValue::siBool, caps, "", "", true, param);
+	property.AddParameter("service_log_luxcore_slg", XSI::CValue::siBool, caps, "", "", false, param);
+	property.AddParameter("service_log_luxcore_api", XSI::CValue::siBool, caps, "", "", false, param);
 	property.AddParameter("service_log_rendertime", XSI::CValue::siBool, caps, "", "", true, param);
+
+
 	property.AddParameter("service_update", XSI::CValue::siFloat, caps, "", "", 0.1, 0.001, FLT_MAX, 0.1, 1.0, param);
 	property.AddParameter("service_seed", XSI::CValue::siInt4, caps, "", "", 1, 1, INT_MAX, 1, 16, param);
 	property.AddParameter("service_accelerator", XSI::CValue::siInt4, caps, "", "", 0, 0, 3, 0, 3, param);

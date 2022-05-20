@@ -46,8 +46,6 @@ RenderEngineLux::RenderEngineLux()
 	prev_motion = { false, 1.0f, 2 };
 	prev_service_aov = { false, false };
 	prev_service_strands = { 3, true, 12, true, false, 8, 0.1f };
-
-	RenderEngineLux::is_log = false;
 }
 
 //when we delete the engine, then at first this method is called, and then the method from base class
@@ -58,10 +56,7 @@ RenderEngineLux::~RenderEngineLux()
 
 void RenderEngineLux::lux_log_handler(const char* msg)
 {
-	if (RenderEngineLux::is_log)
-	{
-		XSI::Application().LogMessage(XSI::CString(msg));
-	}
+	XSI::Application().LogMessage(XSI::CString(msg));
 }
 
 //nothing to do here
@@ -75,7 +70,7 @@ void RenderEngineLux::try_to_init()
 {
 	if (!is_init)
 	{
-		luxcore::Init(RenderEngineLux::lux_log_handler);
+		luxcore::Init();
 		is_init = true;
 	}
 }
@@ -117,11 +112,24 @@ XSI::CStatus RenderEngineLux::pre_scene_process()
 	//activate the log
 	if (render_type == RenderType_Shaderball)
 	{
-		RenderEngineLux::is_log = false;
+		luxcore::SetLogHandler();
 	}
 	else
 	{
-		RenderEngineLux::is_log = false;
+		//RenderEngineLux::is_log = false;
+		bool is_log_luxcore = m_render_parameters.GetValue("service_log_luxcore", eval_time);
+		if (is_log_luxcore)
+		{
+			luxcore::SetLogHandler(RenderEngineLux::lux_log_handler);
+			luxcore::SetEnableLogSubSystem(luxcore::LOG_LUXRAYS, m_render_parameters.GetValue("service_log_luxcore_luxrays", eval_time));
+			luxcore::SetEnableLogSubSystem(luxcore::LOG_SDL, m_render_parameters.GetValue("service_log_luxcore_sdl", eval_time));
+			luxcore::SetEnableLogSubSystem(luxcore::LOG_SLG, m_render_parameters.GetValue("service_log_luxcore_slg", eval_time));
+			luxcore::SetEnableLogSubSystem(luxcore::LOG_API, m_render_parameters.GetValue("service_log_luxcore_api", eval_time));
+		}
+		else
+		{
+			luxcore::SetLogHandler();
+		}
 	}
 
 	//if we change region limits (corners or render size), then we should recreate the session, so, delete it

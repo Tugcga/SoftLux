@@ -665,22 +665,40 @@ void RenderEngineLux::render()
 		session->Start();
 
 		const luxrays::Properties& stats = session->GetStats();
+		const unsigned int halt_time = session->GetRenderConfig().GetProperties().Get(luxrays::Property("batch.halttime")(0)).Get<unsigned int>();
+		const unsigned int halt_spp = session->GetRenderConfig().GetProperties().Get(luxrays::Property("batch.haltspp")(0)).Get<unsigned int>();
 		luxcore::Film& film = session->GetFilm();
+		float service_update = m_render_parameters.GetValue("service_update", eval_time);  // in seconds
+		int service_update_mls = (int)(service_update * 1000.0f);
+		int halt_condition = m_render_parameters.GetValue("halt_condition", eval_time);
+		const double buffer_size_double = visual_buffer.width * visual_buffer.height;
 		while (!session->HasDone())
 		{
 			session->UpdateStats();
-			const double elapsedTime = stats.Get("stats.renderengine.time").Get<double>();
+
+			const double elapsed_time = stats.Get("stats.renderengine.time").Get<double>();
+			const unsigned int pass = stats.Get("stats.renderengine.pass").Get<unsigned int>();
+			const double total_samples = stats.Get("stats.renderengine.total.samplecount").Get<double>();
 			const float convergence = stats.Get("stats.renderengine.convergence").Get<unsigned int>();
+
+			const float samples_level = total_samples / buffer_size_double;
 
 			read_visual_buffer(film, lux_visual_output_type, visual_buffer);
 			m_render_context.NewFragment(RenderTile(visual_buffer.corner_x, visual_buffer.corner_y, visual_buffer.width, visual_buffer.height, visual_buffer.pixels, false, 4));
 
-			//calculate percentage of the render samples, pass is done samples
-			const unsigned int pass = stats.Get("stats.renderengine.pass").Get<unsigned int>();
-			//log_message("render pass: " + XSI::CString((int)pass) + " " + XSI::CString(elapsedTime) + " " + XSI::CString(convergence));
-			m_render_context.ProgressUpdate("Rendering...", "Rendering...", int((float)pass * 100.0f / (float)40));
-
-			std::this_thread::sleep_for(100ms);
+			if (halt_condition == 0)
+			{//by samples
+				m_render_context.ProgressUpdate("Rendering...", "Rendering...", int((samples_level * 100.0f / (float)halt_spp)));
+			}
+			else if (halt_condition == 1)
+			{//by time
+				m_render_context.ProgressUpdate("Rendering...", "Rendering...", int((elapsed_time * 100.0f / (float)halt_time)));
+			}
+			else
+			{//by noise level
+				m_render_context.ProgressUpdate("Rendering...", "Rendering...", 0);
+			}
+			std::this_thread::sleep_for(std::chrono::milliseconds(service_update_mls));
 		}
 
 		session->Stop();

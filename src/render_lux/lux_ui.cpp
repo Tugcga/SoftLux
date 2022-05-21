@@ -18,7 +18,7 @@ void build_layout(XSI::PPGLayout& layout)
 	XSI::CValueArray halt_condition_combo(6);
 	halt_condition_combo[0] = "Samples"; halt_condition_combo[1] = 0;
 	halt_condition_combo[2] = "Time"; halt_condition_combo[3] = 1;
-	halt_condition_combo[4] = "Noise Level"; halt_condition_combo[5] = 2;
+	halt_condition_combo[4] = "Noise Level"; halt_condition_combo[5] = 2;  // noise level should be used for pass rendering, because in the region it measure wrong value
 	layout.AddGroup("Halt Condition");
 	layout.AddEnumControl("halt_condition", halt_condition_combo, "Mode", XSI::siControlCombo);
 	layout.AddItem("halt_samples", "Samples");
@@ -37,7 +37,7 @@ void build_layout(XSI::PPGLayout& layout)
 	sampler_combo[4] = "Random"; sampler_combo[5] = 2;
 	layout.AddGroup("Sampler");
 	layout.AddEnumControl("sampler_type", sampler_combo, "Sampler Type", XSI::siControlCombo);
-	layout.AddItem("sampler_sobol_strength", "Strength");
+	layout.AddItem("sampler_strength", "Strength");
 	layout.AddItem("sampler_metropolis_largesteprate", "Large Step Rate");
 	layout.AddItem("sampler_metropolis_maxconsecutivereject", "Max Reject");
 	layout.AddItem("sampler_metropolis_imagemutationrate", "Mutation Rate");
@@ -571,7 +571,7 @@ XSI::CStatus RenderEngineLux::render_option_define(XSI::CustomProperty& property
 	property.AddParameter("service_log_rendertime", XSI::CValue::siBool, caps, "", "", true, param);
 
 
-	property.AddParameter("service_update", XSI::CValue::siFloat, caps, "", "", 0.1, 0.001, FLT_MAX, 0.1, 1.0, param);
+	property.AddParameter("service_update", XSI::CValue::siFloat, caps, "", "", 0.1, 0.001, FLT_MAX, 0.1, 1.0, param);  // measure in seconds
 	property.AddParameter("service_seed", XSI::CValue::siInt4, caps, "", "", 1, 1, INT_MAX, 1, 16, param);
 	property.AddParameter("service_accelerator", XSI::CValue::siInt4, caps, "", "", 0, 0, 3, 0, 3, param);
 	property.AddParameter("service_instances", XSI::CValue::siBool, caps, "", "", true, param);

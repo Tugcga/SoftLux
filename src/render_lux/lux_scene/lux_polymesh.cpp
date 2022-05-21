@@ -14,7 +14,7 @@
 
 #include <unordered_map>
 
-class UV 
+class UV
 {
 public:
 	UV(float _u = 0.0f, float _v = 0.0f)
@@ -71,7 +71,7 @@ public:
 
 class Triangle {
 public:
-	Triangle(const unsigned int v0, const unsigned int v1, const unsigned int v2) 
+	Triangle(const unsigned int v0, const unsigned int v1, const unsigned int v2)
 	{
 		v[0] = v0;
 		v[1] = v1;

@@ -1689,7 +1689,14 @@ std::string add_material(luxcore::Scene* scene, luxrays::Properties &material_pr
 	return output_name;
 }
 
-void setup_default_volume(luxcore::Scene* scene, luxrays::Properties &volume_props, std::string &prefix, std::string &volume_name, XSI::CParameterRefArray &parameters, std::unordered_map<ULONG, std::string>& exported_nodes_map, const XSI::CTime& eval_time)
+void setup_default_volume(luxcore::Scene* scene, 
+	luxrays::Properties &volume_props, 
+	std::string &prefix,
+	std::string &volume_name, 
+	XSI::CParameterRefArray &parameters, 
+	std::unordered_map<ULONG, std::string>& exported_nodes_map, 
+	const XSI::CTime& eval_time, 
+	const bool simple_absorption = false)
 {
 	set_material_value(scene, volume_props, "ior", prefix + ".ior", parameters, exported_nodes_map, eval_time);
 	int priority = get_int_parameter_value(parameters, "priority", eval_time);
@@ -1697,19 +1704,28 @@ void setup_default_volume(luxcore::Scene* scene, luxrays::Properties &volume_pro
 	set_material_value(scene, volume_props, "emission", prefix + ".emission", parameters, exported_nodes_map, eval_time);
 	int emission_id = get_int_parameter_value(parameters, "emission_id", eval_time);
 	volume_props.Set(luxrays::Property(prefix + ".emission.id")(emission_id));
-	float abs_depth = get_float_parameter_value(parameters, "absorption_depth", eval_time);
 
-	//create implicit texture for absorption color and depth
-	std::string abs_name = volume_name + "_colordepth";
-	luxrays::Properties abs_props;
-	std::string abs_prefix = "scene.textures." + abs_name;
-	abs_props.Set(luxrays::Property(abs_prefix + ".type")("colordepth"));
-	set_material_value(scene, abs_props, "absorption", abs_prefix + ".kt", parameters, exported_nodes_map, eval_time);
-	abs_props.Set(luxrays::Property(abs_prefix + ".depth")(abs_depth));
-	scene->Parse(abs_props);
+	if (simple_absorption)
+	{
+		set_material_value(scene, volume_props, "absorption", prefix + ".absorption", parameters, exported_nodes_map, eval_time);
+	}
+	else
+	{
+		float abs_depth = get_float_parameter_value(parameters, "absorption_depth", eval_time);
 
-	//set name of the created texture to the volume node
-	volume_props.Set(luxrays::Property(prefix + ".absorption")(abs_name));
+		//create implicit texture for absorption color and depth
+		std::string abs_name = volume_name + "_colordepth";
+		luxrays::Properties abs_props;
+		std::string abs_prefix = "scene.textures." + abs_name;
+		abs_props.Set(luxrays::Property(abs_prefix + ".type")("colordepth"));
+		set_material_value(scene, abs_props, "absorption", abs_prefix + ".kt", parameters, exported_nodes_map, eval_time);
+		abs_props.Set(luxrays::Property(abs_prefix + ".depth")(abs_depth));
+		scene->Parse(abs_props);
+
+		//set name of the created texture to the volume node
+		volume_props.Set(luxrays::Property(prefix + ".absorption")(abs_name));
+	}
+	
 }
 
 void setup_scattering_volume(luxcore::Scene* scene, luxrays::Properties& volume_props, std::string& prefix, std::string& volume_name, XSI::CParameterRefArray& parameters, std::unordered_map<ULONG, std::string>& exported_nodes_map, const XSI::CTime& eval_time)
@@ -2060,6 +2076,66 @@ std::string add_shape(luxcore::Scene* scene, std::string& input_shape_name, XSI:
 	else
 	{
 		return input_shape_name;
+	}
+}
+
+bool sync_exterior_volume(luxcore::Scene* scene, XSI::CParameterRefArray &all_parameters, const XSI::CTime& eval_time)
+{
+	//create volume object
+	std::string volume_name = "exterior_volume";
+	std::string vol_prefix = "scene.volumes." + volume_name;
+	luxrays::Properties volume_props;
+	XSI::CString volume_type = get_string_parameter_value(all_parameters, "volume_type", eval_time);
+	std::unordered_map<ULONG, std::string> exported_nodes_map;
+	bool is_volume_create = false;
+	if (volume_type == "clear")
+	{
+		volume_props.Set(luxrays::Property(vol_prefix + ".type")("clear"));
+		setup_default_volume(scene, volume_props, vol_prefix, volume_name, all_parameters, exported_nodes_map, eval_time, true);
+		is_volume_create = true;
+	}
+	else if (volume_type == "homogeneous")
+	{
+		volume_props.Set(luxrays::Property(vol_prefix + ".type")("homogeneous"));
+		set_material_value(scene, volume_props, "asymmetry", vol_prefix + ".asymmetry", all_parameters, exported_nodes_map, eval_time);
+		bool multiscattering = get_bool_parameter_value(all_parameters, "multiscattering", eval_time);
+		volume_props.Set(luxrays::Property(vol_prefix + ".multiscattering")(multiscattering));
+
+		setup_default_volume(scene, volume_props, vol_prefix, volume_name, all_parameters, exported_nodes_map, eval_time, false);
+		setup_scattering_volume(scene, volume_props, vol_prefix, volume_name, all_parameters, exported_nodes_map, eval_time);
+		is_volume_create = true;
+	}
+	else if (volume_type == "heterogeneous")
+	{
+		volume_props.Set(luxrays::Property(vol_prefix + ".type")("heterogeneous"));
+		set_material_value(scene, volume_props, "asymmetry", vol_prefix + ".asymmetry", all_parameters, exported_nodes_map, eval_time);
+		bool multiscattering = get_bool_parameter_value(all_parameters, "multiscattering", eval_time);
+		volume_props.Set(luxrays::Property(vol_prefix + ".multiscattering")(multiscattering));
+
+		float step_size = get_float_parameter_value(all_parameters, "step_size", eval_time);
+		int max_steps = get_int_parameter_value(all_parameters, "max_steps", eval_time);
+		volume_props.Set(luxrays::Property(vol_prefix + ".steps.size")(step_size));
+		volume_props.Set(luxrays::Property(vol_prefix + ".steps.maxcount")(max_steps));
+
+		setup_default_volume(scene, volume_props, vol_prefix, volume_name, all_parameters, exported_nodes_map, eval_time, true);
+		setup_scattering_volume(scene, volume_props, vol_prefix, volume_name, all_parameters, exported_nodes_map, eval_time);
+		is_volume_create = true;
+	}
+
+	if (is_volume_create)
+	{
+		scene->Parse(volume_props);
+
+		//set this volume as world default
+		luxrays::Properties world_props;
+		world_props.Set(luxrays::Property("scene.world.volume.default")(volume_name));
+		scene->Parse(world_props);
+
+		return true;
+	}
+	else
+	{
+		return false;
 	}
 }
 

@@ -46,6 +46,7 @@ RenderEngineLux::RenderEngineLux()
 	prev_motion = { false, 1.0f, 2 };
 	prev_service_aov = { false, false };
 	prev_service_strands = { 3, true, 12, true, false, 8, 0.1f };
+	prev_world_volume = false;
 }
 
 //when we delete the engine, then at first this method is called, and then the method from base class
@@ -563,33 +564,11 @@ XSI::CStatus RenderEngineLux::create_scene()
 		sync_scene_objects(scene, m_render_context, m_render_parameters, xsi_materials_in_lux, xsi_id_to_lux_names_map, master_to_instance_map, material_with_shape_to_polymesh_map, object_name_to_shape_name, object_name_to_material_name, eval_time);
 
 		//environment light (hdri, sky, sun)
-		xsi_environment_in_lux = sync_environment(scene, eval_time);
+		bool is_world_volume = false;
+		xsi_environment_in_lux = sync_environment(scene, is_world_volume, eval_time);
+
+		prev_world_volume = is_world_volume;
 	}
-
-	//print update maps
-	/*for (const auto& [key, value] : material_with_shape_to_polymesh_map)
-	{
-		log_message("\t" + XSI::CString(key) + ": " + to_string(value));
-	}*/
-	/*log_message("master_to_instance_map:");
-	for (const auto& [key, value]: master_to_instance_map)
-	{
-		log_message("\t" + XSI::CString(key) + ": " + to_string(value));
-	}
-
-	log_message("xsi_id_to_lux_names_map:");
-	for (const auto& [key, value] : xsi_id_to_lux_names_map)
-	{
-		log_message("\t" + XSI::CString(key) + ": " + to_string(value));
-	}*/
-
-	/*log_message("update_instances:");
-	std::set<unsigned long>::iterator it;
-	for (it = update_instances.begin(); it != update_instances.end(); ++it)
-	{
-		ULONG xsi_id = *it;
-		log_message(XSI::CString(xsi_id));
-	}*/
 
 	return XSI::CStatus::OK;
 }
@@ -607,7 +586,16 @@ XSI::CStatus RenderEngineLux::post_scene()
 	if (reinit_environments)
 	{
 		xsi_environment_in_lux.clear();
-		xsi_environment_in_lux = sync_environment(scene, eval_time);
+		bool is_world_volume = false;
+		xsi_environment_in_lux = sync_environment(scene, is_world_volume, eval_time);
+
+		//after update we disable the world volume, but at the previous render session it was used
+		//so, recreate the scene
+		if (prev_world_volume && !is_world_volume)
+		{
+			return XSI::CStatus::Abort;
+		}
+		prev_world_volume = is_world_volume;
 	}
 	reinit_environments = false;
 

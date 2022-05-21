@@ -108,4 +108,5 @@ private:
 	MotionParameters prev_motion;
 	ServiceAOVParameters prev_service_aov;
 	ServiceStrandsParameters prev_service_strands;
+	bool prev_world_volume;
 };

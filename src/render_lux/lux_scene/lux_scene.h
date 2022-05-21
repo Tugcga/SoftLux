@@ -172,6 +172,10 @@ void sync_materials(luxcore::Scene* scene,
 	std::set<ULONG>& xsi_materials_in_lux, 
 	const XSI::CTime& eval_time);
 
+bool sync_exterior_volume(luxcore::Scene* scene, 
+	XSI::CParameterRefArray& all_parameters,
+	const XSI::CTime& eval_time);
+
 void reassign_all_materials(luxcore::Scene* scene, 
 	const XSI::Scene& xsi_scene, 
 	std::set<ULONG>& xsi_materials_in_lux,
@@ -275,6 +279,7 @@ void sync_ambient(luxcore::Scene* scene,
 	const XSI::CTime& eval_time);
 
 std::vector<ULONG> sync_environment(luxcore::Scene* scene, 
+	bool& is_contains_world_volume,
 	const XSI::CTime& eval_time);
 
 void sync_camera_scene(luxcore::Scene* scene, 

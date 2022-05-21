@@ -664,14 +664,15 @@ void update_environment_map(std::map<int, XSI::Shader>& environment_map, const X
 
 //return array with ids of the added lights
 //id is id of the shader node
-std::vector<ULONG> sync_environment(luxcore::Scene* scene, const XSI::CTime& eval_time)
+std::vector<ULONG> sync_environment(luxcore::Scene* scene, bool &is_contains_world_volume, const XSI::CTime& eval_time)
 {
 	std::vector<ULONG> environment_lights_ids;
 	static std::vector<std::string> light_names = {
 		"LUXShadersPlugin.PassInfinite",
 		"LUXShadersPlugin.PassSky",
 		"LUXShadersPlugin.PassSun",
-		"Softimage.sib_environment"
+		"Softimage.sib_environment",
+		"LUXShadersPlugin.PassVolume"  // but for volume does not return node id, because this is not the light
 	};
 
 	XSI::Project xsi_project = XSI::Application().GetActiveProject();
@@ -688,6 +689,8 @@ std::vector<ULONG> sync_environment(luxcore::Scene* scene, const XSI::CTime& eva
 			update_environment_map(environment_map, pass_shaders, environment_shader, XSI::CString(light_names[i].c_str()));
 		}
 	}
+
+	bool is_world_volume = false;  // make true if we export world volume
 
 	if (environment_map.size() > 0)
 	{
@@ -924,10 +927,16 @@ std::vector<ULONG> sync_environment(luxcore::Scene* scene, const XSI::CTime& eva
 						scene->Parse(light_props);
 						environment_lights_ids.push_back(value.GetObjectID());
 					}
+					else if (name == "PassVolume")
+					{
+						is_world_volume = sync_exterior_volume(scene, all_parameters, eval_time);
+					}
 				}
 			}
 		}
 	}
+
+	is_contains_world_volume = is_world_volume;
 
 	return environment_lights_ids;
 }

@@ -573,6 +573,13 @@ XSI::CStatus RenderEngineBase::scene_process()
 	}
 
 	XSI::CStatus post_status = post_scene();
+	if (post_status == XSI::CStatus::Abort)
+	{
+		force_recreate_scene = false;
+		create_scene();
+
+		post_status = post_scene();
+	}
 
 	//after scene creation, clear dirty list
 	bool empty_dirty_list = dirty_refs_value.IsEmpty();
@@ -592,7 +599,6 @@ XSI::CStatus RenderEngineBase::scene_process()
 	//if we obtain abort command during scene process, does not start rendering
 	if (note_abort)
 	{
-
 		return XSI::CStatus::Abort;
 	}
 

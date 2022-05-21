@@ -461,6 +461,12 @@ light_type_enum = [
     "Laser", "laser"
 ]
 
+volume_type_enum = [
+    "Clear", "clear",
+    "Homogeneous", "homogeneous",
+    "Heterogeneous", "heterogeneous"
+]
+
 def XSILoadPlugin(in_reg):
     in_reg.Author = "Shekn Itrch"
     in_reg.Name = "LUXShadersPlugin"
@@ -581,6 +587,7 @@ def XSILoadPlugin(in_reg):
     in_reg.RegisterShader("PassInfinite", 1, 0)
     in_reg.RegisterShader("PassSky", 1, 0)
     in_reg.RegisterShader("PassSun", 1, 0)
+    in_reg.RegisterShader("PassVolume", 1, 0)
 
     # light node
     in_reg.RegisterShader("LightLuxcore", 1, 0)
@@ -2282,6 +2289,121 @@ def enable_OnChanged():
 
     return True
 
+#--------------------PassVolume-----------------------
+
+def LUXShadersPlugin_PassVolume_1_0_DefineInfo(in_ctxt):
+    in_ctxt.SetAttribute("Category", "LuxCore/Pass/Environment")
+    in_ctxt.SetAttribute("DisplayName", "luxVolume")
+    return True
+
+
+def LUXShadersPlugin_PassVolume_1_0_Define(in_ctxt):
+    shaderDef = in_ctxt.GetAttribute("Definition")
+    shaderDef.AddShaderFamily(c.siShaderFamilyEnvironment)
+
+    # Input Parameter: input
+    params = shaderDef.InputParamDefs
+    
+    # parameters
+    add_input_boolean(nonport_param_options(), params, True, "enable")
+    add_input_string(nonport_param_options(), params, "homogeneous", "volume_type")
+    setup_default_volume_parameters(params)
+    # heterogeneous parameters
+    add_input_boolean(nonport_param_options(), params, False, "multiscattering")
+    add_input_float(nonport_param_options(), params, 0.1, "step_size", 0.0, 1.0)
+    add_input_integer(nonport_param_options(), params, 1024, "max_steps", 128, 4096)
+    add_input_color(standart_param_options(), params, [1.0, 1.0, 1.0], "scattering")
+    add_input_float(standart_param_options(), params, 1.0, "scattering_scale", 0.0, 10.0)
+    add_input_vector(standart_param_options(), params, [0.0, 0.0, 0.0], "asymmetry")
+    # Output Parameter: out
+    add_output_closure(shaderDef, "volume")
+
+    # next init ppg
+    ppg_layout = shaderDef.PPGLayout
+    ppg_layout.AddGroup("Common Parameters")
+    ppg_layout.AddItem("enable", "Enable")
+    ppg_layout.AddEnumControl("volume_type", volume_type_enum, "Type")
+    setup_default_volume_ppg(ppg_layout)
+    ppg_layout.EndGroup()
+    ppg_layout.AddGroup("Volume Parameters")
+    ppg_layout.AddItem("multiscattering", "Multiscattering")
+    ppg_layout.AddItem("step_size", "Step Size")
+    ppg_layout.AddItem("max_steps", "Max Steps")
+    ppg_layout.AddItem("scattering", "Scattering")
+    ppg_layout.AddItem("scattering_scale", "Scattering Scale")
+    ppg_layout.AddItem("asymmetry", "Asymmetry")
+    ppg_layout.EndGroup()
+    ppg_layout.AddGroup("Homogeneous")
+    ppg_layout.EndGroup()
+
+    ppg_layout.Language = "Python"
+    ppg_layout.Logic = '''
+def update(prop):
+    volume_type = prop.Parameters("volume_type").Value
+    enable = prop.Parameters("enable").Value
+    if enable:
+        prop.Parameters("volume_type").ReadOnly = False
+        prop.Parameters("priority").ReadOnly = False
+        prop.Parameters("ior").ReadOnly = False
+        prop.Parameters("absorption").ReadOnly = False
+        prop.Parameters("absorption_depth").ReadOnly = False
+        prop.Parameters("emission").ReadOnly = False
+        prop.Parameters("emission_id").ReadOnly = False
+        if volume_type == "clear":
+            prop.Parameters("multiscattering").ReadOnly = True
+            prop.Parameters("step_size").ReadOnly = True
+            prop.Parameters("max_steps").ReadOnly = True
+            prop.Parameters("scattering").ReadOnly = True
+            prop.Parameters("scattering_scale").ReadOnly = True
+            prop.Parameters("asymmetry").ReadOnly = True
+        elif volume_type == "homogeneous":
+            prop.Parameters("multiscattering").ReadOnly = False
+            prop.Parameters("step_size").ReadOnly = True
+            prop.Parameters("max_steps").ReadOnly = True
+            prop.Parameters("scattering").ReadOnly = False
+            prop.Parameters("scattering_scale").ReadOnly = False
+            prop.Parameters("asymmetry").ReadOnly = False
+        else:
+            prop.Parameters("multiscattering").ReadOnly = False
+            prop.Parameters("step_size").ReadOnly = False
+            prop.Parameters("max_steps").ReadOnly = False
+            prop.Parameters("scattering").ReadOnly = False
+            prop.Parameters("scattering_scale").ReadOnly = False
+            prop.Parameters("asymmetry").ReadOnly = False
+    else:
+        prop.Parameters("volume_type").ReadOnly = True
+        prop.Parameters("priority").ReadOnly = True
+        prop.Parameters("ior").ReadOnly = True
+        prop.Parameters("absorption").ReadOnly = True
+        prop.Parameters("absorption_depth").ReadOnly = True
+        prop.Parameters("emission").ReadOnly = True
+        prop.Parameters("emission_id").ReadOnly = True
+        prop.Parameters("multiscattering").ReadOnly = True
+        prop.Parameters("step_size").ReadOnly = True
+        prop.Parameters("max_steps").ReadOnly = True
+        prop.Parameters("scattering").ReadOnly = True
+        prop.Parameters("scattering_scale").ReadOnly = True
+        prop.Parameters("asymmetry").ReadOnly = True
+
+def OnInit():
+    prop = PPG.Inspected(0)
+    update(prop)
+
+def volume_type_OnChanged():
+    prop = PPG.Inspected(0)
+    update(prop)
+
+def enable_OnChanged():
+    prop = PPG.Inspected(0)
+    update(prop)
+'''
+
+    # Renderer definition
+    rendererDef = shaderDef.AddRendererDef("LuxCore")
+    rendererDef.SymbolName = "PassVolume"
+
+    return True
+
 #------------------------------------------------------------
 #--------------------RT Shader nodes-------------------------
 
@@ -3491,7 +3613,7 @@ def LUXShadersPlugin_TextureFloat_1_0_Define(in_ctxt):
     add_input_float(nonport_param_options(), params, 1.0, "value")
 
     # Output Parameter
-    add_output_float(shaderDef, "value")
+    add_output_float(shaderDef, "out_value")
 
     # next init ppg
     ppg_layout = shaderDef.PPGLayout
@@ -5810,7 +5932,7 @@ def LUXShadersPlugin_TextureOpenVDB_1_0_Define(in_ctxt):
 #---------------------------------------------------------
 #----------------------Volume-----------------------------
 
-def setup_defaul_volume_parameters(params):
+def setup_default_volume_parameters(params):
     add_input_integer(nonport_param_options(), params, 0, "priority", 0, 10)
     add_input_float(standart_param_options(), params, 1.5, "ior", 1.0, 2.0)
     add_input_color(standart_param_options(), params, [1.0, 1.0, 1.0], "absorption")
@@ -5841,7 +5963,7 @@ def LUXShadersPlugin_VolumeClear_1_0_Define(in_ctxt):
     params = shaderDef.InputParamDefs
 
     # parameters
-    setup_defaul_volume_parameters(params)
+    setup_default_volume_parameters(params)
     # Output Parameter
     add_output_closure(shaderDef, "volume")
 
@@ -5875,7 +5997,7 @@ def LUXShadersPlugin_VolumeHeterogeneous_1_0_Define(in_ctxt):
     add_input_boolean(nonport_param_options(), params, False, "multiscattering")
     add_input_float(nonport_param_options(), params, 0.1, "step_size", 0.0, 1.0)
     add_input_integer(nonport_param_options(), params, 1024, "max_steps", 128, 4096)
-    setup_defaul_volume_parameters(params)
+    setup_default_volume_parameters(params)
     add_input_color(standart_param_options(), params, [1.0, 1.0, 1.0], "scattering")
     add_input_float(standart_param_options(), params, 1.0, "scattering_scale", 0.0, 10.0)
     add_input_vector(standart_param_options(), params, [0.0, 0.0, 0.0], "asymmetry")
@@ -5916,7 +6038,7 @@ def LUXShadersPlugin_VolumeHomogeneous_1_0_Define(in_ctxt):
 
     # parameters
     add_input_boolean(nonport_param_options(), params, False, "multiscattering")
-    setup_defaul_volume_parameters(params)
+    setup_default_volume_parameters(params)
     add_input_color(standart_param_options(), params, [1.0, 1.0, 1.0], "scattering")
     add_input_float(standart_param_options(), params, 1.0, "scattering_scale", 0.0, 10.0)
     add_input_vector(standart_param_options(), params, [0.0, 0.0, 0.0], "asymmetry")

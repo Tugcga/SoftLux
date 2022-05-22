@@ -44,7 +44,7 @@ void update_pipline_map(std::map<int, XSI::Shader>& pipline_map, const XSI::CRef
 	}
 }
 
-void sync_imagepipline(luxrays::Properties &render_props, const XSI::CTime& eval_time)
+void sync_imagepipline(luxrays::Properties &render_props, bool &is_contour_lines, const XSI::CTime& eval_time)
 {
 	XSI::Project xsi_project = XSI::Application().GetActiveProject();
 	XSI::Scene xsi_scene = xsi_project.GetActiveScene();
@@ -155,6 +155,8 @@ void sync_imagepipline(luxrays::Properties &render_props, const XSI::CTime& eval
 					render_props.Set(luxrays::Property(prefix + ".range")(range));
 					render_props.Set(luxrays::Property(prefix + ".steps")(steps));
 					render_props.Set(luxrays::Property(prefix + ".zerogridsize")(zerogridsize));
+
+					is_contour_lines = true;
 				}
 				else if (name == "PassBackgroundImage")
 				{

@@ -44,7 +44,10 @@ std::string output_type_to_string(luxcore::Film::FilmOutputType type);
 
 bool is_lux_output_ldr(luxcore::Film::FilmOutputType output_type);
 
-void sync_imagepipline(luxrays::Properties& render_props, const XSI::CTime& eval_time);
+void sync_imagepipline(luxrays::Properties& render_props,
+	bool& is_contour_lines, 
+	const XSI::CTime& eval_time);
+
 luxcore::RenderSession* sync_render_config(luxcore::Scene* scene, const RenderType render_type, const XSI::Property &render_property, const XSI::CTime &eval_time,
 	luxcore::Film::FilmOutputType lux_visual_output_type, const XSI::CStringArray& output_channels, const XSI::CStringArray& output_paths, const XSI::CString &archive_folder, const XSI::CString& scene_name,
 	const int image_x_start, const int image_x_end, const int image_y_start, const int image_y_end,

@@ -270,9 +270,10 @@ luxcore::RenderSession* sync_render_config(luxcore::Scene* scene, const RenderTy
 	}
  
 	//image piplines
+	bool is_contour_lines = false;
 	if (render_type != RenderType_Shaderball)
 	{
-		sync_imagepipline(render_props, eval_time);
+		sync_imagepipline(render_props, is_contour_lines, eval_time);
 	}
 	else
 	{
@@ -280,6 +281,8 @@ luxcore::RenderSession* sync_render_config(luxcore::Scene* scene, const RenderTy
 	}
 	
 	//outputs
+	bool is_add_irradiance = false;
+	int channel_index = 0;
 	if (render_type == RenderType_Export || render_type == RenderType_Rendermap)
 	{//setup outputs for the export
 		//use only render passes without visual and so on
@@ -301,6 +304,10 @@ luxcore::RenderSession* sync_render_config(luxcore::Scene* scene, const RenderTy
 			if (output_type == luxcore::Film::OUTPUT_ALPHA)
 			{
 				is_add_alpha = true;
+			}
+			else if (output_type == luxcore::Film::OUTPUT_IRRADIANCE)
+			{
+				is_add_irradiance = true;
 			}
 			std::string channel_index_str = std::to_string(i);
 			std::string channel_output_name = output_type_to_string(output_type);
@@ -324,6 +331,7 @@ luxcore::RenderSession* sync_render_config(luxcore::Scene* scene, const RenderTy
 				output_path = output_path.GetSubString(0, p) + ".exr";
 			}
 			render_props.Set(luxrays::Property("film.outputs." + channel_index_str + ".filename")(output_path.GetAsciiString()));
+			channel_index = i + 1;
 		}
 		if (render_type == RenderType_Rendermap)
 		{
@@ -345,11 +353,11 @@ luxcore::RenderSession* sync_render_config(luxcore::Scene* scene, const RenderTy
 		render_props.Set(luxrays::Property("film.outputs.1.type")("ALPHA"));
 		render_props.Set(luxrays::Property("film.outputs.1.filename")("ALPHA.exr"));
 
+		channel_index = 2;
 		std::set<luxcore::Film::FilmOutputType> channels_set;
 		channels_set.insert(lux_visual_output_type);
 		channels_set.insert(luxcore::Film::OUTPUT_ALPHA);
 
-		int channel_index = 2;
 		//also we should set output channels
 		for (ULONG i = 0; i < output_channels.GetCount(); i++)
 		{
@@ -361,9 +369,21 @@ luxcore::RenderSession* sync_render_config(luxcore::Scene* scene, const RenderTy
 				render_props.Set(luxrays::Property("film.outputs." + channel_index_str + ".type")(channel_output_name));
 				render_props.Set(luxrays::Property("film.outputs." + channel_index_str + ".filename")(channel_output_name + (is_lux_output_ldr(output_type) ? ".png" : ".exr")));
 				channels_set.insert(output_type);
+				if (output_type == luxcore::Film::OUTPUT_IRRADIANCE)
+				{
+					is_add_irradiance = true;
+				}
 				channel_index++;
 			}
 		}
+	}
+
+	//also add IRRADIANCE if we need it, but does not add
+	if (is_contour_lines && !is_add_irradiance)
+	{
+		std::string channel_index_str = std::to_string(channel_index);
+		render_props.Set(luxrays::Property("film.outputs." + channel_index_str + ".type")("IRRADIANCE"));
+		render_props.Set(luxrays::Property("film.outputs." + channel_index_str + ".filename")("IRRADIANCE.exr"));
 	}
 
 	//setup additional parameters for rendermap

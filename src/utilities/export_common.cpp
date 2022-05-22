@@ -218,7 +218,7 @@ int get_key_by_value(std::unordered_map<ULONG, std::vector<std::string>>& map, c
 	return -1;
 }
 
-bool is_isolation_list_contaons_object(const XSI::CRefArray& xsi_isolation_list, const XSI::X3DObject& xsi_object)
+bool is_isolation_list_contains_object(const XSI::CRefArray& xsi_isolation_list, const XSI::X3DObject& xsi_object)
 {
 	ULONG xsi_id = xsi_object.GetObjectID();
 	for (ULONG i = 0; i < xsi_isolation_list.GetCount(); i++)
@@ -231,4 +231,15 @@ bool is_isolation_list_contaons_object(const XSI::CRefArray& xsi_isolation_list,
 	}
 
 	return false;
+}
+
+bool is_image_format_supported(const XSI::CString& ext)
+{
+	return ext == "png" ||
+		ext == "jpg" ||
+		ext == "bmp" ||
+		ext == "tga" ||
+		ext == "ppm" ||
+		ext == "exr" ||
+		ext == "hdr";
 }

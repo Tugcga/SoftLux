@@ -46,7 +46,8 @@ void sync_imagepipline(luxrays::Properties& render_props, const XSI::CTime& eval
 luxcore::RenderSession* sync_render_config(luxcore::Scene* scene, const RenderType render_type, const XSI::Property &render_property, const XSI::CTime &eval_time,
 	luxcore::Film::FilmOutputType lux_visual_output_type, const XSI::CStringArray& output_channels, const XSI::CStringArray& output_paths, const XSI::CString &archive_folder, const XSI::CString& scene_name,
 	const int image_x_start, const int image_x_end, const int image_y_start, const int image_y_end,
-	const int image_width, const int image_height);
+	const int image_width, const int image_height,
+	const int bake_uv_index, const std::vector<std::string> &bake_object_names, const bool is_skip = false, const int bake_mode = 0);
 
 void read_visual_buffer(luxcore::Film &film, luxcore::Film::FilmOutputType visual_type, RenderVisualBuffer &buffer, const bool execute_ip);
 void copy_film_to_output_pixels(luxcore::Film& film, std::vector<float>& output_pixels, const XSI::CStringArray& output_channels);

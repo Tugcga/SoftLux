@@ -536,3 +536,30 @@ bool sync_polymesh(luxcore::Scene* scene,
 
 	return true;
 }
+
+void setup_mesh_bake_settings(const XSI::Property &rendermap_prop,
+	int &uv_index, std::vector<std::string> &object_names, const XSI::CTime &eval_time)
+{
+	XSI::X3DObject xsi_object = rendermap_prop.GetParent3DObject();
+	XSI::CParameterRefArray params = rendermap_prop.GetParameters();
+
+	XSI::CString uv_name = params.GetValue("uvprop", eval_time);
+	//find the index of this uv property
+	XSI::Primitive primitive = xsi_object.GetActivePrimitive(eval_time);
+	XSI::PolygonMesh mesh_polygonMesh = primitive.GetGeometry(XSI::siConstructionModeSecondaryShape);
+	XSI::CGeometryAccessor acc = mesh_polygonMesh.GetGeometryAccessor();
+	XSI::CRefArray uv_refs = acc.GetUVs();
+	ULONG uv_count = uv_refs.GetCount();
+	for (ULONG i = 0; i < uv_count; i++)
+	{
+		XSI::ClusterProperty uv_prop = XSI::ClusterProperty(uv_refs[i]);
+		if (uv_prop.GetName() == uv_name)
+		{
+			uv_index = i;
+			break;
+		}
+	}
+
+	//setup object names
+	object_names = xsi_object_id_string(xsi_object);
+}

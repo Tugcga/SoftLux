@@ -174,62 +174,88 @@ XSI::CStatus RenderEngineBase::pre_render(XSI::RendererContext &render_context)
 
 	//get pathes to save images
 	output_paths.Clear();
-	bool is_skip = m_render_context.GetAttribute("SkipExistingFiles");
-	if (render_type != RenderType_Pass)
-	{
-		is_skip = false;  // ignore skip for export mode, for other modes this parameter does not used, because for other modes output pathes are empty
-	}
-	bool file_output = m_render_context.GetAttribute("FileOutput");
-
-	XSI::CRefArray frame_buffers = render_context.GetFramebuffers();
-	const LONG fb_count = frame_buffers.GetCount();
-	for (LONG i = 0; i < fb_count; ++i)
-	{
-		XSI::Framebuffer fb(frame_buffers[i]);
-		XSI::CValue enbable_val = fb.GetParameterValue("Enabled", eval_time.GetTime());
-		if (file_output && enbable_val)
-		{
-			XSI::CString output_path = fb.GetResolvedPath(eval_time);
-			//check is this file exists if is_skip is active
-			if (is_skip && is_file_exists(output_path.GetAsciiString()))
-			{
-				//we shpuld skip this pass to render
-				log_message("File " + output_path + " exists, skip it.");
-			}
-			else
-			{
-				XSI::CString fb_format = fb.GetParameterValue("Format");
-				XSI::CString fb_data_type = fb.GetParameterValue("DataType");
-				int fb_bits = fb.GetParameterValue("BitDepth");
-				XSI::CString fb_channel_name = remove_digits(fb.GetName());
-				
-				if (fb_bits >= 0 && fb_data_type.Length() > 0 && fb_format.Length() > 0)
-				{
-					//add path to the render
-					output_paths.Add(output_path);
-					//save output data to array buffers
-					output_formats.Add(fb_format);
-					output_data_types.Add(fb_data_type);
-					output_channels.Add(fb_channel_name);
-					output_bits.push_back(fb_bits);
-				}
-			}
-		}
-	}
 
 	XSI::CString render_type_str = render_context.GetAttribute("RenderType");
 	render_type = render_type_str == XSI::CString("Pass") ? RenderType_Pass :
-			(render_type_str == XSI::CString("Region") ? RenderType_Region : (
+		(render_type_str == XSI::CString("Region") ? RenderType_Region : (
 			render_type_str == XSI::CString("Shaderball") ? RenderType_Shaderball : RenderType_Rendermap));
+
 	archive_folder = render_context.GetAttribute("ArchiveFileName");
 	if (render_type == RenderType_Pass && archive_folder.Length() > 0)
 	{
 		render_type = RenderType_Export;
 	}
 
-	if (render_type == RenderType_Pass && file_output && output_paths.GetCount() == 0)
-	{//this is Pass render, but nothing to render
-		return XSI::CStatus::Abort;
+	//for RenderType_Pass and RenderType_Export we should get outputs from the render settings
+	//but for RenderType_Rendermap we should get it from property of the object
+	if (render_type == RenderType_Rendermap)
+	{
+		XSI::CRefArray rendermap_list = m_render_context.GetAttribute("RenderMapList");
+
+		if (rendermap_list.GetCount() > 0)
+		{
+			XSI::Property rendermap_prop(rendermap_list[0]);  // get the first object
+			XSI::CParameterRefArray params = rendermap_prop.GetParameters();
+
+			//get the output path and set other output data
+			output_paths.Add(params.GetValue("imagefilepath"));
+			output_formats.Add(params.GetValue("imageformat"));  // format here can be unsupported on the renderer, so, it should be checked and replaced on the render implementation side
+			output_data_types.Add(params.GetValue("imagedatatype"));
+			output_channels.Add("Main");  // what actual channel we should use should be selected on the render implementation
+			output_bits.push_back(params.GetValue("imagebitdepth"));
+		}
+		//if we call rendermap with empty objects list, then nothing to do
+	}
+	else
+	{
+		bool is_skip = m_render_context.GetAttribute("SkipExistingFiles");
+		if (render_type != RenderType_Pass)
+		{
+			is_skip = false;  // ignore skip for export mode, for other modes this parameter does not used, because for other modes output pathes are empty
+		}
+		bool file_output = m_render_context.GetAttribute("FileOutput");
+
+
+		XSI::CRefArray frame_buffers = render_context.GetFramebuffers();
+		const LONG fb_count = frame_buffers.GetCount();
+		for (LONG i = 0; i < fb_count; ++i)
+		{
+			XSI::Framebuffer fb(frame_buffers[i]);
+			XSI::CValue enbable_val = fb.GetParameterValue("Enabled", eval_time.GetTime());
+			if (file_output && enbable_val)
+			{
+				XSI::CString output_path = fb.GetResolvedPath(eval_time);
+				//check is this file exists if is_skip is active
+				if (is_skip && is_file_exists(output_path.GetAsciiString()))
+				{
+					//we shpuld skip this pass to render
+					log_message("File " + output_path + " exists, skip it.");
+				}
+				else
+				{
+					XSI::CString fb_format = fb.GetParameterValue("Format");
+					XSI::CString fb_data_type = fb.GetParameterValue("DataType");
+					int fb_bits = fb.GetParameterValue("BitDepth");
+					XSI::CString fb_channel_name = remove_digits(fb.GetName());
+
+					if (fb_bits >= 0 && fb_data_type.Length() > 0 && fb_format.Length() > 0)
+					{
+						//add path to the render
+						output_paths.Add(output_path);
+						//save output data to array buffers
+						output_formats.Add(fb_format);
+						output_data_types.Add(fb_data_type);
+						output_channels.Add(fb_channel_name);
+						output_bits.push_back(fb_bits);
+					}
+				}
+			}
+		}
+
+		if (render_type == RenderType_Pass && file_output && output_paths.GetCount() == 0)
+		{//this is Pass render, but nothing to render
+			return XSI::CStatus::Abort;
+		}
 	}
 
 	return pre_render_engine();
@@ -295,23 +321,56 @@ XSI::CStatus RenderEngineBase::scene_process()
 	ready_to_render = false;
 	note_abort = false;
 
+	if (render_type == RenderType_Rendermap)
+	{
+		//get map size from the property
+		XSI::CRefArray rendermap_list = m_render_context.GetAttribute("RenderMapList");
+		if (rendermap_list.GetCount() > 0)
+		{
+			XSI::Property rendermap_prop(rendermap_list[0]);
+			XSI::CParameterRefArray params = rendermap_prop.GetParameters();
+
+			image_full_size_width = params.GetValue("resolutionx");
+			image_full_size_height = params.GetValue("resolutiony");
+			if ((bool)params.GetValue("squaretex"))
+			{
+				image_full_size_height = image_full_size_width;
+			}
+			image_corner_x = 0;
+			image_corner_y = 0;
+			image_size_width = image_full_size_width;
+			image_size_height = image_full_size_height;
+		}
+		else
+		{
+			image_full_size_width = 0;
+			image_full_size_height = 0;
+			image_corner_x = 0;
+			image_corner_y = 0;
+			image_size_width = 0;
+			image_size_height = 0;
+		}
+	}
+	else
+	{
+		//get render image
+		image_full_size_width = m_render_context.GetAttribute("ImageWidth");
+		image_full_size_height = m_render_context.GetAttribute("ImageHeight");
+		image_corner_x = m_render_context.GetAttribute("CropLeft");
+		image_corner_y = m_render_context.GetAttribute("CropBottom");
+		image_size_width = m_render_context.GetAttribute("CropWidth");
+		image_size_height = m_render_context.GetAttribute("CropHeight");
+	}
+
 	//setup visual buffer
 	visual_buffer = RenderVisualBuffer(
-		(ULONG)m_render_context.GetAttribute("ImageWidth"),
-		(ULONG)m_render_context.GetAttribute("ImageHeight"),
-		(ULONG)m_render_context.GetAttribute("CropLeft"),
-		(ULONG)m_render_context.GetAttribute("CropBottom"),
-		(ULONG)m_render_context.GetAttribute("CropWidth"),
-		(ULONG)m_render_context.GetAttribute("CropHeight"),
+		(ULONG)image_full_size_width,
+		(ULONG)image_full_size_height,
+		(ULONG)image_corner_x,
+		(ULONG)image_corner_y,
+		(ULONG)image_size_width,
+		(ULONG)image_size_height,
 		4);
-
-	//get render image and how many frames we should render
-	image_full_size_width = m_render_context.GetAttribute("ImageWidth");
-	image_full_size_height = m_render_context.GetAttribute("ImageHeight");
-	image_corner_x = m_render_context.GetAttribute("CropLeft");
-	image_corner_y = m_render_context.GetAttribute("CropBottom");
-	image_size_width = m_render_context.GetAttribute("CropWidth");
-	image_size_height = m_render_context.GetAttribute("CropHeight");
 
 	if (output_paths.GetCount() > 0)
 	{//prepare output pixel buffers

@@ -46,7 +46,8 @@ bool is_lux_output_hdr(luxcore::Film::FilmOutputType output_type)
 luxcore::RenderSession* sync_render_config(luxcore::Scene* scene, const RenderType render_type, const XSI::Property& render_property, const XSI::CTime& eval_time,
 	luxcore::Film::FilmOutputType lux_visual_output_type, const XSI::CStringArray& output_channels, const XSI::CStringArray &output_paths, const XSI::CString &archive_folder, const XSI::CString &scene_name,
 	const int image_x_start, const int image_x_end, const int image_y_start, const int image_y_end,
-	const int image_width, const int image_height)
+	const int image_width, const int image_height,
+	const int bake_uv_index, const std::vector<std::string>& bake_object_names, const bool is_skip, const int bake_mode)
 {
 	XSI::CParameterRefArray render_params = render_property.GetParameters();
 	luxrays::Properties render_props;
@@ -279,10 +280,11 @@ luxcore::RenderSession* sync_render_config(luxcore::Scene* scene, const RenderTy
 	}
 	
 	//outputs
-	if (render_type == RenderType_Export)
+	if (render_type == RenderType_Export || render_type == RenderType_Rendermap)
 	{//setup outputs for the export
 		//use only render passes without visual and so on
 		//use output_paths input array
+		bool is_add_alpha = false;
 		for (ULONG i = 0; i < output_channels.GetCount(); i++)
 		{
 			luxcore::Film::FilmOutputType output_type = output_string_prime_to_lux(output_channels[i]);
@@ -295,6 +297,10 @@ luxcore::RenderSession* sync_render_config(luxcore::Scene* scene, const RenderTy
 			else if (output_type == luxcore::Film::OUTPUT_RGB_IMAGEPIPELINE)
 			{
 				output_type = luxcore::Film::OUTPUT_RGBA_IMAGEPIPELINE;
+			}
+			if (output_type == luxcore::Film::OUTPUT_ALPHA)
+			{
+				is_add_alpha = true;
 			}
 			std::string channel_index_str = std::to_string(i);
 			std::string channel_output_name = output_type_to_string(output_type);
@@ -318,6 +324,16 @@ luxcore::RenderSession* sync_render_config(luxcore::Scene* scene, const RenderTy
 				output_path = output_path.GetSubString(0, p) + ".exr";
 			}
 			render_props.Set(luxrays::Property("film.outputs." + channel_index_str + ".filename")(output_path.GetAsciiString()));
+		}
+		if (render_type == RenderType_Rendermap)
+		{
+			if (!is_add_alpha)
+			{
+				//add alpha for rendermap
+				std::string channel_index_str = std::to_string(output_channels.GetCount());
+				render_props.Set(luxrays::Property("film.outputs." + channel_index_str + ".type")("ALPHA"));
+				render_props.Set(luxrays::Property("film.outputs." + channel_index_str + ".filename")("ALPHA.exr"));  // we will not actual save by this name, but should setup it for Luxcore
+			}
 		}
 	}
 	else
@@ -349,7 +365,39 @@ luxcore::RenderSession* sync_render_config(luxcore::Scene* scene, const RenderTy
 			}
 		}
 	}
-	
+
+	//setup additional parameters for rendermap
+	if (render_type == RenderType_Rendermap)
+	{
+		render_props.Set(luxrays::Property("bake.skipexistingmapfiles")(is_skip));
+
+		for (ULONG i = 0; i < bake_object_names.size(); i++)
+		{
+			std::string object_name = bake_object_names[i];
+			std::string i_str = std::to_string(i);
+			render_props.Set(luxrays::Property("bake.maps." + i_str + ".type")(bake_mode == 0 ? "COMBINED" : "LIGHTMAP"));
+			//set different file names for different objects (in fact clusters in one baked object)
+			XSI::CString original_output_path = output_paths[0];  // use only the first path
+			ULONG dot_index = original_output_path.ReverseFindString(".");
+			XSI::CString ext = get_file_extension(original_output_path);
+			std::string filename = std::string(original_output_path.GetSubString(0, dot_index).GetAsciiString()) + "_" + object_name + "." + std::string(ext.GetAsciiString());
+
+			render_props.Set(luxrays::Property("bake.maps." + i_str + ".filename")(filename));
+			render_props.Set(luxrays::Property("bake.maps." + i_str + ".imagepipelineindex")(0));  // use default index for the omage pipline, bake margin is not working, why?
+			render_props.Set(luxrays::Property("bake.maps." + i_str + ".autosize.enabled")(false));
+			render_props.Set(luxrays::Property("bake.maps." + i_str + ".width")(image_width));
+			render_props.Set(luxrays::Property("bake.maps." + i_str + ".height")(image_height));
+			render_props.Set(luxrays::Property("bake.maps." + i_str + ".uvindex")(bake_uv_index));
+			render_props.Set(luxrays::Property("bake.maps." + i_str + ".objectnames")(object_name));
+		}
+
+		if (bake_object_names.size() > 0)
+		{
+			//override render engine
+			render_props.Set(luxrays::Property("renderengine.type")("BAKECPU"));
+		}
+	}
+		
 	luxcore::RenderConfig* render_config = luxcore::RenderConfig::Create(render_props, scene);
 	luxcore::RenderSession *session = luxcore::RenderSession::Create(render_config);
 	return session;

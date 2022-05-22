@@ -28,4 +28,5 @@ bool is_extension_hdr(const XSI::CString& ext);
 XSI::CString get_file_extension(const XSI::CString &file_path);
 bool is_file_exists(const XSI::CString &file_path);
 int get_key_by_value(std::unordered_map<ULONG, std::vector<std::string>> &map, const std::string &value);  // return -1 if there is not value in the map
-bool is_isolation_list_contaons_object(const XSI::CRefArray& xsi_isolation_list, const XSI::X3DObject& xsi_object);
+bool is_isolation_list_contains_object(const XSI::CRefArray& xsi_isolation_list, const XSI::X3DObject& xsi_object);
+bool is_image_format_supported(const XSI::CString& ext);

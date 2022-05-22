@@ -67,7 +67,8 @@ void sync_imagepipline(luxrays::Properties &render_props, const XSI::CTime& eval
 	{
 		for (const auto& [key, value] : pipline_map)
 		{
-			std::string index_str = std::to_string(pipline_index);
+			std::string index_str = "0." + std::to_string(pipline_index);
+			std::string prefix = "film.imagepipelines." + index_str;
 			XSI::CString name = value.GetProgID().Split(".")[1];
 			XSI::CParameterRefArray all_parameters = value.GetParameters();
 			bool enable = get_bool_parameter_value(all_parameters, "enable", eval_time);
@@ -77,8 +78,8 @@ void sync_imagepipline(luxrays::Properties &render_props, const XSI::CTime& eval
 				{
 					float scale = get_float_parameter_value(all_parameters, "scale", eval_time);
 
-					render_props.Set(luxrays::Property("film.imagepipeline." + index_str + ".type")("TONEMAP_LINEAR"));
-					render_props.Set(luxrays::Property("film.imagepipeline." + index_str + ".scale")(scale));
+					render_props.Set(luxrays::Property(prefix + ".type")("TONEMAP_LINEAR"));
+					render_props.Set(luxrays::Property(prefix + ".scale")(scale));
 				}
 				else if (name == "PassTonemapReinhard")
 				{
@@ -86,14 +87,14 @@ void sync_imagepipline(luxrays::Properties &render_props, const XSI::CTime& eval
 					float postscale = get_float_parameter_value(all_parameters, "postscale", eval_time);
 					float burn = get_float_parameter_value(all_parameters, "burn", eval_time);
 
-					render_props.Set(luxrays::Property("film.imagepipeline." + index_str + ".type")("TONEMAP_REINHARD02"));
-					render_props.Set(luxrays::Property("film.imagepipeline." + index_str + ".prescale")(prescale));
-					render_props.Set(luxrays::Property("film.imagepipeline." + index_str + ".postscale")(postscale));
-					render_props.Set(luxrays::Property("film.imagepipeline." + index_str + ".burn")(burn));
+					render_props.Set(luxrays::Property(prefix + ".type")("TONEMAP_REINHARD02"));
+					render_props.Set(luxrays::Property(prefix + ".prescale")(prescale));
+					render_props.Set(luxrays::Property(prefix + ".postscale")(postscale));
+					render_props.Set(luxrays::Property(prefix + ".burn")(burn));
 				}
 				else if (name == "PassTonemapAutoLinear")
 				{
-					render_props.Set(luxrays::Property("film.imagepipeline." + index_str + ".type")("TONEMAP_AUTOLINEAR"));
+					render_props.Set(luxrays::Property(prefix + ".type")("TONEMAP_AUTOLINEAR"));
 				}
 				else if (name == "PassTonemapLuxLinear")
 				{
@@ -101,46 +102,46 @@ void sync_imagepipline(luxrays::Properties &render_props, const XSI::CTime& eval
 					float exposure = get_float_parameter_value(all_parameters, "exposure", eval_time);
 					float fstop = get_float_parameter_value(all_parameters, "fstop", eval_time);
 
-					render_props.Set(luxrays::Property("film.imagepipeline." + index_str + ".type")("TONEMAP_LUXLINEAR"));
-					render_props.Set(luxrays::Property("film.imagepipeline." + index_str + ".sensitivity")(sensitivity));
-					render_props.Set(luxrays::Property("film.imagepipeline." + index_str + ".exposure")(exposure));
-					render_props.Set(luxrays::Property("film.imagepipeline." + index_str + ".fstop")(fstop));
+					render_props.Set(luxrays::Property(prefix + ".type")("TONEMAP_LUXLINEAR"));
+					render_props.Set(luxrays::Property(prefix + ".sensitivity")(sensitivity));
+					render_props.Set(luxrays::Property(prefix + ".exposure")(exposure));
+					render_props.Set(luxrays::Property(prefix + ".fstop")(fstop));
 				}
 				else if (name == "PassGammaCorrection")
 				{
 					float value = get_float_parameter_value(all_parameters, "value", eval_time);
 					int table_size = get_int_parameter_value(all_parameters, "table_size", eval_time);
 
-					render_props.Set(luxrays::Property("film.imagepipeline." + index_str + ".type")("GAMMA_CORRECTION"));
-					render_props.Set(luxrays::Property("film.imagepipeline." + index_str + ".value")(value));
-					render_props.Set(luxrays::Property("film.imagepipeline." + index_str + ".table.size")(table_size));
+					render_props.Set(luxrays::Property(prefix + ".type")("GAMMA_CORRECTION"));
+					render_props.Set(luxrays::Property(prefix + ".value")(value));
+					render_props.Set(luxrays::Property(prefix + ".table.size")(table_size));
 				}
 				else if (name == "PassNOP")
 				{
-					render_props.Set(luxrays::Property("film.imagepipeline." + index_str + ".type")("NOP"));
+					render_props.Set(luxrays::Property(prefix + ".type")("NOP"));
 				}
 				else if (name == "PassOutputSwitcher")
 				{
 					std::string channel = std::string(get_string_parameter_value(all_parameters, "channel", eval_time).GetAsciiString());
 					int index = get_int_parameter_value(all_parameters, "index", eval_time);
 
-					render_props.Set(luxrays::Property("film.imagepipeline." + index_str + ".type")("OUTPUT_SWITCHER"));
-					render_props.Set(luxrays::Property("film.imagepipeline." + index_str + ".channel")(channel));
-					render_props.Set(luxrays::Property("film.imagepipeline." + index_str + ".index")(index));
+					render_props.Set(luxrays::Property(prefix + ".type")("OUTPUT_SWITCHER"));
+					render_props.Set(luxrays::Property(prefix + ".channel")(channel));
+					render_props.Set(luxrays::Property(prefix + ".index")(index));
 				}
 				else if (name == "PassGaussianFilter")
 				{
 					float weight = get_float_parameter_value(all_parameters, "weight", eval_time);
 
-					render_props.Set(luxrays::Property("film.imagepipeline." + index_str + ".type")("GAUSSIANFILTER_3x3"));
-					render_props.Set(luxrays::Property("film.imagepipeline." + index_str + ".weight")(weight));
+					render_props.Set(luxrays::Property(prefix + ".type")("GAUSSIANFILTER_3x3"));
+					render_props.Set(luxrays::Property(prefix + ".weight")(weight));
 				}
 				else if (name == "PassCameraResponse")
 				{
 					std::string name = std::string(get_string_parameter_value(all_parameters, "camera_name", eval_time).GetAsciiString());
 
-					render_props.Set(luxrays::Property("film.imagepipeline." + index_str + ".type")("CAMERA_RESPONSE_FUNC"));
-					render_props.Set(luxrays::Property("film.imagepipeline." + index_str + ".name")(name));
+					render_props.Set(luxrays::Property(prefix + ".type")("CAMERA_RESPONSE_FUNC"));
+					render_props.Set(luxrays::Property(prefix + ".name")(name));
 				}
 				else if (name == "PassContourLines")
 				{
@@ -149,11 +150,11 @@ void sync_imagepipline(luxrays::Properties &render_props, const XSI::CTime& eval
 					int steps = get_int_parameter_value(all_parameters, "steps", eval_time);
 					int zerogridsize = get_int_parameter_value(all_parameters, "zerogridsize", eval_time);
 
-					render_props.Set(luxrays::Property("film.imagepipeline." + index_str + ".type")("CONTOUR_LINES"));
-					render_props.Set(luxrays::Property("film.imagepipeline." + index_str + ".scale")(scale));
-					render_props.Set(luxrays::Property("film.imagepipeline." + index_str + ".range")(range));
-					render_props.Set(luxrays::Property("film.imagepipeline." + index_str + ".steps")(steps));
-					render_props.Set(luxrays::Property("film.imagepipeline." + index_str + ".zerogridsize")(zerogridsize));
+					render_props.Set(luxrays::Property(prefix + ".type")("CONTOUR_LINES"));
+					render_props.Set(luxrays::Property(prefix + ".scale")(scale));
+					render_props.Set(luxrays::Property(prefix + ".range")(range));
+					render_props.Set(luxrays::Property(prefix + ".steps")(steps));
+					render_props.Set(luxrays::Property(prefix + ".zerogridsize")(zerogridsize));
 				}
 				else if (name == "PassBackgroundImage")
 				{
@@ -167,9 +168,9 @@ void sync_imagepipline(luxrays::Properties &render_props, const XSI::CTime& eval
 						std::string file = std::string(clip.GetFileName().GetAsciiString());
 						if (file.size() > 0)
 						{
-							render_props.Set(luxrays::Property("film.imagepipeline." + index_str + ".type")("BACKGROUND_IMG"));
-							render_props.Set(luxrays::Property("film.imagepipeline." + index_str + ".file")(file));
-							render_props.Set(luxrays::Property("film.imagepipeline." + index_str + ".gamma")(gamma));
+							render_props.Set(luxrays::Property(prefix + ".type")("BACKGROUND_IMG"));
+							render_props.Set(luxrays::Property(prefix + ".file")(file));
+							render_props.Set(luxrays::Property(prefix + ".gamma")(gamma));
 						}
 						else
 						{
@@ -186,34 +187,34 @@ void sync_imagepipline(luxrays::Properties &render_props, const XSI::CTime& eval
 					float radius = get_float_parameter_value(all_parameters, "radius", eval_time);
 					float weight = get_float_parameter_value(all_parameters, "weight", eval_time);
 
-					render_props.Set(luxrays::Property("film.imagepipeline." + index_str + ".type")("BLOOM"));
-					render_props.Set(luxrays::Property("film.imagepipeline." + index_str + ".radius")(radius));
-					render_props.Set(luxrays::Property("film.imagepipeline." + index_str + ".weight")(weight));
+					render_props.Set(luxrays::Property(prefix + ".type")("BLOOM"));
+					render_props.Set(luxrays::Property(prefix + ".radius")(radius));
+					render_props.Set(luxrays::Property(prefix + ".weight")(weight));
 				}
 				else if (name == "PassObjectIDMask")
 				{
 					int id = get_int_parameter_value(all_parameters, "id", eval_time);
 
-					render_props.Set(luxrays::Property("film.imagepipeline." + index_str + ".type")("OBJECT_ID_MASK"));
-					render_props.Set(luxrays::Property("film.imagepipeline." + index_str + ".id")(id));
+					render_props.Set(luxrays::Property(prefix + ".type")("OBJECT_ID_MASK"));
+					render_props.Set(luxrays::Property(prefix + ".id")(id));
 				}
 				else if (name == "PassVignetting")
 				{
 					float scale = get_float_parameter_value(all_parameters, "scale", eval_time);
 
-					render_props.Set(luxrays::Property("film.imagepipeline." + index_str + ".type")("VIGNETTING"));
-					render_props.Set(luxrays::Property("film.imagepipeline." + index_str + ".scale")(scale));
+					render_props.Set(luxrays::Property(prefix + ".type")("VIGNETTING"));
+					render_props.Set(luxrays::Property(prefix + ".scale")(scale));
 				}
 				else if (name == "PassColorAberration")
 				{
 					float amount = get_float_parameter_value(all_parameters, "amount", eval_time);
 
-					render_props.Set(luxrays::Property("film.imagepipeline." + index_str + ".type")("COLOR_ABERRATION"));
-					render_props.Set(luxrays::Property("film.imagepipeline." + index_str + ".amount")(amount));
+					render_props.Set(luxrays::Property(prefix + ".type")("COLOR_ABERRATION"));
+					render_props.Set(luxrays::Property(prefix + ".amount")(amount));
 				}
 				else if (name == "PassPremultiplyAlpha")
 				{
-					render_props.Set(luxrays::Property("film.imagepipeline." + index_str + ".type")("PREMULTIPLY_ALPHA"));
+					render_props.Set(luxrays::Property(prefix + ".type")("PREMULTIPLY_ALPHA"));
 				}
 				else if (name == "PassMist")
 				{
@@ -223,12 +224,12 @@ void sync_imagepipline(luxrays::Properties &render_props, const XSI::CTime& eval
 					float enddistance = get_float_parameter_value(all_parameters, "enddistance", eval_time);
 					bool excludebackground = get_bool_parameter_value(all_parameters, "excludebackground", eval_time);
 
-					render_props.Set(luxrays::Property("film.imagepipeline." + index_str + ".type")("MIST"));
-					render_props.Set(luxrays::Property("film.imagepipeline." + index_str + ".color")(color.GetR(), color.GetG(), color.GetB()));
-					render_props.Set(luxrays::Property("film.imagepipeline." + index_str + ".amount")(amount));
-					render_props.Set(luxrays::Property("film.imagepipeline." + index_str + ".startdistance")(startdistance));
-					render_props.Set(luxrays::Property("film.imagepipeline." + index_str + ".enddistance")(enddistance));
-					render_props.Set(luxrays::Property("film.imagepipeline." + index_str + ".excludebackground")(excludebackground));
+					render_props.Set(luxrays::Property(prefix + ".type")("MIST"));
+					render_props.Set(luxrays::Property(prefix + ".color")(color.GetR(), color.GetG(), color.GetB()));
+					render_props.Set(luxrays::Property(prefix + ".amount")(amount));
+					render_props.Set(luxrays::Property(prefix + ".startdistance")(startdistance));
+					render_props.Set(luxrays::Property(prefix + ".enddistance")(enddistance));
+					render_props.Set(luxrays::Property(prefix + ".excludebackground")(excludebackground));
 				}
 				else if (name == "PassBCDDenoiser")
 				{
@@ -245,26 +246,26 @@ void sync_imagepipline(luxrays::Properties &render_props, const XSI::CTime& eval
 					bool applydenoise = get_bool_parameter_value(all_parameters, "applydenoise", eval_time);
 					float spikestddev = get_float_parameter_value(all_parameters, "spikestddev", eval_time);
 
-					render_props.Set(luxrays::Property("film.imagepipeline." + index_str + ".type")("BCD_DENOISER"));
-					render_props.Set(luxrays::Property("film.imagepipeline." + index_str + ".warmupspp")(warmupspp));
-					render_props.Set(luxrays::Property("film.imagepipeline." + index_str + ".histdistthresh")(histdistthresh));
-					render_props.Set(luxrays::Property("film.imagepipeline." + index_str + ".patchradius")(patchradius));
-					render_props.Set(luxrays::Property("film.imagepipeline." + index_str + ".searchwindowradius")(searchwindowradius));
-					render_props.Set(luxrays::Property("film.imagepipeline." + index_str + ".mineigenvalue")(mineigenvalue));
-					render_props.Set(luxrays::Property("film.imagepipeline." + index_str + ".userandompixelorder")(userandompixelorder));
-					render_props.Set(luxrays::Property("film.imagepipeline." + index_str + ".markedpixelsskippingprobability")(markedpixelsskippingprobability));
-					render_props.Set(luxrays::Property("film.imagepipeline." + index_str + ".threadcount")(threadcount));
-					render_props.Set(luxrays::Property("film.imagepipeline." + index_str + ".scales")(scales));
-					render_props.Set(luxrays::Property("film.imagepipeline." + index_str + ".filterspikes")(filterspikes));
-					render_props.Set(luxrays::Property("film.imagepipeline." + index_str + ".applydenoise")(applydenoise));
-					render_props.Set(luxrays::Property("film.imagepipeline." + index_str + ".spikestddev")(spikestddev));
+					render_props.Set(luxrays::Property(prefix + ".type")("BCD_DENOISER"));
+					render_props.Set(luxrays::Property(prefix + ".warmupspp")(warmupspp));
+					render_props.Set(luxrays::Property(prefix + ".histdistthresh")(histdistthresh));
+					render_props.Set(luxrays::Property(prefix + ".patchradius")(patchradius));
+					render_props.Set(luxrays::Property(prefix + ".searchwindowradius")(searchwindowradius));
+					render_props.Set(luxrays::Property(prefix + ".mineigenvalue")(mineigenvalue));
+					render_props.Set(luxrays::Property(prefix + ".userandompixelorder")(userandompixelorder));
+					render_props.Set(luxrays::Property(prefix + ".markedpixelsskippingprobability")(markedpixelsskippingprobability));
+					render_props.Set(luxrays::Property(prefix + ".threadcount")(threadcount));
+					render_props.Set(luxrays::Property(prefix + ".scales")(scales));
+					render_props.Set(luxrays::Property(prefix + ".filterspikes")(filterspikes));
+					render_props.Set(luxrays::Property(prefix + ".applydenoise")(applydenoise));
+					render_props.Set(luxrays::Property(prefix + ".spikestddev")(spikestddev));
 				}
 				else if (name == "PassPatterns")
 				{
 					int index = get_int_parameter_value(all_parameters, "index", eval_time);
 
-					render_props.Set(luxrays::Property("film.imagepipeline." + index_str + ".type")("PATTERNS"));
-					render_props.Set(luxrays::Property("film.imagepipeline." + index_str + ".index")(index));
+					render_props.Set(luxrays::Property(prefix + ".type")("PATTERNS"));
+					render_props.Set(luxrays::Property(prefix + ".index")(index));
 				}
 				else if (name == "PassIntelOIDN")
 				{
@@ -272,10 +273,10 @@ void sync_imagepipline(luxrays::Properties &render_props, const XSI::CTime& eval
 					int oidnmemory = get_int_parameter_value(all_parameters, "oidnmemory", eval_time);
 					float sharpness = get_float_parameter_value(all_parameters, "sharpness", eval_time);
 
-					render_props.Set(luxrays::Property("film.imagepipeline." + index_str + ".type")("INTEL_OIDN"));
-					render_props.Set(luxrays::Property("film.imagepipeline." + index_str + ".filter.type")(filter_type));
-					render_props.Set(luxrays::Property("film.imagepipeline." + index_str + ".oidnmemory")(oidnmemory));
-					render_props.Set(luxrays::Property("film.imagepipeline." + index_str + ".sharpness")(sharpness));
+					render_props.Set(luxrays::Property(prefix + ".type")("INTEL_OIDN"));
+					render_props.Set(luxrays::Property(prefix + ".filter.type")(filter_type));
+					render_props.Set(luxrays::Property(prefix + ".oidnmemory")(oidnmemory));
+					render_props.Set(luxrays::Property(prefix + ".sharpness")(sharpness));
 				}
 				else if (name == "PassWhiteBalance")
 				{
@@ -283,19 +284,19 @@ void sync_imagepipline(luxrays::Properties &render_props, const XSI::CTime& eval
 					bool reverse = get_bool_parameter_value(all_parameters, "reverse", eval_time);
 					bool normalize = get_bool_parameter_value(all_parameters, "normalize", eval_time);
 
-					render_props.Set(luxrays::Property("film.imagepipeline." + index_str + ".type")("WHITE_BALANCE"));
-					render_props.Set(luxrays::Property("film.imagepipeline." + index_str + ".temperature")(temperature));
-					render_props.Set(luxrays::Property("film.imagepipeline." + index_str + ".reverse")(reverse));
-					render_props.Set(luxrays::Property("film.imagepipeline." + index_str + ".normalize")(normalize));
+					render_props.Set(luxrays::Property(prefix + ".type")("WHITE_BALANCE"));
+					render_props.Set(luxrays::Property(prefix + ".temperature")(temperature));
+					render_props.Set(luxrays::Property(prefix + ".reverse")(reverse));
+					render_props.Set(luxrays::Property(prefix + ".normalize")(normalize));
 				}
 				else if (name == "PassBakeMapMargin")
 				{
 					int margin = get_int_parameter_value(all_parameters, "margin", eval_time);
 					float samplesthreshold = get_float_parameter_value(all_parameters, "samplesthreshold", eval_time);
 
-					render_props.Set(luxrays::Property("film.imagepipeline." + index_str + ".type")("BAKEMAP_MARGIN"));
-					render_props.Set(luxrays::Property("film.imagepipeline." + index_str + ".margin")(margin));
-					render_props.Set(luxrays::Property("film.imagepipeline." + index_str + ".samplesthreshold")(samplesthreshold));
+					render_props.Set(luxrays::Property(prefix + ".type")("BAKEMAP_MARGIN"));
+					render_props.Set(luxrays::Property(prefix + ".margin")(margin));
+					render_props.Set(luxrays::Property(prefix + ".samplesthreshold")(samplesthreshold));
 				}
 				else if (name == "PassColorLUT")
 				{
@@ -304,9 +305,9 @@ void sync_imagepipline(luxrays::Properties &render_props, const XSI::CTime& eval
 
 					if (xsi_file.Length() > 0)
 					{
-						render_props.Set(luxrays::Property("film.imagepipeline." + index_str + ".type")("COLOR_LUT"));
-						render_props.Set(luxrays::Property("film.imagepipeline." + index_str + ".file")(std::string(xsi_file.GetAsciiString())));
-						render_props.Set(luxrays::Property("film.imagepipeline." + index_str + ".strength")(strength));
+						render_props.Set(luxrays::Property(prefix + ".type")("COLOR_LUT"));
+						render_props.Set(luxrays::Property(prefix + ".file")(std::string(xsi_file.GetAsciiString())));
+						render_props.Set(luxrays::Property(prefix + ".strength")(strength));
 					}
 					else
 					{
@@ -318,9 +319,9 @@ void sync_imagepipline(luxrays::Properties &render_props, const XSI::CTime& eval
 					float sharpness = get_float_parameter_value(all_parameters, "sharpness", eval_time);
 					int minspp = get_int_parameter_value(all_parameters, "minspp", eval_time);
 
-					render_props.Set(luxrays::Property("film.imagepipeline." + index_str + ".type")("OPTIX_DENOISER"));
-					render_props.Set(luxrays::Property("film.imagepipeline." + index_str + ".sharpness")(sharpness));
-					render_props.Set(luxrays::Property("film.imagepipeline." + index_str + ".minspp")(minspp));
+					render_props.Set(luxrays::Property(prefix + ".type")("OPTIX_DENOISER"));
+					render_props.Set(luxrays::Property(prefix + ".sharpness")(sharpness));
+					render_props.Set(luxrays::Property(prefix + ".minspp")(minspp));
 				}
 				/*else if (name == "PassTonemapOpenColorIO")
 				{
@@ -335,7 +336,7 @@ void sync_imagepipline(luxrays::Properties &render_props, const XSI::CTime& eval
 	if (pipline_index == 0)
 	{//there are no pipline in the pass
 		//add the default one
-		render_props.Set(luxrays::Property("film.imagepipeline.0.type")("TONEMAP_LINEAR"));
-		render_props.Set(luxrays::Property("film.imagepipeline.1.type")("GAMMA_CORRECTION"));
+		render_props.Set(luxrays::Property("film.imagepipelines.0.0.type")("TONEMAP_LINEAR"));
+		render_props.Set(luxrays::Property("film.imagepipelines.0.1.type")("GAMMA_CORRECTION"));
 	}
 }

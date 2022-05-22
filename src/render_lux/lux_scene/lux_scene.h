@@ -208,6 +208,10 @@ bool sync_polymesh(luxcore::Scene* scene,
 	const ULONG override_material = 0, 
 	const bool use_default_material = false);
 
+void setup_mesh_bake_settings(const XSI::Property& rendermap_prop,
+	int& uv_index, std::vector<std::string>& object_names,
+	const XSI::CTime& eval_time);
+
 std::vector<float> get_instance_object_tfm(const XSI::CRefArray& children, ULONG index, const XSI::MATH::CTransformation& master_tfm, const XSI::MATH::CTransformation& model_tfm);
 
 //this method use from pointcloud export

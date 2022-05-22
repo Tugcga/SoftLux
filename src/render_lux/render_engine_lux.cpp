@@ -137,7 +137,8 @@ XSI::CStatus RenderEngineLux::pre_scene_process()
 	//if we change region limits (corners or render size), then we should recreate the session, so, delete it
 	if (prev_corner_x != visual_buffer.corner_x || prev_corner_y != visual_buffer.corner_y ||
 		prev_width != visual_buffer.width || prev_height != visual_buffer.height ||
-		prev_full_width != visual_buffer.full_width || prev_full_height != visual_buffer.full_height)
+		prev_full_width != visual_buffer.full_width || prev_full_height != visual_buffer.full_height ||
+		render_type == RenderType_Rendermap)
 	{
 		clear_session();
 		prev_corner_x = visual_buffer.corner_x;
@@ -163,7 +164,30 @@ XSI::CStatus RenderEngineLux::pre_scene_process()
 		clear_session();
 		last_lux_visual_output_type = lux_visual_output_type;
 	}
-		
+
+	//check output extension for rendermap
+	if (render_type == RenderType_Rendermap)
+	{
+		for (ULONG i = 0; i < output_formats.GetCount(); i++)
+		{
+			XSI::CString ext = output_formats[i];
+			if (!is_image_format_supported(ext))
+			{
+				//output extension is not supported, replace it to exr
+				log_message("Invalid image extension " + ext + " for the rendermap output. Change it to exr.", XSI::siWarningMsg);
+				XSI::CString output_path = output_paths[i];
+				ULONG dot_index = output_path.ReverseFindString(".");
+				output_path = output_path.GetSubString(0, dot_index) + ".exr";
+				ext = "exr";
+
+				output_formats[i] = ext;
+				output_paths[i] = output_path;
+				output_data_types[i] = "RGBA";
+				output_bits[i] = 21;
+			}
+		}
+	}
+
 	return XSI::CStatus::OK;
 }
 
@@ -218,7 +242,7 @@ XSI::CStatus RenderEngineLux::update_scene(XSI::X3DObject& xsi_object, const Upd
 	{
 		//check that updated object in the isolation view
 		//if so, update it, otherwise - return abort
-		if (!is_isolation_list_contaons_object(m_isolation_list, xsi_object))
+		if (!is_isolation_list_contains_object(m_isolation_list, xsi_object))
 		{
 			//or may we should simply ignore this update call?
 			return XSI::CStatus::Abort;
@@ -312,10 +336,8 @@ XSI::CStatus RenderEngineLux::update_scene(XSI::X3DObject& xsi_object, const Upd
 						std::vector<std::string> object_names = xsi_id_to_lux_names_map[xsi_object.GetObjectID()];
 						for (ULONG i = 0; i < object_names.size(); i++)
 						{
-							log_message("start update transform " + XSI::CString(object_names[i].c_str()));
 							sync_transform(scene, object_names[i], m_render_parameters, xsi_object.GetKinematics().GetGlobal(), eval_time);
 						}
-						log_message("sync transform done");
 						object_names.clear();
 						object_names.shrink_to_fit();
 
@@ -521,7 +543,6 @@ XSI::CStatus RenderEngineLux::update_scene_render()
 //here we create the scene for rendering from scratch
 XSI::CStatus RenderEngineLux::create_scene()
 {
-	log_message("create scene, mode " + XSI::CString(render_type));
 	clear_scene();
 	clear_session();
 	scene = luxcore::Scene::Create();
@@ -630,11 +651,41 @@ XSI::CStatus RenderEngineLux::post_scene()
 	//here we should create the session and render parameters
 	if (!is_session)
 	{
+		//get rendermap settings
+		int bake_uv_index = 0;
+		std::vector<std::string> bake_object_names;
+		int bake_mode = 0;  // combined
+		if (render_type == RenderType_Rendermap)
+		{
+			//override bake parameters
+			XSI::CRefArray rendermap_list = m_render_context.GetAttribute("RenderMapList");
+			if (rendermap_list.GetCount() > 0)
+			{
+				XSI::Property rendermap_prop(rendermap_list[0]);
+				setup_mesh_bake_settings(rendermap_prop, bake_uv_index, bake_object_names, eval_time);
+
+				int randermap_attribute = rendermap_prop.GetParameterValue("attribute", eval_time);
+				if (randermap_attribute != 0)
+				{
+					bake_mode = 1;  // lightmap
+				}
+			}
+		}
+		bool is_skip = m_render_context.GetAttribute("SkipExistingFiles");
 		session = sync_render_config(scene, render_type, m_render_property, eval_time,
 			lux_visual_output_type, output_channels, output_paths, archive_folder, XSI::Application().GetActiveProject().GetActiveScene().GetName(),
 			image_corner_x, image_corner_x + image_size_width, image_corner_y, image_corner_y + image_size_height,
-			image_full_size_width, image_full_size_height);
+			image_full_size_width, image_full_size_height,
+			bake_uv_index, bake_object_names, is_skip, bake_mode);
 		is_session = true;
+
+		//for rendermap we should not save output image, because buffer does not contains anything
+		//the Luxcore render save it himself by using bake.maps.i.filename property
+		//so, clear outputs list
+		if (render_type == RenderType_Rendermap)
+		{
+			output_paths.Clear();
+		}
 	}
 
 	return XSI::CStatus::OK;
@@ -642,7 +693,6 @@ XSI::CStatus RenderEngineLux::post_scene()
 
 void RenderEngineLux::render()
 {
-	log_message("call render type " + XSI::CString(render_type));
 	session_output_samples = 0.0f;
 	if (render_type == RenderType_Export)
 	{

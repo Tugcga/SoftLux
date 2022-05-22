@@ -35,6 +35,8 @@ static std::vector<std::string> pipline_names = {
 		//"PassTonemapOpenColorIO"
 };
 
+const float shaderball_render_time = 2.0f;  // use 2 seconds to render each shaderball
+
 luxcore::Film::FilmOutputType output_string_to_lux(const XSI::CString& name);
 //the same as before, but input is name with _ instead of spaces
 luxcore::Film::FilmOutputType output_string_prime_to_lux(const XSI::CString& name);;

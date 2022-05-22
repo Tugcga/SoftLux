@@ -56,7 +56,7 @@ luxcore::RenderSession* sync_render_config(luxcore::Scene* scene, const RenderTy
 	//setup settings for shaderball
 	if (render_type == RenderType_Shaderball)
 	{
-		render_props.Set(luxrays::Property("batch.halttime")(5.0));  // hardcode the render time
+		render_props.Set(luxrays::Property("batch.halttime")(shaderball_render_time));  // hardcode the render time
 		render_props.Set(luxrays::Property("renderengine.type")("PATHCPU"));  // engine
 		render_props.Set(luxrays::Property("sampler.type")("SOBOL"));  // and sampler
 		//all other parameters are default

@@ -771,8 +771,7 @@ XSI::CStatus RenderEngineLux::post_render_engine()
 		}
 		else
 		{
-			log_message("Render time: " + XSI::CString(time) + " sec.");
-			log_message("Render samples: " + XSI::CString((int)session_output_samples));
+			log_message("Render statistics: " + XSI::CString((int)session_output_samples) + " samples, " + XSI::CString(time) + " seconds");
 		}
 	}
 

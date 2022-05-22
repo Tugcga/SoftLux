@@ -81,7 +81,11 @@ SICALLBACK LuxCoreRenderer_Init(XSI::CRef &in_ctxt)
 	renderer.AddDefaultChannel("Luxcore Sample Count", XSI::siRenderChannelGrayscaleType);
 	renderer.AddDefaultChannel("Luxcore Convergence", XSI::siRenderChannelGrayscaleType);
 	renderer.AddDefaultChannel("Luxcore Noise", XSI::siRenderChannelGrayscaleType);
-	renderer.AddDefaultChannel("Luxcore Material ID Color", XSI::siRenderChannelColorType);
+	renderer.AddDefaultChannel("Luxcore Material ID Color", XSI::siRenderChannelColorType);  // size of channel can be obtains in slg\film\filmoutput.cpp
+	renderer.AddDefaultChannel("Luxcore Caustic", XSI::siRenderChannelColorType);
+	renderer.AddDefaultChannel("Luxcore Avg Shading Normal", XSI::siRenderChannelNormalVectorType);
+	renderer.AddDefaultChannel("Luxcore User Importance", XSI::siRenderChannelGrayscaleType);
+	renderer.AddDefaultChannel("Luxcore Albedo", XSI::siRenderChannelColorType);
 
 	render = &g_render;
 	render->set_render_options_name(options_name);

@@ -109,4 +109,5 @@ private:
 	ServiceAOVParameters prev_service_aov;
 	ServiceStrandsParameters prev_service_strands;
 	bool prev_world_volume;
+	float session_output_samples;  // store here the number of rendered samples
 };

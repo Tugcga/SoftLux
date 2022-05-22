@@ -47,6 +47,7 @@ RenderEngineLux::RenderEngineLux()
 	prev_service_aov = { false, false };
 	prev_service_strands = { 3, true, 12, true, false, 8, 0.1f };
 	prev_world_volume = false;
+	session_output_samples = 0.0f;
 }
 
 //when we delete the engine, then at first this method is called, and then the method from base class
@@ -642,6 +643,7 @@ XSI::CStatus RenderEngineLux::post_scene()
 void RenderEngineLux::render()
 {
 	log_message("call render type " + XSI::CString(render_type));
+	session_output_samples = 0.0f;
 	if (render_type == RenderType_Export)
 	{
 		export_scene(session, m_render_context, archive_folder, m_render_property.GetParameterValue("export_mode", eval_time), XSI::Application().GetActiveProject().GetActiveScene().GetName());
@@ -669,14 +671,17 @@ void RenderEngineLux::render()
 			const double total_samples = stats.Get("stats.renderengine.total.samplecount").Get<double>();
 			const float convergence = stats.Get("stats.renderengine.convergence").Get<unsigned int>();
 
-			const float samples_level = total_samples / buffer_size_double;
+			session_output_samples = total_samples / buffer_size_double;
 
-			read_visual_buffer(film, lux_visual_output_type, visual_buffer);
-			m_render_context.NewFragment(RenderTile(visual_buffer.corner_x, visual_buffer.corner_y, visual_buffer.width, visual_buffer.height, visual_buffer.pixels, false, 4));
+			if (render_type != RenderType_Rendermap)
+			{
+				read_visual_buffer(film, lux_visual_output_type, visual_buffer, true);  // execute ip, but with active non-optix denoising it spend many times
+				m_render_context.NewFragment(RenderTile(visual_buffer.corner_x, visual_buffer.corner_y, visual_buffer.width, visual_buffer.height, visual_buffer.pixels, false, 4));
+			}
 
 			if (halt_condition == 0)
 			{//by samples
-				m_render_context.ProgressUpdate("Rendering...", "Rendering...", int((samples_level * 100.0f / (float)halt_spp)));
+				m_render_context.ProgressUpdate("Rendering...", "Rendering...", int((session_output_samples * 100.0f / (float)halt_spp)));
 			}
 			else if (halt_condition == 1)
 			{//by time
@@ -692,8 +697,11 @@ void RenderEngineLux::render()
 		session->Stop();
 
 		//after render fill the buffer at last time
-		read_visual_buffer(film, lux_visual_output_type, visual_buffer);
-		m_render_context.NewFragment(RenderTile(visual_buffer.corner_x, visual_buffer.corner_y, visual_buffer.width, visual_buffer.height, visual_buffer.pixels, false, 4));
+		if (render_type != RenderType_Rendermap)
+		{
+			read_visual_buffer(film, lux_visual_output_type, visual_buffer, true);
+			m_render_context.NewFragment(RenderTile(visual_buffer.corner_x, visual_buffer.corner_y, visual_buffer.width, visual_buffer.height, visual_buffer.pixels, false, 4));
+		}
 
 		//after render is finish, copy all rendered pixels from film to output_pixels
 		//next in post_render (before post_render_engine) we save it into images
@@ -714,6 +722,7 @@ XSI::CStatus RenderEngineLux::post_render_engine()
 		else
 		{
 			log_message("Render time: " + XSI::CString(time) + " sec.");
+			log_message("Render samples: " + XSI::CString((int)session_output_samples));
 		}
 	}
 

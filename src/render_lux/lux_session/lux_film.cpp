@@ -32,6 +32,10 @@ luxcore::Film::FilmOutputType output_string_to_lux(const XSI::CString &name)
 	else if (name == "Luxcore Convergence") { return luxcore::Film::OUTPUT_CONVERGENCE; }
 	else if (name == "Luxcore Noise") { return luxcore::Film::OUTPUT_NOISE; }
 	else if (name == "Luxcore Material ID Color") { return luxcore::Film::OUTPUT_MATERIAL_ID_COLOR; }
+	else if (name == "Luxcore Caustic") { return luxcore::Film::OUTPUT_CAUSTIC; }
+	else if (name == "Luxcore Avg Shading Normal") { return luxcore::Film::OUTPUT_AVG_SHADING_NORMAL; }
+	else if (name == "Luxcore User Importance") { return luxcore::Film::OUTPUT_USER_IMPORTANCE; }
+	else if (name == "Luxcore Albedo") { return luxcore::Film::OUTPUT_ALBEDO; }
 	else { log_message("Unknown channel " + name + ", fallback to RGBA Image Pipline.", XSI::siWarningMsg); return luxcore::Film::OUTPUT_RGB_IMAGEPIPELINE; }
 }
 
@@ -98,13 +102,13 @@ std::string output_type_to_string(luxcore::Film::FilmOutputType type)
 	else { return "RGB_IMAGEPIPELINE"; }
 }
 
-void get_film_pixels(luxcore::Film& film, luxcore::Film::FilmOutputType output_type, std::vector<float> &film_pixels)
+void get_film_pixels(luxcore::Film& film, luxcore::Film::FilmOutputType output_type, std::vector<float> &film_pixels, const bool execute_ip)
 {
 	if (is_lux_output_ldr(output_type))
 	{
 		//for these outputs get unsigned int values
 		std::vector<unsigned int> int_film_pixels(film.GetOutputSize(output_type));
-		film.GetOutput<unsigned int>(output_type, int_film_pixels.data(), 0, true);
+		film.GetOutput<unsigned int>(output_type, int_film_pixels.data(), 0, execute_ip);
 		//copy values to float
 		for (size_t i = 0; i < int_film_pixels.size(); i++)
 		{
@@ -113,7 +117,7 @@ void get_film_pixels(luxcore::Film& film, luxcore::Film::FilmOutputType output_t
 	}
 	else
 	{
-		film.GetOutput<float>(output_type, film_pixels.data(), 0, true);
+		film.GetOutput<float>(output_type, film_pixels.data(), 0, execute_ip);
 	}
 }
 
@@ -150,7 +154,7 @@ void copy_pixels(std::vector<float> &src, std::vector<float>& src_alpha, std::ve
 	}
 }
 
-void read_visual_buffer(luxcore::Film &film, luxcore::Film::FilmOutputType visual_type, RenderVisualBuffer& buffer)
+void read_visual_buffer(luxcore::Film &film, luxcore::Film::FilmOutputType visual_type, RenderVisualBuffer& buffer, const bool execute_ip)
 {
 	unsigned int width = film.GetWidth();
 	unsigned int height = film.GetHeight();
@@ -166,8 +170,8 @@ void read_visual_buffer(luxcore::Film &film, luxcore::Film::FilmOutputType visua
 	//UV has 2 channels
 	//all other outputs has 1 or 3 channels
 	//alpha output is always has 1 channel
-	get_film_pixels(film, visual_type, film_pixels);
-	film.GetOutput<float>(luxcore::Film::OUTPUT_ALPHA, alpha_pixels.data(), 0, true);
+	get_film_pixels(film, visual_type, film_pixels, execute_ip);
+	film.GetOutput<float>(luxcore::Film::OUTPUT_ALPHA, alpha_pixels.data(), 0, execute_ip);
 	//next we should copy pixels for selected rectangle
 	copy_pixels(film_pixels, alpha_pixels, buffer.pixels, 0,
 		buffer.full_width, buffer.full_height, film_channels_count, 
@@ -180,6 +184,7 @@ void read_visual_buffer(luxcore::Film &film, luxcore::Film::FilmOutputType visua
 	alpha_pixels.shrink_to_fit();
 }
 
+//this method called once only at the end of the render session
 void copy_film_to_output_pixels(luxcore::Film& film, std::vector<float> &output_pixels, const XSI::CStringArray &output_channels)
 {
 	unsigned int width = film.GetWidth();
@@ -195,7 +200,7 @@ void copy_film_to_output_pixels(luxcore::Film& film, std::vector<float> &output_
 		//most outputs is float, but some of them are unsigned int
 		luxcore::Film::FilmOutputType lux_output_type = output_string_prime_to_lux(output_channels[i]);
 		std::vector<float> film_pixels(film.GetOutputSize(lux_output_type));
-		get_film_pixels(film, lux_output_type, film_pixels);
+		get_film_pixels(film, lux_output_type, film_pixels, true);
 		unsigned int film_channels_count = film_pixels.size() / pixels_count;
 		copy_pixels(film_pixels, alpha_pixels, output_pixels, i * pixels_count * 4,
 			width, height, film_channels_count,

@@ -48,7 +48,7 @@ luxcore::RenderSession* sync_render_config(luxcore::Scene* scene, const RenderTy
 	const int image_x_start, const int image_x_end, const int image_y_start, const int image_y_end,
 	const int image_width, const int image_height);
 
-void read_visual_buffer(luxcore::Film &film, luxcore::Film::FilmOutputType visual_type, RenderVisualBuffer &buffer);
+void read_visual_buffer(luxcore::Film &film, luxcore::Film::FilmOutputType visual_type, RenderVisualBuffer &buffer, const bool execute_ip);
 void copy_film_to_output_pixels(luxcore::Film& film, std::vector<float>& output_pixels, const XSI::CStringArray& output_channels);
 
 void export_scene(luxcore::RenderSession* session, XSI::RendererContext& render_context, const XSI::CString& archive_folder, const int export_mode, const XSI::CString& scene_name);

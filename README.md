@@ -12,7 +12,7 @@ It's possible to build the addon from sources. You need some praparations.
 
 3. Unzip archves to the repository folder. ```luxcore.lib``` (and ```include``` folder) should have the path ```\Addons\SoftLux\Application\Plugins\dst\luxcorerender\luxcore.lib```. ```luxcore.dll``` (and other files from the same directory) should have the path ```\Addons\SoftLux\Application\Plugins\bin\nt-x86-64\luxcore.dll```
 
-After that simply run VisualStudio solution ```\Addons\SoftLux\Application\Plugins\src\SoftLuxPlugin.sln```. All should works. The addon requires VisualStudio 2019. 
+After that simply run VisualStudio solution ```\Addons\SoftLux\Application\Plugins\src\SoftLuxPlugin.sln```. All should works. Compiled addon ```SoftLux.dll``` should be placed to the directory, which contains ```luxcore.dll```. For compile the addon requires Visual Studio 2019. 
 
 # Features
 
@@ -51,6 +51,8 @@ Current version of the Luxcore render, used by addon, is 2.6 (released at decemb
 * ```OpenColorIO``` tonemapper
 
 * Blender procedure textures
+
+* Densitygrid texture for volume objects. Now there is very restricted support of the OpenVDB, and there are no ways to render custom volumes (obtained from ICE, for example)
 
 * Caching features of the Luxcore
 
@@ -98,4 +100,4 @@ One of the principle of the addon is use native Softimage functionality as mush 
 
 * ICE attributes, but there is possibility to save these attributes into vertex color and then use colors in shaders
 
-* Built-in ```Image``` texture node used only for the first uv of the object. Also only texture repeat parameters are supported
+* Built-in ```Image``` texture node can be used only for the first uv of the object. Also only texture repeat parameters are supported

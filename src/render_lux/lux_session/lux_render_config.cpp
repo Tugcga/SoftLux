@@ -43,12 +43,15 @@ bool is_lux_output_hdr(luxcore::Film::FilmOutputType output_type)
 		output_type == luxcore::Film::FilmOutputType::OUTPUT_CAUSTIC;
 }
 
-luxcore::RenderSession* sync_render_config(luxcore::Scene* scene, const RenderType render_type, const XSI::Property& render_property, const XSI::CTime& eval_time,
+luxcore::RenderSession* sync_render_config(luxcore::Scene* scene, 
+	std::set<luxcore::Film::FilmOutputType> &channels_set,
+	const RenderType render_type, const XSI::Property& render_property, const XSI::CTime& eval_time,
 	luxcore::Film::FilmOutputType lux_visual_output_type, const XSI::CStringArray& output_channels, const XSI::CStringArray &output_paths, const XSI::CString &archive_folder, const XSI::CString &scene_name,
 	const int image_x_start, const int image_x_end, const int image_y_start, const int image_y_end,
 	const int image_width, const int image_height,
 	const int bake_uv_index, const std::vector<std::string>& bake_object_names, const bool is_skip, const int bake_mode)
 {
+	channels_set.clear();
 	XSI::CParameterRefArray render_params = render_property.GetParameters();
 	luxrays::Properties render_props;
 	//render settings
@@ -346,28 +349,61 @@ luxcore::RenderSession* sync_render_config(luxcore::Scene* scene, const RenderTy
 	}
 	else
 	{
+		//render pass or region render
 		//set the visual output
 		std::string visual_output_name = output_type_to_string(lux_visual_output_type);
-		render_props.Set(luxrays::Property("film.outputs.0.type")(visual_output_name));
-		render_props.Set(luxrays::Property("film.outputs.0.filename")(visual_output_name + (is_lux_output_ldr(lux_visual_output_type) ? ".png" : ".exr")));
+		if (lux_visual_output_type == luxcore::Film::FilmOutputType::OUTPUT_CAUSTIC && engine != 1)
+		{
+			log_message("Caustic channel can be rendered only by BIDIR CPU engine.", XSI::siWarningMsg);
+
+			render_props.Set(luxrays::Property("film.outputs.0.type")("RGB_IMAGEPIPELINE"));
+			render_props.Set(luxrays::Property("film.outputs.0.filename")("RGB_IMAGEPIPELINE.exr"));
+		}
+		else
+		{
+			render_props.Set(luxrays::Property("film.outputs.0.type")(visual_output_name));
+			render_props.Set(luxrays::Property("film.outputs.0.filename")(visual_output_name + (is_lux_output_ldr(lux_visual_output_type) ? ".png" : ".exr")));
+			
+			channel_index++;
+			channels_set.insert(lux_visual_output_type);
+		}
 		render_props.Set(luxrays::Property("film.outputs.1.type")("ALPHA"));
 		render_props.Set(luxrays::Property("film.outputs.1.filename")("ALPHA.exr"));
 
-		channel_index = 2;
-		std::set<luxcore::Film::FilmOutputType> channels_set;
-		channels_set.insert(lux_visual_output_type);
 		channels_set.insert(luxcore::Film::OUTPUT_ALPHA);
+		channel_index++;
 
 		//also we should set output channels
 		for (ULONG i = 0; i < output_channels.GetCount(); i++)
 		{
 			luxcore::Film::FilmOutputType output_type = output_string_prime_to_lux(output_channels[i]);
+			if (output_type == luxcore::Film::FilmOutputType::OUTPUT_CAUSTIC && engine != 1)
+			{//caustics can be rendered only with bidir engine
+				log_message("Caustic channel can be rendered only by BIDIR CPU engine. Skip the output.", XSI::siWarningMsg);
+				continue;
+			}
 			if (!channels_set.contains(output_type))
 			{
 				std::string channel_index_str = std::to_string(channel_index);
 				std::string channel_output_name = output_type_to_string(output_type);
 				render_props.Set(luxrays::Property("film.outputs." + channel_index_str + ".type")(channel_output_name));
-				render_props.Set(luxrays::Property("film.outputs." + channel_index_str + ".filename")(channel_output_name + (is_lux_output_ldr(output_type) ? ".png" : ".exr")));
+				XSI::CString ext = get_file_extension(output_paths[i]);
+				XSI::CString output_path = output_paths[i];
+				if (is_lux_output_ldr(output_type) && !is_extension_ldr(ext))
+				{//output must be ldr, but extension is not
+					log_message("Output channel " + output_channels[i] + " must be LDR, but output file is HDR. Change output extension to *.png", XSI::siWarningMsg);
+
+					ULONG p = output_path.ReverseFindString(".");
+					output_path = output_path.GetSubString(0, p) + ".png";
+				}
+				if (is_lux_output_hdr(output_type) && !is_extension_hdr(ext))
+				{//output must be hdr, but extension is not
+					log_message("Output channel " + output_channels[i] + " must be HDR, but output file is LDR. Change output extension to *.exr", XSI::siWarningMsg);
+
+					ULONG p = output_path.ReverseFindString(".");
+					output_path = output_path.GetSubString(0, p) + ".exr";
+				}
+				render_props.Set(luxrays::Property("film.outputs." + channel_index_str + ".filename")(output_path.GetAsciiString()));
 				channels_set.insert(output_type);
 				if (output_type == luxcore::Film::OUTPUT_IRRADIANCE)
 				{
@@ -419,6 +455,15 @@ luxcore::RenderSession* sync_render_config(luxcore::Scene* scene, const RenderTy
 	}
 		
 	luxcore::RenderConfig* render_config = luxcore::RenderConfig::Create(render_props, scene);
+
+	if (engine == 2 && !render_config->HasCachedKernels())
+	{
+		//the kernel for OCL should be compiled and cached
+		luxrays::Properties config_props_copy = luxrays::Properties(render_props);
+		config_props_copy.Set(luxrays::Property("kernelcachefill.renderengine.types")("PATHOCL"));
+		luxcore::KernelCacheFill(config_props_copy);
+	}
+
 	luxcore::RenderSession *session = luxcore::RenderSession::Create(render_config);
 	return session;
 }

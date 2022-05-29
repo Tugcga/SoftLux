@@ -185,7 +185,7 @@ void read_visual_buffer(luxcore::Film &film, luxcore::Film::FilmOutputType visua
 }
 
 //this method called once only at the end of the render session
-void copy_film_to_output_pixels(luxcore::Film& film, std::vector<float> &output_pixels, const XSI::CStringArray &output_channels)
+void copy_film_to_output_pixels(luxcore::Film& film, std::vector<float> &output_pixels, const XSI::CStringArray &output_channels, const std::set<luxcore::Film::FilmOutputType> &session_channels_set)
 {
 	unsigned int width = film.GetWidth();
 	unsigned int height = film.GetHeight();
@@ -199,15 +199,18 @@ void copy_film_to_output_pixels(luxcore::Film& film, std::vector<float> &output_
 		//initial buffer can contains less pixels (4(RGBA), 3, 2 (UV) or 1)
 		//most outputs is float, but some of them are unsigned int
 		luxcore::Film::FilmOutputType lux_output_type = output_string_prime_to_lux(output_channels[i]);
-		std::vector<float> film_pixels(film.GetOutputSize(lux_output_type));
-		get_film_pixels(film, lux_output_type, film_pixels, true);
-		unsigned int film_channels_count = film_pixels.size() / pixels_count;
-		copy_pixels(film_pixels, alpha_pixels, output_pixels, i * pixels_count * 4,
-			width, height, film_channels_count,
-			width, height, 0, 0);
+		if (session_channels_set.contains(lux_output_type))
+		{
+			std::vector<float> film_pixels(film.GetOutputSize(lux_output_type));
+			get_film_pixels(film, lux_output_type, film_pixels, true);
+			unsigned int film_channels_count = film_pixels.size() / pixels_count;
+			copy_pixels(film_pixels, alpha_pixels, output_pixels, i * pixels_count * 4,
+				width, height, film_channels_count,
+				width, height, 0, 0);
 
-		film_pixels.clear();
-		film_pixels.shrink_to_fit();
+			film_pixels.clear();
+			film_pixels.shrink_to_fit();
+		}
 	}
 
 	alpha_pixels.clear();

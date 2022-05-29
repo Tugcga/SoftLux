@@ -22,6 +22,8 @@ bool sync_pointcloud_strands(luxcore::Scene* scene,
 	XSI::ICEAttribute sp_attr = xsi_geometry.GetICEAttributeFromName("StrandPosition");
 	XSI::ICEAttribute size_attr = xsi_geometry.GetICEAttributeFromName("Size");
 	XSI::ICEAttribute color_attr = xsi_geometry.GetICEAttributeFromName("Color");
+	XSI::ICEAttribute ss_attr = xsi_geometry.GetICEAttributeFromName("StrandSize");
+	bool is_strand_size = ss_attr.IsDefined();
 
 	//fill the data
 	XSI::CICEAttributeDataArrayVector3f pp_data;
@@ -29,6 +31,11 @@ bool sync_pointcloud_strands(luxcore::Scene* scene,
 
 	XSI::CICEAttributeDataArray2DVector3f sp_data;
 	sp_attr.GetDataArray2D(sp_data);
+
+	XSI::CICEAttributeDataArray2DFloat ss_data;
+	ss_attr.GetDataArray2D(ss_data);
+	XSI::CICEAttributeDataArrayFloat one_strand_size_data;
+	ss_data.GetSubArray(0, one_strand_size_data);
 
 	XSI::CICEAttributeDataArrayFloat size_data;
 	size_attr.GetDataArray(size_data);
@@ -41,6 +48,8 @@ bool sync_pointcloud_strands(luxcore::Scene* scene,
 
 	ULONG curves_count = pp_data.GetCount();
 	ULONG strand_length = one_strand_data.GetCount();
+
+	is_strand_size = is_strand_size && (strand_length == one_strand_size_data.GetCount());
 
 	//create Luxcore strands object
 	luxrays::cyHairFile strands;
@@ -84,6 +93,10 @@ bool sync_pointcloud_strands(luxcore::Scene* scene,
 		thickness_index++;
 
 		sp_data.GetSubArray(curve_index, one_strand_data);
+		if (is_strand_size)
+		{
+			ss_data.GetSubArray(curve_index, one_strand_size_data);
+		}
 		for (ULONG k_index = 0; k_index < one_strand_data.GetCount(); k_index++)
 		{
 			XSI::MATH::CVector3f middle_point = one_strand_data[k_index];
@@ -97,8 +110,15 @@ bool sync_pointcloud_strands(luxcore::Scene* scene,
 			colors[point_index] = point_color.GetB();
 			point_index++;
 
-			//use the same value for the whole strand
-			thickness[thickness_index] = size_data[curve_index];
+			if (is_strand_size)
+			{
+				thickness[thickness_index] = one_strand_size_data[k_index];
+			}
+			else
+			{
+				//use the same value for the whole strand
+				thickness[thickness_index] = size_data[curve_index];
+			}
 			thickness_index++;
 		}
 	}

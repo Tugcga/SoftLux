@@ -86,6 +86,12 @@ bool sync_hair(luxcore::Scene* scene,
 
 	//Set hair data
 	num_keys = 0;
+
+	ULONG global_pos_k = 0;
+	ULONG global_radius_k = 0;
+	ULONG strand_index = 0;
+	ULONG global_uv_index = 0;
+	ULONG global_color_index = 0;
 	while (rha.Next())
 	{
 		XSI::CLongArray vertices_count_array;  // size of each hair strand
@@ -104,17 +110,21 @@ bool sync_hair(luxcore::Scene* scene,
 			ULONG n_count = vertices_count_array[i];  // get the number of points in the selected strand
 			for (ULONG j = 0; j < n_count; j++)
 			{
-				points[pos_k] = position_values[pos_k];
-				points[pos_k + 1] = position_values[pos_k + 1];
-				points[pos_k + 2] = position_values[pos_k + 2];
+				points[global_pos_k] = position_values[pos_k];
+				points[global_pos_k + 1] = position_values[pos_k + 1];
+				points[global_pos_k + 2] = position_values[pos_k + 2];
 
-				thickness[radius_k] = radius_values[radius_k];
+				thickness[global_radius_k] = radius_values[radius_k];
 
 				pos_k = pos_k + 3;
 				radius_k = radius_k + 1;
+
+				global_pos_k = global_pos_k + 3;
+				global_radius_k = global_radius_k + 1;
 			}
 
-			segments[i] = n_count - 1;
+			segments[strand_index] = n_count - 1;
+			strand_index++;
 		}
 
 		//fill uv
@@ -132,9 +142,10 @@ bool sync_hair(luxcore::Scene* scene,
 				ULONG n_count = vertices_count_array[j];
 				for (ULONG k = 0; k < n_count; k++)
 				{
-					uvs[uv_index] = u;
-					uvs[uv_index + 1] = v;
+					uvs[global_uv_index] = u;
+					uvs[global_uv_index + 1] = v;
 					uv_index = uv_index + 2;
+					global_uv_index = global_uv_index + 2;
 				}
 			}
 		}
@@ -154,10 +165,11 @@ bool sync_hair(luxcore::Scene* scene,
 				ULONG n_count = vertices_count_array[j];
 				for (ULONG k = 0; k < n_count; k++)
 				{
-					colors[color_index] = r;
-					colors[color_index + 1] = g;
-					colors[color_index + 2] = b;
+					colors[global_color_index] = r;
+					colors[global_color_index + 1] = g;
+					colors[global_color_index + 2] = b;
 					color_index = color_index + 3;
+					global_color_index = global_color_index + 3;
 				}
 			}
 		}

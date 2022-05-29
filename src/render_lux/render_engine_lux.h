@@ -102,6 +102,7 @@ private:
 	//also we need the same map from object to the material name
 	//to define instance with the same material
 	std::unordered_map<std::string, std::string> object_name_to_material_name;
+	std::set<luxcore::Film::FilmOutputType> session_channels_set;
 
 	luxcore::Film::FilmOutputType lux_visual_output_type;
 	luxcore::Film::FilmOutputType last_lux_visual_output_type;

@@ -1197,7 +1197,8 @@ void set_material_value(luxcore::Scene *scene,
 	XSI::CParameterRefArray &parameters, 
 	std::unordered_map<ULONG, std::string>& exported_nodes_map,
 	const XSI::CTime &eval_time,
-	bool ignore_set_branch)
+	bool ignore_set_branch,
+	bool write_float_as_vector)
 {
 	XSI::Parameter xsi_param = parameters.GetItem(xsi_param_name);
 	XSI::Parameter xsi_finall_parameter = get_source_parameter(xsi_param);
@@ -1260,7 +1261,15 @@ void set_material_value(luxcore::Scene *scene,
 		//no connections, set numeric values
 		if (parameter_type == ShaderParameterType::ParameterType_Float)
 		{
-			material_props.Set(luxrays::Property(lux_param_name)((float)xsi_finall_parameter.GetValue(eval_time)));
+			float v = (float)xsi_finall_parameter.GetValue(eval_time);
+			if (write_float_as_vector)
+			{
+				material_props.Set(luxrays::Property(lux_param_name)(v, v, v));
+			}
+			else
+			{
+				material_props.Set(luxrays::Property(lux_param_name)(v));
+			}
 		}
 		else if (parameter_type == ShaderParameterType::ParameterType_Integer)
 		{
@@ -1288,7 +1297,7 @@ void set_material_value(luxcore::Scene *scene,
 		}
 		else if (parameter_type == ShaderParameterType::ParameterType_Color4)
 		{
-			//if 4-valued color has empty connections, then we should set null material for this conenction
+			//if 4-valued color has empty connections, then we should set null material for this connection
 			//because 4-valued color is material
 			//create implicit null material and connect it
 			if (!scene->IsMaterialDefined("implicit_null"))
@@ -1422,12 +1431,11 @@ std::string add_material(luxcore::Scene* scene, luxrays::Properties &material_pr
 			material_props.Set(luxrays::Property(prefix + ".type")("glossy2"));
 			bool is_anisotropic = get_bool_parameter_value(parameters, "is_anisotropic", eval_time);
 			bool multibounce = get_bool_parameter_value(parameters, "multibounce", eval_time);
+			bool use_ior = get_bool_parameter_value(parameters, "use_ior", eval_time);
 			material_props.Set(luxrays::Property(prefix + ".multibounce")(multibounce));
 			set_material_value(scene, material_props, "kd", prefix + ".kd", parameters, exported_nodes_map, eval_time);
-			set_material_value(scene, material_props, "ks", prefix + ".ks", parameters, exported_nodes_map, eval_time);
 			set_material_value(scene, material_props, "ka", prefix + ".ka", parameters, exported_nodes_map, eval_time);
 			set_material_value(scene, material_props, "d", prefix + ".d", parameters, exported_nodes_map, eval_time);
-			set_material_value(scene, material_props, "index", prefix + ".index", parameters, exported_nodes_map, eval_time);
 			set_material_value(scene, material_props, "uroughness", prefix + ".uroughness", parameters, exported_nodes_map, eval_time);
 			if (is_anisotropic)
 			{
@@ -1436,6 +1444,16 @@ std::string add_material(luxcore::Scene* scene, luxrays::Properties &material_pr
 			else
 			{
 				set_material_value(scene, material_props, "uroughness", prefix + ".vroughness", parameters, exported_nodes_map, eval_time);
+			}
+
+			if (use_ior)
+			{
+				material_props.Set(luxrays::Property(prefix + ".ks")(1.0f, 1.0f, 1.0f));
+				set_material_value(scene, material_props, "ior", prefix + ".index", parameters, exported_nodes_map, eval_time, false, true);
+			}
+			else
+			{
+				set_material_value(scene, material_props, "ks", prefix + ".ks", parameters, exported_nodes_map, eval_time);
 			}
 
 			setup_default = true;
@@ -1558,11 +1576,11 @@ std::string add_material(luxcore::Scene* scene, luxrays::Properties &material_pr
 			material_props.Set(luxrays::Property(prefix + ".type")("glossytranslucent"));
 			bool multibounce = get_bool_parameter_value(parameters, "multibounce", eval_time);
 			bool is_anisotropic = get_bool_parameter_value(parameters, "is_anisotropic", eval_time);
+			bool use_ior = get_bool_parameter_value(parameters, "use_ior", eval_time);
 			bool is_double = get_bool_parameter_value(parameters, "is_double", eval_time);
+			bool use_ior_bf = get_bool_parameter_value(parameters, "use_ior_bf", eval_time);
 			set_material_value(scene, material_props, "kd", prefix + ".kd", parameters, exported_nodes_map, eval_time);
 			set_material_value(scene, material_props, "kt", prefix + ".kt", parameters, exported_nodes_map, eval_time);
-			set_material_value(scene, material_props, "ks", prefix + ".ks", parameters, exported_nodes_map, eval_time);
-			set_material_value(scene, material_props, is_double ? "ks_bf" : "ks", prefix + ".ks_bf", parameters, exported_nodes_map, eval_time);
 			set_material_value(scene, material_props, "uroughness", prefix + ".uroughness", parameters, exported_nodes_map, eval_time);
 			set_material_value(scene, material_props, is_double ? "uroughness_bf" : "uroughness", prefix + ".uroughness_bf", parameters, exported_nodes_map, eval_time);
 			if (is_anisotropic)
@@ -1579,10 +1597,43 @@ std::string add_material(luxcore::Scene* scene, luxrays::Properties &material_pr
 			set_material_value(scene, material_props, is_double ? "ka_bf" : "ka", prefix + ".ka_bf", parameters, exported_nodes_map, eval_time);
 			set_material_value(scene, material_props, "d", prefix + ".d", parameters, exported_nodes_map, eval_time);
 			set_material_value(scene, material_props, is_double ? "d_bf" : "d", prefix + ".d_bf", parameters, exported_nodes_map, eval_time);
-			set_material_value(scene, material_props, "index", prefix + ".index", parameters, exported_nodes_map, eval_time);
-			set_material_value(scene, material_props, is_double ? "index_bf" : "index", prefix + ".index_bf", parameters, exported_nodes_map, eval_time);
 			material_props.Set(luxrays::Property(prefix + ".multibounce")(multibounce));
 			material_props.Set(luxrays::Property(prefix + ".multibounce_bf")(multibounce));
+
+			if (use_ior)
+			{
+				material_props.Set(luxrays::Property(prefix + ".ks")(1.0f, 1.0f, 1.0f));
+				set_material_value(scene, material_props, "ior", prefix + ".index", parameters, exported_nodes_map, eval_time, false, true);
+			}
+			else
+			{
+				set_material_value(scene, material_props, "ks", prefix + ".ks", parameters, exported_nodes_map, eval_time);
+			}
+
+			if (is_double)
+			{
+				if (use_ior_bf)
+				{
+					material_props.Set(luxrays::Property(prefix + ".ks_bf")(1.0f, 1.0f, 1.0f));
+					set_material_value(scene, material_props, "ior_bf", prefix + ".index_bf", parameters, exported_nodes_map, eval_time, false, true);
+				}
+				else
+				{
+					set_material_value(scene, material_props, "ks_bf", prefix + ".ks_bf", parameters, exported_nodes_map, eval_time);
+				}
+			}
+			else
+			{
+				if (use_ior)
+				{
+					material_props.Set(luxrays::Property(prefix + ".ks_bf")(1.0f, 1.0f, 1.0f));
+					set_material_value(scene, material_props, "ior", prefix + ".index_bf", parameters, exported_nodes_map, eval_time, false, true);
+				}
+				else
+				{
+					set_material_value(scene, material_props, "ks", prefix + ".ks_bf", parameters, exported_nodes_map, eval_time);
+				}
+			}
 
 			setup_default = true;
 		}
@@ -1591,8 +1642,8 @@ std::string add_material(luxcore::Scene* scene, luxrays::Properties &material_pr
 			material_props.Set(luxrays::Property(prefix + ".type")("glossycoating"));
 			bool multibounce = get_bool_parameter_value(parameters, "multibounce", eval_time);
 			bool is_anisotropic = get_bool_parameter_value(parameters, "is_anisotropic", eval_time);
+			bool use_ior = get_bool_parameter_value(parameters, "use_ior", eval_time);
 			set_material_value(scene, material_props, "base", prefix + ".base", parameters, exported_nodes_map, eval_time);
-			set_material_value(scene, material_props, "ks", prefix + ".ks", parameters, exported_nodes_map, eval_time);
 			set_material_value(scene, material_props, "ka", prefix + ".ka", parameters, exported_nodes_map, eval_time);
 			set_material_value(scene, material_props, "d", prefix + ".d", parameters, exported_nodes_map, eval_time);
 			set_material_value(scene, material_props, "uroughness", prefix + ".uroughness", parameters, exported_nodes_map, eval_time);
@@ -1604,8 +1655,17 @@ std::string add_material(luxcore::Scene* scene, luxrays::Properties &material_pr
 			{
 				set_material_value(scene, material_props, "uroughness", prefix + ".vroughness", parameters, exported_nodes_map, eval_time);
 			}
-			set_material_value(scene, material_props, "index", prefix + ".index", parameters, exported_nodes_map, eval_time);
 			material_props.Set(luxrays::Property(prefix + ".multibounce")(multibounce));
+
+			if (use_ior)
+			{
+				material_props.Set(luxrays::Property(prefix + ".ks")(1.0f, 1.0f, 1.0f));
+				set_material_value(scene, material_props, "ior", prefix + ".index", parameters, exported_nodes_map, eval_time, false, true);
+			}
+			else
+			{
+				set_material_value(scene, material_props, "ks", prefix + ".ks", parameters, exported_nodes_map, eval_time);
+			}
 
 			setup_default = true;
 		}
@@ -1917,7 +1977,13 @@ void sync_materials(luxcore::Scene *scene, const XSI::Scene &xsi_scene, std::set
 	}
 }
 
-std::string iterate_shape(luxcore::Scene* scene, std::string& input_shape_name, XSI::CParameterRefArray &parameters, std::unordered_map<ULONG, std::string>& exported_nodes_map, const bool ignore_subdivision, const XSI::CTime& eval_time)
+std::string iterate_shape(luxcore::Scene* scene,
+	std::string& input_shape_name,
+	XSI::CParameterRefArray &parameters,
+	std::unordered_map<ULONG, std::string>& exported_nodes_map, 
+	const bool ignore_subdivision, 
+	const bool ignore_vector_displacement,
+	const XSI::CTime& eval_time)
 {
 	//get shape input of the node
 	XSI::ShaderParameter shape_parameter(parameters.GetItem("in_shape"));
@@ -1927,7 +1993,7 @@ std::string iterate_shape(luxcore::Scene* scene, std::string& input_shape_name, 
 		XSI::Shader source_node = get_input_node(shape_parameter);
 		if (source_node.IsValid())
 		{
-			return add_shape(scene, input_shape_name, source_node, exported_nodes_map, ignore_subdivision, eval_time);
+			return add_shape(scene, input_shape_name, source_node, exported_nodes_map, ignore_subdivision, ignore_vector_displacement, eval_time);
 		}
 		else
 		{
@@ -1941,7 +2007,13 @@ std::string iterate_shape(luxcore::Scene* scene, std::string& input_shape_name, 
 	}
 }
 
-std::string add_shape(luxcore::Scene* scene, std::string& input_shape_name, XSI::Shader &node, std::unordered_map<ULONG, std::string>& exported_nodes_map, const bool ignore_subdivision, const XSI::CTime& eval_time)
+std::string add_shape(luxcore::Scene* scene,
+	std::string& input_shape_name,
+	XSI::Shader &node, 
+	std::unordered_map<ULONG, std::string>& exported_nodes_map, 
+	const bool ignore_subdivision, 
+	const bool ignore_vector_displacement, 
+	const XSI::CTime& eval_time)
 {
 	XSI::CString prog_id = node.GetProgID();
 	XSI::CParameterRefArray parameters = node.GetParameters();
@@ -1954,7 +2026,7 @@ std::string add_shape(luxcore::Scene* scene, std::string& input_shape_name, XSI:
 			return input_shape_name;
 		}
 
-		std::string subshape_name = iterate_shape(scene, input_shape_name, parameters, exported_nodes_map, ignore_subdivision, eval_time);
+		std::string subshape_name = iterate_shape(scene, input_shape_name, parameters, exported_nodes_map, ignore_subdivision, ignore_vector_displacement, eval_time);
 		std::string shape_name = subshape_name + "_subdivision";
 		std::string prefix = "scene.shapes." + shape_name;
 		shape_props.Set(luxrays::Property(prefix + ".type")("subdiv"));
@@ -1970,7 +2042,7 @@ std::string add_shape(luxcore::Scene* scene, std::string& input_shape_name, XSI:
 	}
 	else if (prog_id == "LUXShadersPlugin.ShapeHeightDisplacement.1.0")
 	{
-		std::string subshape_name = iterate_shape(scene, input_shape_name, parameters, exported_nodes_map, ignore_subdivision, eval_time);
+		std::string subshape_name = iterate_shape(scene, input_shape_name, parameters, exported_nodes_map, ignore_subdivision, ignore_vector_displacement, eval_time);
 		std::string shape_name = subshape_name + "_height_displacement";
 		std::string prefix = "scene.shapes." + shape_name;
 		shape_props.Set(luxrays::Property(prefix + ".type")("displacement"));
@@ -1990,7 +2062,13 @@ std::string add_shape(luxcore::Scene* scene, std::string& input_shape_name, XSI:
 	}
 	else if (prog_id == "LUXShadersPlugin.ShapeVectorDisplacement.1.0")
 	{
-		std::string subshape_name = iterate_shape(scene, input_shape_name, parameters, exported_nodes_map, ignore_subdivision, eval_time);
+		if (ignore_vector_displacement)
+		{
+			log_message("Vector displacement shape requires uv coordinates, but the mesh does not contains it. Skip vector displacement.", XSI::siWarningMsg);
+			return input_shape_name;
+		}
+
+		std::string subshape_name = iterate_shape(scene, input_shape_name, parameters, exported_nodes_map, ignore_subdivision, ignore_vector_displacement, eval_time);
 		std::string shape_name = subshape_name + "_vector_displacement";
 		std::string prefix = "scene.shapes." + shape_name;
 		shape_props.Set(luxrays::Property(prefix + ".type")("displacement"));
@@ -2021,7 +2099,7 @@ std::string add_shape(luxcore::Scene* scene, std::string& input_shape_name, XSI:
 	}
 	else if (prog_id == "LUXShadersPlugin.ShapeHarlequin.1.0")
 	{
-		std::string subshape_name = iterate_shape(scene, input_shape_name, parameters, exported_nodes_map, ignore_subdivision, eval_time);
+		std::string subshape_name = iterate_shape(scene, input_shape_name, parameters, exported_nodes_map, ignore_subdivision, ignore_vector_displacement, eval_time);
 		std::string shape_name = subshape_name + "_harlequin";
 		std::string prefix = "scene.shapes." + shape_name;
 		shape_props.Set(luxrays::Property(prefix + ".type")("harlequin"));
@@ -2032,7 +2110,7 @@ std::string add_shape(luxcore::Scene* scene, std::string& input_shape_name, XSI:
 	}
 	else if (prog_id == "LUXShadersPlugin.ShapeSimplify.1.0")
 	{
-		std::string subshape_name = iterate_shape(scene, input_shape_name, parameters, exported_nodes_map, ignore_subdivision, eval_time);
+		std::string subshape_name = iterate_shape(scene, input_shape_name, parameters, exported_nodes_map, ignore_subdivision, ignore_vector_displacement, eval_time);
 		std::string shape_name = subshape_name + "_simplify";
 		std::string prefix = "scene.shapes." + shape_name;
 		shape_props.Set(luxrays::Property(prefix + ".type")("simplify"));
@@ -2050,7 +2128,7 @@ std::string add_shape(luxcore::Scene* scene, std::string& input_shape_name, XSI:
 	}
 	else if (prog_id == "LUXShadersPlugin.ShapeEdgeDetectorAOV.1.0")
 	{
-		std::string subshape_name = iterate_shape(scene, input_shape_name, parameters, exported_nodes_map, ignore_subdivision, eval_time);
+		std::string subshape_name = iterate_shape(scene, input_shape_name, parameters, exported_nodes_map, ignore_subdivision, ignore_vector_displacement, eval_time);
 		std::string shape_name = subshape_name + "_edgedetector";
 		std::string prefix = "scene.shapes." + shape_name;
 		shape_props.Set(luxrays::Property(prefix + ".type")("edgedetectoraov"));
@@ -2061,7 +2139,7 @@ std::string add_shape(luxcore::Scene* scene, std::string& input_shape_name, XSI:
 	}
 	else if (prog_id == "LUXShadersPlugin.ShapeBevel.1.0")
 	{
-		std::string subshape_name = iterate_shape(scene, input_shape_name, parameters, exported_nodes_map, ignore_subdivision, eval_time);
+		std::string subshape_name = iterate_shape(scene, input_shape_name, parameters, exported_nodes_map, ignore_subdivision, ignore_vector_displacement, eval_time);
 		std::string shape_name = subshape_name + "_bevel";
 		std::string prefix = "scene.shapes." + shape_name;
 		shape_props.Set(luxrays::Property(prefix + ".type")("bevel"));
@@ -2139,7 +2217,7 @@ bool sync_exterior_volume(luxcore::Scene* scene, XSI::CParameterRefArray &all_pa
 	}
 }
 
-std::string sync_polymesh_shapes(luxcore::Scene* scene, std::string &input_shape_name, XSI::Material & xsi_material, const bool ignore_subdivision, const XSI::CTime &eval_time)
+std::string sync_polymesh_shapes(luxcore::Scene* scene, std::string &input_shape_name, XSI::Material & xsi_material, const bool ignore_subdivision, const bool ignore_vector_displacement, const XSI::CTime &eval_time)
 {
 	XSI::CRefArray first_level_shaders = xsi_material.GetShaders();
 	std::unordered_map<ULONG, std::string> exported_nodes_map;
@@ -2150,7 +2228,7 @@ std::string sync_polymesh_shapes(luxcore::Scene* scene, std::string &input_shape
 		//something connected to the port
 		//get this node
 		XSI::Shader shape_node = get_input_node(contour_ports[0]);
-		output_shape_name = add_shape(scene, input_shape_name, shape_node, exported_nodes_map, ignore_subdivision, eval_time);
+		output_shape_name = add_shape(scene, input_shape_name, shape_node, exported_nodes_map, ignore_subdivision, ignore_vector_displacement, eval_time);
 	}
 	
 	return output_shape_name;

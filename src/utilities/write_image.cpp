@@ -167,7 +167,7 @@ bool write_float(const XSI::CString &path, const XSI::CString &ext, const XSI::C
 				{
 					for (size_t c = 0; c < output_components; c++)
 					{
-						u_pixels[(y * width + x) * output_components + c] = static_cast<unsigned char>(int(pixels[(y * width + x) * components + c] * 255.99f));
+						u_pixels[(y * width + x) * output_components + c] = static_cast<unsigned char>(int(clamp_float(pixels[(y * width + x) * components + c], 0.0f, 1.0f) * 255.99f));
 					}
 				}
 			}

@@ -221,7 +221,7 @@ XSI::Parameter get_source_parameter(XSI::Parameter &parameter)
 			XSI::ShaderParameter source_param(source);
 			XSI::Shader source_node = source_param.GetParent();
 			XSI::CString source_prog_id = source_node.GetProgID();
-			if (source_prog_id == "XSIRTCOMPOUND")
+			if (source_prog_id.GetSubString(0, 13) == "XSIRTCOMPOUND")
 			{
 				//parameter connected to the compound port, try to find next connection
 				return get_source_parameter(source_param);

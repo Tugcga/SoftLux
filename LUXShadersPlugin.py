@@ -1758,7 +1758,7 @@ def LUXShadersPlugin_PassIntelOIDN_1_0_Define(in_ctxt):
     add_input_boolean(nonport_param_options(), params, True, "enable")
     add_input_string(nonport_param_options(), params, "RT", "filter_type")
     add_input_integer(nonport_param_options(), params, 6000, "oidnmemory", 512, 8192)
-    add_input_float(nonport_param_options(), params, 1.0, "sharpness", 0.0, 1.0)
+    add_input_float(nonport_param_options(), params, 0.1, "sharpness", 0.0, 1.0)
     
     # Output Parameter: out
     add_output_closure(shaderDef, "out")
@@ -2805,13 +2805,14 @@ def LUXShadersPlugin_ShaderGlossy_1_0_Define(in_ctxt):
     # parameters
     add_input_boolean(nonport_param_options(), params, False, "is_anisotropic")
     add_input_boolean(nonport_param_options(), params, False, "multibounce")
+    add_input_boolean(nonport_param_options(), params, False, "use_ior")
     add_input_color(standart_param_options(), params, [0.8, 0.8, 0.8], "kd")
     add_input_color(standart_param_options(), params, [0.1, 0.1, 0.1], "ks")
+    add_input_float(standart_param_options(), params, 1.5, "ior", 1.0, 2.0)
     add_input_float(standart_param_options(), params, 0.1, "uroughness", 0.0, 1.0)
     add_input_float(standart_param_options(), params, 0.1, "vroughness", 0.0, 1.0)
     add_input_color(standart_param_options(), params, [0.0, 0.0, 0.0], "ka")
     add_input_float(standart_param_options(), params, 0.0, "d", 0.0, 1.0)
-    add_input_color(standart_param_options(), params, [0.0, 0.0, 0.0], "index")
     # default parameters
     setup_defaul_material_parameters(params)
 
@@ -2823,21 +2824,21 @@ def LUXShadersPlugin_ShaderGlossy_1_0_Define(in_ctxt):
     ppg_layout.AddTab("Shader")
     ppg_layout.AddGroup("Parameters")
     ppg_layout.AddItem("multibounce", "Multibounce")
+    ppg_layout.AddItem("use_ior", "Use IOR")
     ppg_layout.AddItem("is_anisotropic", "Anisotropic Roughness")
     ppg_layout.AddItem("kd", "Diffuse Color")
     ppg_layout.AddItem("ks", "Specular Color")
+    ppg_layout.AddItem("ior", "IOR")
     ppg_layout.AddItem("ka", "Absorption Color")
     ppg_layout.AddItem("d", "Absorption Depth")
     ppg_layout.AddItem("uroughness", "U Roughness")
     ppg_layout.AddItem("vroughness", "V Roughness")
-    ppg_layout.AddItem("index", "Index")
     ppg_layout.EndGroup()
     setup_default_material_ppg(ppg_layout)
 
     ppg_layout.Language = "Python"
     ppg_layout.Logic = '''
-def OnInit():
-    prop = PPG.Inspected(0)
+def update_ui(prop):
     prop.Parameters("bump").ReadOnly = True
     prop.Parameters("emission").ReadOnly = True
     is_anisotropic = prop.Parameters("is_anisotropic").Value
@@ -2846,13 +2847,25 @@ def OnInit():
     else:
         prop.Parameters("vroughness").ReadOnly = True
 
+    use_ior = prop.Parameters("use_ior").Value
+    if use_ior:
+        prop.Parameters("ks").ReadOnly = True
+        prop.Parameters("ior").ReadOnly = False
+    else:
+        prop.Parameters("ks").ReadOnly = False
+        prop.Parameters("ior").ReadOnly = True
+
+def OnInit():
+    prop = PPG.Inspected(0)
+    update_ui(prop)
+
 def is_anisotropic_OnChanged():
     prop = PPG.Inspected(0)
-    is_anisotropic = prop.Parameters("is_anisotropic").Value
-    if is_anisotropic:
-        prop.Parameters("vroughness").ReadOnly = False
-    else:
-        prop.Parameters("vroughness").ReadOnly = True
+    update_ui(prop)
+
+def use_ior_OnChanged():
+    prop = PPG.Inspected(0)
+    update_ui(prop)
 '''
 
     # Renderer definition
@@ -3191,11 +3204,15 @@ def LUXShadersPlugin_ShaderGlossyTranslucent_1_0_Define(in_ctxt):
     # parameters
     add_input_boolean(nonport_param_options(), params, False, "multibounce")
     add_input_boolean(nonport_param_options(), params, False, "is_anisotropic")
+    add_input_boolean(nonport_param_options(), params, False, "use_ior")
     add_input_boolean(nonport_param_options(), params, False, "is_double")
+    add_input_boolean(nonport_param_options(), params, False, "use_ior_bf")
     add_input_color(standart_param_options(), params, [0.5, 0.5, 0.5], "kd")
     add_input_color(standart_param_options(), params, [0.5, 0.5, 0.5], "kt")
     add_input_color(standart_param_options(), params, [0.1, 0.1, 0.1], "ks")
+    add_input_float(standart_param_options(), params, 1.5, "ior", 1.0, 2.0)
     add_input_color(standart_param_options(), params, [0.1, 0.1, 0.1], "ks_bf")
+    add_input_float(standart_param_options(), params, 1.5, "ior_bf", 1.0, 2.0)
     add_input_color(standart_param_options(), params, [0.0, 0.0, 0.0], "ka")
     add_input_color(standart_param_options(), params, [0.0, 0.0, 0.0], "ka_bf")
     add_input_float(standart_param_options(), params, 0.0, "d", 0.0, 1.0)
@@ -3204,8 +3221,6 @@ def LUXShadersPlugin_ShaderGlossyTranslucent_1_0_Define(in_ctxt):
     add_input_float(standart_param_options(), params, 0.1, "vroughness", 0.0, 1.0)
     add_input_float(standart_param_options(), params, 0.1, "uroughness_bf", 0.0, 1.0)
     add_input_float(standart_param_options(), params, 0.1, "vroughness_bf", 0.0, 1.0)
-    add_input_color(standart_param_options(), params, [0.0, 0.0, 0.0], "index")
-    add_input_color(standart_param_options(), params, [0.0, 0.0, 0.0], "index_bf")
     # default parameters
     setup_defaul_material_parameters(params)
 
@@ -3218,32 +3233,35 @@ def LUXShadersPlugin_ShaderGlossyTranslucent_1_0_Define(in_ctxt):
     ppg_layout.AddGroup("Parameters")
     ppg_layout.AddItem("multibounce", "Multibounce")
     ppg_layout.AddItem("is_anisotropic", "Anisotropic Roughness")
+    ppg_layout.AddItem("use_ior", "Use IOR")
     ppg_layout.AddItem("is_double", "Double Sided")
+    ppg_layout.AddItem("use_ior_bf", "BF Use IOR")
     ppg_layout.AddItem("kd", "Diffuse Color")
     ppg_layout.AddItem("kt", "Transmission Color")
     ppg_layout.AddItem("ks", "Specular Color")
+    ppg_layout.AddItem("ior", "IOR")
     ppg_layout.AddItem("ka", "Absorption Color")
     ppg_layout.AddItem("d", "Absorption Depth")
     ppg_layout.AddItem("uroughness", "U Roughness")
     ppg_layout.AddItem("vroughness", "V Roughness")
-    ppg_layout.AddItem("index", "Index")
     ppg_layout.AddItem("ks_bf", "BF Specular Color")
+    ppg_layout.AddItem("ior_bf", "BF IOR")
     ppg_layout.AddItem("ka_bf", "BF Absorption Color")
     ppg_layout.AddItem("d_bf", "BF Absorption Depth")
     ppg_layout.AddItem("uroughness_bf", "BF U Roughness")
     ppg_layout.AddItem("vroughness_bf", "BF V Roughness")
-    ppg_layout.AddItem("index_bf", "BF Index")
     ppg_layout.EndGroup()
     setup_default_material_ppg(ppg_layout)
 
     ppg_layout.Language = "Python"
     ppg_layout.Logic = '''
-def OnInit():
-    prop = PPG.Inspected(0)
+def update_ui(prop):
     prop.Parameters("bump").ReadOnly = True
     prop.Parameters("emission").ReadOnly = True
     is_anisotropic = prop.Parameters("is_anisotropic").Value
     is_double = prop.Parameters("is_double").Value
+    use_ior = prop.Parameters("use_ior").Value
+    use_ior_bf = prop.Parameters("use_ior_bf").Value
     if is_anisotropic:
         prop.Parameters("vroughness").ReadOnly = False
         if is_double:
@@ -3258,46 +3276,50 @@ def OnInit():
         prop.Parameters("uroughness_bf").ReadOnly = False
         if is_anisotropic:
             prop.Parameters("vroughness_bf").ReadOnly = False
-        prop.Parameters("index_bf").ReadOnly = False
+        prop.Parameters("use_ior_bf").ReadOnly = False
+        prop.Parameters("ior_bf").ReadOnly = False
     else:
         prop.Parameters("ks_bf").ReadOnly = True
         prop.Parameters("ka_bf").ReadOnly = True
         prop.Parameters("d_bf").ReadOnly = True
         prop.Parameters("uroughness_bf").ReadOnly = True
         prop.Parameters("vroughness_bf").ReadOnly = True
-        prop.Parameters("index_bf").ReadOnly = True
+        prop.Parameters("use_ior_bf").ReadOnly = True
+        prop.Parameters("ior_bf").ReadOnly = True
+
+    if use_ior:
+        prop.Parameters("ks").ReadOnly = True
+        prop.Parameters("ior").ReadOnly = False
+    else:
+        prop.Parameters("ks").ReadOnly = False
+        prop.Parameters("ior").ReadOnly = True
+
+    if use_ior_bf:
+        prop.Parameters("ks_bf").ReadOnly = True
+        prop.Parameters("ior_bf").ReadOnly = False
+    else:
+        prop.Parameters("ks_bf").ReadOnly = False
+        prop.Parameters("ior_bf").ReadOnly = True
+
+def OnInit():
+    prop = PPG.Inspected(0)
+    update_ui(prop)
 
 def is_anisotropic_OnChanged():
     prop = PPG.Inspected(0)
-    is_anisotropic = prop.Parameters("is_anisotropic").Value
-    is_double = prop.Parameters("is_double").Value
-    if is_anisotropic:
-        prop.Parameters("vroughness").ReadOnly = False
-        if is_double:
-            prop.Parameters("vroughness_bf").ReadOnly = False
-    else:
-        prop.Parameters("vroughness").ReadOnly = True
-        prop.Parameters("vroughness_bf").ReadOnly = True
+    update_ui(prop)
 
 def is_double_OnChanged():
     prop = PPG.Inspected(0)
-    is_double = prop.Parameters("is_double").Value
-    is_anisotropic = prop.Parameters("is_anisotropic").Value
-    if is_double:
-        prop.Parameters("ks_bf").ReadOnly = False
-        prop.Parameters("ka_bf").ReadOnly = False
-        prop.Parameters("d_bf").ReadOnly = False
-        prop.Parameters("uroughness_bf").ReadOnly = False
-        if is_anisotropic:
-            prop.Parameters("vroughness_bf").ReadOnly = False
-        prop.Parameters("index_bf").ReadOnly = False
-    else:
-        prop.Parameters("ks_bf").ReadOnly = True
-        prop.Parameters("ka_bf").ReadOnly = True
-        prop.Parameters("d_bf").ReadOnly = True
-        prop.Parameters("uroughness_bf").ReadOnly = True
-        prop.Parameters("vroughness_bf").ReadOnly = True
-        prop.Parameters("index_bf").ReadOnly = True
+    update_ui(prop)
+
+def use_ior_OnChanged():
+    prop = PPG.Inspected(0)
+    update_ui(prop)
+
+def use_ior_bf_OnChanged():
+    prop = PPG.Inspected(0)
+    update_ui(prop)
 '''
 
     # Renderer definition
@@ -3322,14 +3344,15 @@ def LUXShadersPlugin_ShaderGlossyCoating_1_0_Define(in_ctxt):
 
     # parameters
     add_input_boolean(nonport_param_options(), params, False, "multibounce")
+    add_input_boolean(nonport_param_options(), params, False, "use_ior")
     add_input_boolean(nonport_param_options(), params, False, "is_anisotropic")
     add_input_material(standart_param_options(), params, [0.0, 0.0, 0.0], "base")
     add_input_color(standart_param_options(), params, [0.1, 0.1, 0.1], "ks")
+    add_input_float(standart_param_options(), params, 1.5, "ior", 1.0, 2.0)
     add_input_color(standart_param_options(), params, [0.0, 0.0, 0.0], "ka")
     add_input_float(standart_param_options(), params, 0.0, "d", 0.0, 1.0)
     add_input_float(standart_param_options(), params, 0.1, "uroughness", 0.0, 1.0)
     add_input_float(standart_param_options(), params, 0.1, "vroughness", 0.0, 1.0)
-    add_input_color(standart_param_options(), params, [0.0, 0.0, 0.0], "index")
     # default parameters
     setup_defaul_material_parameters(params)
 
@@ -3341,35 +3364,47 @@ def LUXShadersPlugin_ShaderGlossyCoating_1_0_Define(in_ctxt):
     ppg_layout.AddTab("Shader")
     ppg_layout.AddGroup("Parameters")
     ppg_layout.AddItem("multibounce", "Multibounce")
+    ppg_layout.AddItem("use_ior", "Use IOR")
     ppg_layout.AddItem("is_anisotropic", "Anisotropic Roughness")
     ppg_layout.AddItem("ks", "Specular Color")
+    ppg_layout.AddItem("ior", "IOR")
     ppg_layout.AddItem("ka", "Absorption Color")
     ppg_layout.AddItem("d", "Absorption Depth")
     ppg_layout.AddItem("uroughness", "U Roughness")
     ppg_layout.AddItem("vroughness", "V Roughness")
-    ppg_layout.AddItem("index", "Index")
     ppg_layout.EndGroup()
     setup_default_material_ppg(ppg_layout)
 
     ppg_layout.Language = "Python"
     ppg_layout.Logic = '''
-def OnInit():
-    prop = PPG.Inspected(0)
+def update_ui(prop):
     prop.Parameters("bump").ReadOnly = True
     prop.Parameters("emission").ReadOnly = True
     is_anisotropic = prop.Parameters("is_anisotropic").Value
+    use_ior = prop.Parameters("use_ior").Value
     if is_anisotropic:
         prop.Parameters("vroughness").ReadOnly = False
     else:
         prop.Parameters("vroughness").ReadOnly = True
 
+    if use_ior:
+        prop.Parameters("ks").ReadOnly = True
+        prop.Parameters("ior").ReadOnly = False
+    else:
+        prop.Parameters("ks").ReadOnly = False
+        prop.Parameters("ior").ReadOnly = True
+
+def OnInit():
+    prop = PPG.Inspected(0)
+    update_ui(prop)
+
 def is_anisotropic_OnChanged():
     prop = PPG.Inspected(0)
-    is_anisotropic = prop.Parameters("is_anisotropic").Value
-    if is_anisotropic:
-        prop.Parameters("vroughness").ReadOnly = False
-    else:
-        prop.Parameters("vroughness").ReadOnly = True
+    update_ui(prop)
+
+def use_ior_OnChanged():
+    prop = PPG.Inspected(0)
+    update_ui(prop)
 '''
 
     # Renderer definition

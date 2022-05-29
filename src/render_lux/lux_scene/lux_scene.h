@@ -140,7 +140,8 @@ void set_material_value(luxcore::Scene* scene,
 	XSI::CParameterRefArray& parameters, 
 	std::unordered_map<ULONG, std::string>& exported_nodes_map,
 	const XSI::CTime& eval_time,
-	bool ignore_set_branch = false);
+	bool ignore_set_branch = false,
+	bool write_float_as_vector = false);
 
 std::string add_material(luxcore::Scene* scene, 
 	luxrays::Properties &material_props,
@@ -154,12 +155,14 @@ std::string add_shape(luxcore::Scene* scene,
 	XSI::Shader& node, 
 	std::unordered_map<ULONG, std::string>& exported_nodes_map,
 	const bool ignore_subdivision,
+	const bool ignore_vector_displacement,
 	const XSI::CTime& eval_time);
 
 std::string sync_polymesh_shapes(luxcore::Scene* scene, 
 	std::string& input_shape_name, 
 	XSI::Material& xsi_material,
 	const bool ignore_subdivision,
+	const bool ignore_vector_displacement,
 	const XSI::CTime& eval_time);
 
 void sync_material(luxcore::Scene* scene, 

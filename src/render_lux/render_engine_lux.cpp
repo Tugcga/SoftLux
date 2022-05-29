@@ -42,6 +42,7 @@ RenderEngineLux::RenderEngineLux()
 	material_with_shape_to_polymesh_map.clear();
 	object_name_to_shape_name.clear();
 	object_name_to_material_name.clear();
+	session_channels_set.clear();
 
 	prev_motion = { false, 1.0f, 2 };
 	prev_service_aov = { false, false };
@@ -102,6 +103,7 @@ void RenderEngineLux::clear_session()
 		delete session;
 		session = NULL;
 		is_session = false;
+		session_channels_set.clear();
 	}
 }
 
@@ -671,8 +673,12 @@ XSI::CStatus RenderEngineLux::post_scene()
 				}
 			}
 		}
+
+		session_channels_set.clear();
 		bool is_skip = m_render_context.GetAttribute("SkipExistingFiles");
-		session = sync_render_config(scene, render_type, m_render_property, eval_time,
+		session = sync_render_config(scene, 
+			session_channels_set,
+			render_type, m_render_property, eval_time,
 			lux_visual_output_type, output_channels, output_paths, archive_folder, XSI::Application().GetActiveProject().GetActiveScene().GetName(),
 			image_corner_x, image_corner_x + image_size_width, image_corner_y, image_corner_y + image_size_height,
 			image_full_size_width, image_full_size_height,
@@ -723,7 +729,7 @@ void RenderEngineLux::render()
 
 			session_output_samples = total_samples / buffer_size_double;
 
-			if (render_type != RenderType_Rendermap)
+			if (render_type != RenderType_Rendermap && session_channels_set.contains(lux_visual_output_type))
 			{
 				read_visual_buffer(film, lux_visual_output_type, visual_buffer, true);  // execute ip, but with active non-optix denoising it spend many times
 				m_render_context.NewFragment(RenderTile(visual_buffer.corner_x, visual_buffer.corner_y, visual_buffer.width, visual_buffer.height, visual_buffer.pixels, false, 4));
@@ -747,7 +753,7 @@ void RenderEngineLux::render()
 		session->Stop();
 
 		//after render fill the buffer at last time
-		if (render_type != RenderType_Rendermap)
+		if (render_type != RenderType_Rendermap && session_channels_set.contains(lux_visual_output_type))
 		{
 			read_visual_buffer(film, lux_visual_output_type, visual_buffer, true);
 			m_render_context.NewFragment(RenderTile(visual_buffer.corner_x, visual_buffer.corner_y, visual_buffer.width, visual_buffer.height, visual_buffer.pixels, false, 4));
@@ -755,7 +761,7 @@ void RenderEngineLux::render()
 
 		//after render is finish, copy all rendered pixels from film to output_pixels
 		//next in post_render (before post_render_engine) we save it into images
-		copy_film_to_output_pixels(film, output_pixels, output_channels);
+		copy_film_to_output_pixels(film, output_pixels, output_channels, session_channels_set);
 	}
 }
 

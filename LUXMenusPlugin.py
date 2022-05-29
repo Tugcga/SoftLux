@@ -84,7 +84,7 @@ def apply_luxcore_material(selected_objects, full_name, inner_name, out_name, to
         i = 0
         while not flag:
             sel_object = sel[i]
-            if sel_object is not None and (sel_object.Type == "polySubComponent" or sel_object.Type == "polymsh"):
+            if sel_object is not None and (sel_object.Type == "polySubComponent" or sel_object.Type == "polymsh" or sel_object.Type == "pointcloud"):
                 flag = True
             else:
                 i = i + 1
@@ -107,8 +107,8 @@ def apply_luxcore_material(selected_objects, full_name, inner_name, out_name, to
                     obj = app.CreateCluster(o)[0]
                 else:
                     obj = o
-                if obj.Type == "poly" or obj.Type == "polymsh":
-                    app.AssignMaterial(str(new_mat.FullName) + "," + str(obj.Name), "siLetLocalMaterialsOverlap")
+                if obj.Type == "poly" or obj.Type == "polymsh" or obj.Type == "pointcloud":
+                    app.AssignMaterial(str(new_material.FullName) + "," + str(obj.Name), "siLetLocalMaterialsOverlap")
             # may we need to add additional submaterials
             if inner_name == "luxMix":
                 mix_node_a = app.CreateShaderFromProgID("LUXShadersPlugin.ShaderMatte.1.0", mat_str, "luxMatteA")

@@ -165,8 +165,10 @@ inline bool is_file_exists(const std::string& name)
 XSI::CStatus RenderEngineBase::pre_render(XSI::RendererContext &render_context)
 {
 	//save render context
+	m_render_context.ResetObject();
 	m_render_context = render_context;
-	m_render_property = m_render_context.GetRendererProperty(eval_time);
+	m_render_property.ResetObject();
+	m_render_property = m_render_context.GetRendererProperty(render_context.GetTime());
 	m_render_parameters = m_render_property.GetParameters();
 	//current time
 	eval_time = render_context.GetTime();

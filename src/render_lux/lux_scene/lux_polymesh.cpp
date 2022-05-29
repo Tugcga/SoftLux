@@ -244,7 +244,7 @@ bool sync_polymesh(luxcore::Scene* scene,
 		
 	XSI::CLongArray polygon_material_indices;
 	xsi_acc.GetPolygonMaterialIndices(polygon_material_indices);
-	XSI::CRefArray xsi_materials = xsi_object.GetMaterials();
+	XSI::CRefArray xsi_materials = xsi_acc.GetMaterials();
 	std::vector<std::string> xsi_material_names;
 	std::vector<XSI::Material> xsi_material_materials;
 	std::map<ULONG, ULONG> material_index_to_submesh;  // key - index in the material list, value - index in names list (this list is shorter)
@@ -278,7 +278,7 @@ bool sync_polymesh(luxcore::Scene* scene,
 	//because in Luxcore each mesh can use only one material
 	//so, clusters with different materials are different objects
 	ULONG submeshes_count = xsi_material_names.size();
-	//for each submesh we should get the number of vertices (in fact nodes)  and triangles
+	//for each submesh we should get the number of vertices (in fact nodes) and triangles
 	std::vector<ULONG> submesh_vertices_count(submeshes_count, 0);
 	std::vector<ULONG> submesh_triangles_count(submeshes_count, 0);
 	//enumerate polygons
@@ -286,6 +286,7 @@ bool sync_polymesh(luxcore::Scene* scene,
 	{
 		//get polygon material index
 		LONG m_index = material_index_to_submesh[polygon_material_indices[i]];
+		
 		//add data to the corresponding submesh
 		submesh_vertices_count[m_index] += polygon_sizes[i];
 		submesh_triangles_count[m_index] += polygon_sizes[i] - 2;
@@ -413,7 +414,7 @@ bool sync_polymesh(luxcore::Scene* scene,
 			//in this case say exporter to ignore subdivision
 			//but if the mesh contains harequin shape, then it generate color to the 0-th index correctly
 			//so, the problem with user-defined colors
-			shape_name = sync_polymesh_shapes(scene, submesh_name, xsi_material_materials[i], vertex_colors_array_count > 0, eval_time);
+			shape_name = sync_polymesh_shapes(scene, submesh_name, xsi_material_materials[i], vertex_colors_array_count > 0, uv_count == 0, eval_time);
 			if (submesh_name != shape_name)
 			{
 				//in this case we should remember, that after changing material we should also change the mesh

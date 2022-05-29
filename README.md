@@ -1,6 +1,12 @@
 # SoftLux addon for Softimage
 
-This addon is integrates [LuxCoreRender](https://luxcorerender.org/) into Softimage. The repository contains the source of the addon. The core of the integration is written on ```c++```, shader definitions and some utility commands are writen on ```Python```. Release page contains compiled and packed version of the addon.
+This addon is integrates [LuxCoreRender](https://luxcorerender.org/) into Softimage. The repository contains the source of the addon. The core of the integration is written on ```c++```, shader definitions and some utility commands are writen on ```Python```. 
+
+[Release page](https://github.com/Tugcga/SoftLux/releases) contains compiled and packed version of the addon.
+
+[Wiki page](https://github.com/Tugcga/SoftLux/wiki) contains small manual. It covers basic functionality of the addon. The wiki pages are open for editing. So, if anyone would like to fix errors or add some information - feel free to improve the documentation of the addon.
+
+If you have some question or find a bug - use [Issues page](https://github.com/Tugcga/SoftLux/issues).
 
 # How to build
 
@@ -101,3 +107,8 @@ One of the principle of the addon is use native Softimage functionality as mush 
 * ICE attributes, but there is possibility to save these attributes into vertex color and then use colors in shaders
 
 * Built-in ```Image``` texture node can be used only for the first uv of the object. Also only texture repeat parameters are supported
+
+
+# Known issues
+
+* When render on GPU, by using ```PATH OCL``` render engine, the system recompile the kernels after each Softimage restart. It takes a lot of time. 

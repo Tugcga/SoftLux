@@ -414,6 +414,7 @@ bool sync_xsi_light(luxcore::Scene* scene,
 					//next setup color and intencity
 					float gain_exposure = gain * powf(2, exposure);
 					float point_size = get_float_parameter_value(all_params, "point_size", eval_time);
+					bool is_sharp_distance = point_size < 0.1f;
 					if (light_type != "distant")
 					{
 						//for all lights except distante set color amd intensity
@@ -422,7 +423,7 @@ bool sync_xsi_light(luxcore::Scene* scene,
 					else
 					{
 						//for distant light we should set only the color
-						if (point_size > 0.1f)
+						if (!is_sharp_distance)
 						{
 							gain_exposure *= get_distant_light_normalization_factor(point_size);
 						}
@@ -493,7 +494,7 @@ bool sync_xsi_light(luxcore::Scene* scene,
 					}
 					else if (light_type == "distant")
 					{
-						if (point_size < 0.1f)
+						if (is_sharp_distance)
 						{
 							light_props.Set(luxrays::Property("scene.lights." + light_name + ".type")("sharpdistant"));
 						}

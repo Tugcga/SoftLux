@@ -108,7 +108,3 @@ One of the principle of the addon is use native Softimage functionality as mush 
 
 * Built-in ```Image``` texture node can be used only for the first uv of the object. Also only texture repeat parameters are supported
 
-
-# Known issues
-
-* When render on GPU, by using ```PATH OCL``` render engine, the system recompile the kernels after each Softimage restart. It takes a lot of time. 

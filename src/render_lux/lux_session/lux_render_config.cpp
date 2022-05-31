@@ -456,13 +456,7 @@ luxcore::RenderSession* sync_render_config(luxcore::Scene* scene,
 		
 	luxcore::RenderConfig* render_config = luxcore::RenderConfig::Create(render_props, scene);
 
-	if (engine == 2 && !render_config->HasCachedKernels())
-	{
-		//the kernel for OCL should be compiled and cached
-		luxrays::Properties config_props_copy = luxrays::Properties(render_props);
-		config_props_copy.Set(luxrays::Property("kernelcachefill.renderengine.types")("PATHOCL"));
-		luxcore::KernelCacheFill(config_props_copy);
-	}
+	update_gpu_kernels(render_config, engine);
 
 	luxcore::RenderSession *session = luxcore::RenderSession::Create(render_config);
 	return session;

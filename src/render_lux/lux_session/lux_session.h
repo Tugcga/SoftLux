@@ -58,7 +58,21 @@ luxcore::RenderSession* sync_render_config(luxcore::Scene* scene,
 	const int image_width, const int image_height,
 	const int bake_uv_index, const std::vector<std::string> &bake_object_names, const bool is_skip = false, const int bake_mode = 0);
 
-void read_visual_buffer(luxcore::Film &film, luxcore::Film::FilmOutputType visual_type, RenderVisualBuffer &buffer, const bool execute_ip);
-void copy_film_to_output_pixels(luxcore::Film& film, std::vector<float>& output_pixels, const XSI::CStringArray& output_channels, const std::set<luxcore::Film::FilmOutputType>& session_channels_set);
+void read_visual_buffer(luxcore::Film &film, 
+	luxcore::Film::FilmOutputType visual_type,
+	RenderVisualBuffer &buffer, 
+	const bool execute_ip);
 
-void export_scene(luxcore::RenderSession* session, XSI::RendererContext& render_context, const XSI::CString& archive_folder, const int export_mode, const XSI::CString& scene_name);
+void copy_film_to_output_pixels(luxcore::Film& film, 
+	std::vector<float>& output_pixels, 
+	const XSI::CStringArray& output_channels,
+	const std::set<luxcore::Film::FilmOutputType>& session_channels_set);
+
+void export_scene(luxcore::RenderSession* session, 
+	XSI::RendererContext& render_context, 
+	const XSI::CString& archive_folder, 
+	const int export_mode, 
+	const XSI::CString& scene_name);
+
+void update_gpu_kernels(luxcore::RenderConfig* render_config,
+	const int engine);
